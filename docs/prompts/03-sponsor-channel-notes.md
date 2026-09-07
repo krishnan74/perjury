@@ -2,8 +2,9 @@
 
 **Date:** 2026-09-07
 **Source:** ENS and Chainlink channels, ETHOnline 2026 Discord (pasted by the human).
-**Why committed:** these are the facts that changed the build; the raw transcripts are in
-`discord-ens-chat.md` and `discord-chainlink-chat.md` at repo root.
+**Why committed:** these are the facts that changed the build, distilled from the sponsor channels.
+The raw transcripts are kept locally and not committed — they contain other participants' handles,
+project details, and support identifiers that aren't ours to republish.
 
 ---
 
