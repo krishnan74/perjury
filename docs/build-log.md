@@ -36,6 +36,11 @@ attribution pass (see [ai-usage.md](ai-usage.md) §0.7).
   a global-constraints block, `TX_HASHES.md` as a running evidence ledger, and `FEEDBACK.md` for
   sponsor developer notes. Added a prior-art chapter.
 
+- Repo initialized. Split the docs into six commits rather than one — the rules warn that large
+  single commits or missing histories risk disqualification, so the history starts as it should
+  continue. Decided against `Co-Authored-By` trailers: AI involvement is documented in `ai-usage.md`,
+  which is where a reviewer can actually read it, rather than as a bot contributor.
+
 **Status:** no code yet, by choice. T0 (repo init + dependency smoke tests) is next, starting with the
 CRE beta access request.
 

@@ -69,9 +69,10 @@ the task.
 - Env (`.env.local`): `SEPOLIA_RPC_URL`, `DEPLOYER_PK`, `CLAIMANT_PK`, `WITNESS_A_PK`, `WITNESS_B_PK`,
   `GRAPH_STUDIO_KEY`, `VRF_SUBSCRIPTION_ID`, `ANTHROPIC_API_KEY`.
 
-**Open — decide before T3:** whether to keep `Co-Authored-By` trailers on commits. Keeping them is
-consistent with our attribution regime and the policy's transparency requirement; some teams strip
-them. Pick one and be consistent — mixed history looks worse than either choice.
+**Decided (Sep 7):** commits carry **no `Co-Authored-By` trailers** — every commit is authored by the
+team account. AI involvement is documented where it's actually legible to a reviewer
+([docs/ai-usage.md](docs/ai-usage.md)) rather than as a bot contributor on the repo. Keep this
+consistent; a mixed history looks worse than either choice.
 
 ---
 
@@ -274,7 +275,6 @@ Decided ones move to [`docs/decisions/`](docs/decisions.md).
    One mismatch flips an agent ineligible — which is what makes scene 2 legible in 40 seconds.
    Confirm the aggression is intended.
 5. **Roster size.** Recommend 5.
-6. **`Co-Authored-By` trailers** — keep or strip (see Global constraints).
 
 ---
 
