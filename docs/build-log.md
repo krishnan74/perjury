@@ -22,5 +22,9 @@ as a pure function so it's testable without an enclave (14 tests) — including 
 evidence, methodology, or disputed value appears in the serialized report. CRE wrapper written but
 **not run**; SDK registration API unconfirmed until access lands.
 
-Blocked on credentials: T1 run (CRE access), T4 (ENSv2), T5 live Graph + agents, T6 (dashboard).
+**Sep 7 — CRE gate removed.** Access is an official Google Form, not a Discord thread, and the docs
+confirm the local simulator runs confidential workflows *without* approval. T1 was never actually
+blocked; the risk ranking overstated it. Downgraded from highest risk to medium.
+
+Blocked on credentials: T4 (ENSv2), T5 live Graph + agents, T6 (dashboard).
 Outstanding: `WitnessRoster` still needs the human review reserved in [ai-usage.md](ai-usage.md) §0.6.

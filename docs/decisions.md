@@ -85,9 +85,25 @@ control.
 | **Assume no access; design around the TEE** | No external dependency. | Abandons the Chainlink track and, more importantly, abandons the confidentiality property that makes the mechanism work at all. Not a real option. |
 | **Request access now, build simulate-first with a scripted swap** | De-risked either way. `cre workflow simulate --broadcast` executes the real workflow binary and broadcasts real Sepolia transactions, so the demo is honest with or without the enclave. | Two deployment paths to keep working. Requires the swap point to be genuinely one line, not a refactor. |
 
-### Decision
+### Update — Sep 7, after checking the docs
 
-**Request beta access on day zero, then build simulate-first with a clean swap to live deployment.**
+The access path is an **official Google Form**, not a Discord conversation:
+<https://docs.google.com/forms/d/e/1FAIpQLSdk8mxDZAXpEX1PHgjzCoBeKxSoQysoO9sxOb-gpBrDrjOhtA/viewform>
+
+More importantly, Chainlink's docs state plainly: *"After submitting your request, you don't need to
+wait for early access. Your CRE organization can run Confidential Workflows using the local
+simulator."*
+
+**This removes the external gate from the critical path.** T1 is no longer blocked on anyone's
+response — it needs the CRE CLI and an org, both self-serve. The decision below stands unchanged;
+what changes is that the fallback was never really a fallback, and the risk ranking overstated this
+item. Submit the form anyway (live deployment is still nicer for the video), but do not sequence
+around waiting for it.
+
+## Decision
+
+**Submit the access form on day zero, then build simulate-first with a clean swap to live
+deployment.**
 Chainlink's own track requirements accept "execution via simulation or live deployment with
 evidence," so the simulate path is not a degraded submission — it is a qualifying one.
 

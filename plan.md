@@ -23,7 +23,7 @@ credentials or a running service.
 | Task | State |
 |---|---|
 | T0 Unblock | ◐ repo + Foundry done · **CRE access request, provisioning, Next.js scaffold outstanding** |
-| T1 CRE tribunal | ◐ logic done + tested offline · **wrapper unrun, gated on beta access** |
+| T1 CRE tribunal | ◐ logic done + tested offline · **wrapper unrun — unblocked, simulator needs no approval** |
 | T2 Contracts | ● done — 4 contracts, 28 tests, 1024 fuzz runs (CRE wiring pending T1) |
 | T3 Randomness | ◐ roster + fuzz done · **live VRF round and callback gas benchmark outstanding** |
 | T4 ENSv2 + EAC | ○ not started |
@@ -39,7 +39,7 @@ and the [cut order](#cut-order-if-behind) exists because something will slip.
 
 | Gate | By | Non-negotiable because |
 |---|---|---|
-| CRE beta access **requested** | Mon Sep 7, today | External gate, days of latency, blocks nothing else if done now |
+| CRE access form submitted | Mon Sep 7, today | 2 minutes; T1 does **not** wait on it (local simulator works without approval) |
 | Tribunal emits a real Sepolia tx | **Tue Sep 8, EOD** | If this fails, the whole architecture changes — must know early |
 | Bond escrow + settlement E2E | Wed Sep 9, EOD | |
 | VRF assignment + live ENS eligibility | Thu Sep 10, EOD | The two riskiest integrations, both need slack |
@@ -97,8 +97,10 @@ consistent; a mixed history looks worse than either choice.
 
 ### T0 — Unblock *(Mon Sep 7, ~1h — do the first line before anything else)*
 
-- [ ] **Post the CRE Confidential Workflows beta access request** in the ETHGlobal Discord Chainlink
-      channel. Days of latency; costs one message. [ADR 0002](docs/decisions.md)
+- [ ] **Submit the CRE Confidential Workflows access form** (2 min):
+      <https://docs.google.com/forms/d/e/1FAIpQLSdk8mxDZAXpEX1PHgjzCoBeKxSoQysoO9sxOb-gpBrDrjOhtA/viewform>
+      **Do not wait on it** — Chainlink's docs confirm the local simulator runs confidential
+      workflows without approval, so T1 is unblocked today. [ADR 0002](docs/decisions.md)
 - [x] `git init`, public GitHub repo, **first commit = the docs tree already written** (`README.md`,
       `plan.md`, `docs/`). Establishes commit history from day one.
 - [~] Foundry scaffold done (`foundry.toml`, `remappings.txt`, forge-std). **Bun workspaces + Next.js still to do.**
@@ -270,7 +272,7 @@ confidential handler (it is the project), or the limitations section (it is the 
 
 | # | Risk | Fallback | Decided by |
 |---|---|---|---|
-| 1 | CRE beta access doesn't land | `cre workflow simulate --broadcast` — real txs, qualifies | Already the primary path |
+| 1 | CRE SDK surface differs from the docs | Run the simulator early; the wrapper is thin and the logic is already tested separately | **T1, Tue** |
 | 2 | ENS read blows the VRF callback gas limit | Two-step assign: VRF stores seed, `finalizeAssignment()` walks eligibility | **T3, Thu** |
 | 3 | ENSv2 beta API differs from docs | Read deployed ABIs directly; budget the full Friday morning | T4 |
 | 4 | LLM nondeterminism ruins a take | Temp 0, pinned model, ≥5 rehearsals, known-good fallback take | T7 |
