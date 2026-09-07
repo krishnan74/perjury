@@ -8,6 +8,7 @@ import {Verdict, IClaimRegistry, IStandingWriter, IWitnessRoster, ITextResolver,
 /// @title PerjuryStandingWriter — the narrow ENS write adapter
 contract PerjuryStandingWriter is IStandingWriter {
     // Vendor-prefixed per ENS team guidance for app-specific records.
+    // Vendor-prefixed per ENS team guidance for app-specific records.
     string public constant STANDING_KEY = "com.perjury.agent-standing";
     int256 public constant MATCH_DELTA = 1;
     int256 public constant MISMATCH_DELTA = -3;
@@ -48,11 +49,14 @@ contract PerjuryStandingWriter is IStandingWriter {
 
         Claim memory c = registry.claimOf(claimId);
         bytes32 node = roster.nodeOf(c.claimant);
+        bytes memory dnsName = roster.dnsNameOf(c.claimant);
 
         int256 oldStanding = _parse(resolver.text(node, STANDING_KEY));
         int256 newStanding = verdict == Verdict.Match ? oldStanding + MATCH_DELTA : oldStanding + MISMATCH_DELTA;
 
-        resolver.setText(node, STANDING_KEY, _toString(newStanding));
+        // ENSv2 setText takes the DNS-encoded name; the EAC resource is derived
+        // from the text key alone, so this grant covers this key and nothing else.
+        resolver.setText(dnsName, STANDING_KEY, _toString(newStanding));
         if (verdict == Verdict.Mismatch) roster.onMismatch(c.claimant);
 
         emit StandingUpdated(node, oldStanding, newStanding);

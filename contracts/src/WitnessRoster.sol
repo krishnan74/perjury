@@ -21,7 +21,8 @@ contract WitnessRoster is IWitnessRoster {
     uint256 public constant MAX_WALK = 32;
 
     struct Agent {
-        bytes32 ensNode;
+        bytes32 ensNode; // namehash, used for reads
+        bytes dnsName; // DNS wire format, required by ENSv2 setText
         bool active;
         uint64 registeredAt;
     }
@@ -87,10 +88,11 @@ contract WitnessRoster is IWitnessRoster {
     }
 
     /// @notice Self-registration. One address, one ENS node.
-    function registerAgent(bytes32 ensNode) external {
+    function registerAgent(bytes32 ensNode, bytes calldata dnsName) external {
         if (agents[msg.sender].active) revert AlreadyRegistered();
         if (nodeTaken[ensNode]) revert NodeTaken();
-        agents[msg.sender] = Agent({ensNode: ensNode, active: true, registeredAt: uint64(block.timestamp)});
+        agents[msg.sender] =
+            Agent({ensNode: ensNode, dnsName: dnsName, active: true, registeredAt: uint64(block.timestamp)});
         nodeTaken[ensNode] = true;
         agentList.push(msg.sender);
         emit AgentRegistered(msg.sender, ensNode);
@@ -104,6 +106,10 @@ contract WitnessRoster is IWitnessRoster {
         return agents[agent].ensNode;
     }
 
+    function dnsNameOf(address agent) external view returns (bytes memory) {
+        return agents[agent].dnsName;
+    }
+
     function agentCount() external view returns (uint256) {
         return agentList.length;
     }
@@ -111,7 +117,7 @@ contract WitnessRoster is IWitnessRoster {
     /// @notice Eligibility is derived live from the ENS standing record — there is
     ///         no maintained allowlist and no admin path to include or exclude.
     function isEligible(address candidate) public view returns (bool) {
-        Agent memory a = agents[candidate];
+        Agent storage a = agents[candidate];
         if (!a.active) return false;
         if (flaggedUntil[candidate] > block.timestamp) return false;
         try standingReader.standingOf(a.ensNode) returns (int256 standing) {

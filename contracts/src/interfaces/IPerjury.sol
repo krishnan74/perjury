@@ -43,6 +43,7 @@ interface IWitnessRoster {
     function isEligible(address candidate) external view returns (bool);
     function requestWitness(uint256 claimId, address claimant) external returns (uint256 requestId);
     function nodeOf(address agent) external view returns (bytes32);
+    function dnsNameOf(address agent) external view returns (bytes memory);
     function onMismatch(address claimant) external;
 }
 
@@ -56,9 +57,11 @@ interface IStandingWriter {
     function applyVerdict(uint256 claimId, Verdict verdict) external;
 }
 
-/// @notice Minimal ENS resolver surface Perjury touches. Deliberately tiny:
-///         the writer must not be able to reach setAddr, setOwner, or roles.
+/// @notice Minimal ENSv2 Permissioned Resolver surface Perjury touches.
+/// @dev Deliberately tiny: the writer must not be able to reach setAddr,
+///      setName, link, upgrade, or any role-granting function. Note setText
+///      takes a DNS-encoded name (ENSv2), while reads use a namehash node.
 interface ITextResolver {
     function text(bytes32 node, string calldata key) external view returns (string memory);
-    function setText(bytes32 node, string calldata key, string calldata value) external;
+    function setText(bytes calldata dnsName, string calldata key, string calldata value) external;
 }

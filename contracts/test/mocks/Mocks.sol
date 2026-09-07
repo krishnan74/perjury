@@ -50,9 +50,18 @@ contract MockResolver is ITextResolver {
         return _text[node][key];
     }
 
-    function setText(bytes32 node, string calldata key, string calldata value) external {
-        // Models ENSv2 Enhanced Access Control: only granted roles may write.
+    /// @dev ENSv2 takes a DNS-encoded name; we key storage by its hash so the
+    ///      mock can serve reads by namehash in tests.
+    function setText(bytes calldata dnsName, string calldata key, string calldata value) external {
+        // Models Enhanced Access Control: only granted roles may write this key.
         if (enforceAcl) require(canWrite[msg.sender], "EAC: unauthorized writer");
-        _text[node][key] = value;
+        _text[nodeFor[keccak256(dnsName)]][key] = value;
+    }
+
+    /// @dev Test helper: bind a DNS-encoded name to the namehash reads use.
+    mapping(bytes32 => bytes32) public nodeFor;
+
+    function bind(bytes calldata dnsName, bytes32 node) external {
+        nodeFor[keccak256(dnsName)] = node;
     }
 }

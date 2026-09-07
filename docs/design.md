@@ -439,24 +439,46 @@ Records per agent:
 
 #### 4.2 Enhanced Access Control configuration
 
-The critical setup, done once per agent subname at registration:
+*Revised Sep 7 against the ENSv2 Permissioned Resolver docs — the original text assumed node-scoped
+roles, which is not how resolver resources work.*
 
-1. Grant `PerjuryStandingWriter` (the [§2.4](#2-smart-contract-design) contract, which is itself only callable by `VerdictSink`,
-   which is itself only callable by the CRE address) a **record-scoped** role on the agent's
-   permissioned resolver covering **only** the `perjury.standing` and `perjury.flagged-until` text
-   records. ENSv2 supports resolver-, node-, and record-level scoping; we use **record level**, the
-   narrowest available.
-2. **Revoke** the agent owner's own write permission on those two records. An agent must not be able
-   to edit its own reputation — this is the single most important config line in the project.
-3. Grant **no** registry-level roles to the writer: it cannot reassign name ownership, cannot create
-   or burn subnames, cannot change the subregistry, cannot alter who is eligible to be a witness
-   (eligibility is derived, not stored, per [§2.2](#2-smart-contract-design)), and cannot touch identity records.
-4. Keep role admin on a deployer key that is *not* used by any agent or by the CRE workflow, and
-   demonstrate on camera that even that key cannot write `perjury.standing`.
+**How resolver scoping actually works.** Roles are a `uint256` bitmap (32 regular roles in bits
+0–127, their admin counterparts at `role << 128`). Crucially, **resolver resources derive from the
+setter argument alone — names play no part in resource computation.** For a text record the resource
+is `keccak256(bytes(key))`. Since ENSv2 gives every account its own Permissioned Resolver proxy, a
+grant is therefore scoped to *(this resolver, this text key)* — narrower than the node-level scoping
+originally assumed here.
+
+Constants and helpers live in `packages/ens/src/eac.ts`.
+
+The setup, done once per agent subname at registration:
+
+1. Grant `PerjuryStandingWriter` (the [§2.4](#2-smart-contract-design) contract, itself only callable
+   by `VerdictSink`, itself only callable by the CRE address) `ROLE_SET_TEXT` (`1 << 4`) on the
+   agent's Permissioned Resolver, for exactly two resources:
+   `keccak256("com.perjury.agent-standing")` and `keccak256("com.perjury.agent-flagged-until")`.
+2. **Revoke** the agent owner's own `ROLE_SET_TEXT` for those two resources. An agent must not be
+   able to edit its own reputation — the single most important config line in the project.
+3. Grant **nothing else**: no `ROLE_SET_ADDRESS`, `ROLE_SET_NAME`, `ROLE_LINK`, `ROLE_UPGRADE`,
+   `ROLE_CAN_NAME`, and **no admin role** (`role << 128`), so the writer cannot re-grant to anyone.
+   No registry-level roles at all: it cannot reassign ownership, create or burn subnames, change the
+   subregistry, or alter witness eligibility (which is derived, not stored — [§2.2](#2-smart-contract-design)).
+4. Keep role admin on a deployer key used by no agent and not by the CRE workflow, and show on camera
+   that even that key cannot write the standing record.
+
+`FORBIDDEN_TRIBUNAL_ROLES` in `packages/ens/src/eac.ts` lists what the tribunal must never hold, and
+`packages/ens/test/eac.test.ts` asserts the grant set never intersects it.
+
+**Record keys** are vendor-prefixed per ENS team guidance: app-specific records take a
+`com.example.agent-*` prefix, so Perjury writes `com.perjury.agent-standing` and
+`com.perjury.agent-flagged-until` (not the `perjury.standing` used in earlier drafts).
+
+**Note on `setText`:** ENSv2 takes a **DNS-encoded name** (`setText(bytes name, string key, string
+value)`), while reads use a namehash. `WitnessRoster` stores both per agent.
 
 **Prove it on camera, don't narrate it:** a `scripts/prove-eac.ts` that fires three transactions and
 shows two reverting — agent tries to write its own standing (revert), deployer/operator tries
-(revert), CRE writer path (succeeds). This one 20-second clip carries the ENS track.
+(revert), tribunal path (succeeds). This 20-second clip carries the ENS track.
 
 #### 4.3 Live reputation lookup at assignment time
 

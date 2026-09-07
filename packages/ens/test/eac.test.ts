@@ -1,0 +1,59 @@
+// EAC scoping. These tests assert the narrowness of the tribunal's grant —
+// what it may write, and everything it must never be able to touch.
+import { describe, expect, it } from "vitest";
+import {
+  ROLE, adminOf, textResource, dnsEncode,
+  TRIBUNAL_GRANTS, FORBIDDEN_TRIBUNAL_ROLES, RECORD_KEYS,
+} from "@perjury/ens";
+
+describe("EAC role math", () => {
+  it("matches the documented Permissioned Resolver constants", () => {
+    expect(ROLE.SET_TEXT).toBe(1n << 4n);
+    expect(ROLE.SET_ADDRESS).toBe(1n << 0n);
+    expect(ROLE.UPGRADE).toBe(1n << 124n);
+    expect(adminOf(ROLE.SET_TEXT)).toBe((1n << 4n) << 128n);
+  });
+
+  it("derives a text resource from the key alone", () => {
+    expect(textResource(RECORD_KEYS.standing)).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(textResource("a")).not.toBe(textResource("b"));
+    // Same key ⇒ same resource, regardless of which name it is written under.
+    expect(textResource(RECORD_KEYS.standing)).toBe(textResource(RECORD_KEYS.standing));
+  });
+
+  it("grants only SET_TEXT, and only for the two reputation keys", () => {
+    expect(TRIBUNAL_GRANTS).toHaveLength(2);
+    for (const g of TRIBUNAL_GRANTS) expect(g.role).toBe(ROLE.SET_TEXT);
+    expect(TRIBUNAL_GRANTS.map((g) => g.key).sort()).toEqual(
+      [RECORD_KEYS.standing, RECORD_KEYS.flaggedUntil].sort(),
+    );
+  });
+
+  // If this fails, the tribunal can do more than write a number.
+  it("never grants a role the tribunal must not hold", () => {
+    const granted = new Set<bigint>(TRIBUNAL_GRANTS.map((g) => g.role));
+    for (const f of FORBIDDEN_TRIBUNAL_ROLES) {
+      expect(granted.has(f.role)).toBe(false);
+    }
+  });
+
+  it("grants no admin role, so the tribunal cannot re-grant to anyone", () => {
+    for (const g of TRIBUNAL_GRANTS) expect(g.role < 1n << 128n).toBe(true);
+  });
+});
+
+describe("dnsEncode", () => {
+  it("length-prefixes each label and null-terminates", () => {
+    // 0x03 'e' 't' 'h' 0x00
+    expect(dnsEncode("eth")).toBe("0x0365746800");
+  });
+
+  it("encodes a multi-label name", () => {
+    // 0x05 'a''l''i''c''e' 0x07 'p''e''r''j''u''r''y' 0x03 'e''t''h' 0x00
+    expect(dnsEncode("alice.perjury.eth")).toBe("0x05616c696365077065726a7572790365746800");
+  });
+
+  it("rejects an over-long label", () => {
+    expect(() => dnsEncode(`${"x".repeat(64)}.eth`)).toThrow(/label too long/);
+  });
+});

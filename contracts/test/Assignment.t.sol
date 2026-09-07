@@ -108,6 +108,6 @@ contract AssignmentTest is Base {
         address sybil = makeAddr("sybil");
         vm.prank(sybil);
         vm.expectRevert();
-        roster.registerAgent(_node(alice));
+        roster.registerAgent(_node(alice), _dns(alice));
     }
 }

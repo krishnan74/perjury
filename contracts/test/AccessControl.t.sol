@@ -62,13 +62,13 @@ contract AccessControlTest is Base {
     function test_agent_cannotWriteOwnStanding() public {
         vm.prank(alice);
         vm.expectRevert("EAC: unauthorized writer");
-        resolver.setText(_node(alice), "com.perjury.agent-standing", "999");
+        resolver.setText(_dns(alice), "com.perjury.agent-standing", "999");
     }
 
     function test_operator_cannotWriteStanding() public {
         vm.prank(operator);
         vm.expectRevert("EAC: unauthorized writer");
-        resolver.setText(_node(alice), "com.perjury.agent-standing", "999");
+        resolver.setText(_dns(alice), "com.perjury.agent-standing", "999");
     }
 
     function test_wiring_isOneTimeOnly() public {

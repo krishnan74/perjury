@@ -67,9 +67,14 @@ contract Base is Test {
         return keccak256(abi.encodePacked("agent", a));
     }
 
+    function _dns(address a) internal pure returns (bytes memory) {
+        return abi.encodePacked("dns:", a);
+    }
+
     function _register(address a) internal {
         vm.prank(a);
-        roster.registerAgent(_node(a));
+        roster.registerAgent(_node(a), _dns(a));
+        resolver.bind(_dns(a), _node(a));
     }
 
     function _submit(address claimant) internal returns (uint256 claimId) {
