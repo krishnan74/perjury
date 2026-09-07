@@ -45,9 +45,13 @@ runs or differs on the live DON. Deploying against a run-specific forwarder recr
 the probe caught. **Open question with Chainlink.**
 
 ### Blocked on
-1. `ANTHROPIC_API_KEY` → the witness/claimant agents (last piece of T5)
-2. ENS answers (posted Sep 8) → EAC grants, subnames, `prove-eac.ts` shape
-3. Chainlink Forwarder stability → protocol deploy, then T3 live VRF
+1. `ANTHROPIC_API_KEY` → the witness/claimant agents (last piece of T5). **Only item you control.**
+2. ENS answers — questions posted Sep 8, awaiting reply → EAC grants, subnames, `prove-eac.ts` shape
+3. Chainlink Forwarder stability — asked in Discord → protocol deploy, then T3 live VRF
+
+**Sent Sep 8:** CRE access form submitted (simulation already works; the grant is only needed for
+live confidential-DON deployment and Vault DON secrets). ENS questions posted. Nothing else is
+waiting on us to ask.
 
 ### Resume here
 Next unblocked work is **T6 (dashboard)** — it needs no credentials and reads from chain + Graph.
@@ -122,7 +126,7 @@ consistent; a mixed history looks worse than either choice.
 
 ### T0 — Unblock *(Mon Sep 7, ~1h — do the first line before anything else)*
 
-- [ ] **Submit the CRE Confidential Workflows access form** (2 min):
+- [x] **Submit the CRE Confidential Workflows access form** — submitted Sep 8:
       <https://docs.google.com/forms/d/e/1FAIpQLSdk8mxDZAXpEX1PHgjzCoBeKxSoQysoO9sxOb-gpBrDrjOhtA/viewform>
       **Do not wait on it** — Chainlink's docs confirm the local simulator runs confidential
       workflows without approval, so T1 is unblocked today. [ADR 0002](docs/decisions.md)

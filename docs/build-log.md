@@ -55,5 +55,11 @@ the confidentiality claim in design §3.4 overstated what a TEE protects (the bi
 data is confidential); and ENSv2 `setText` takes a DNS-encoded name, not a namehash — which would
 have compiled fine and reverted on the first real write.
 
+**Sent Sep 8:** ENS questions posted in the Discord channel (self-write revocation, revert-vs-no-op,
+contract-held EAC roles, per-agent resolvers, cheap on-chain text reads). CRE Confidential Workflows
+access form submitted — the workflow already simulates, so the request is only to move to live
+deployment on the confidential DON plus Vault DON secrets. Neither blocks work that can proceed
+without them.
+
 **To resume:** `plan.md` → Status at a glance. Next unblocked task is the dashboard; everything else
 waits on `ANTHROPIC_API_KEY`, the ENS answers, or the Chainlink Forwarder question.
