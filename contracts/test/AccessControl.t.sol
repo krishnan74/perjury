@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Perjury — access control negatives.
-// Provenance: AI-ASSISTED. These are the tests that back the claims we make on
-// camera: no operator, no deployer, and no agent can influence a verdict, an
-// assignment, or a reputation record.
+// Access control negatives: no operator, deployer, or agent can influence a
+// verdict, an assignment, or a reputation record.
 pragma solidity 0.8.26;
 
 import {Base} from "./Base.t.sol";

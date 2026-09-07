@@ -1,15 +1,5 @@
 // SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — ClaimRegistry.sol
-// Provenance: AI-ASSISTED.
-//   Human-specified: bonds are real economic stake; no operator
-//     may influence a verdict; a claimant can never supply or
-//     influence its witness (note there is no witness parameter
-//     anywhere in this contract's external surface).
-//   AI-implemented: lifecycle state machine, pull-payment
-//     settlement, one-time wiring lock.
-// See docs/design.md §2 and docs/ai-usage.md §0.3.
-// ─────────────────────────────────────────────────────────────
+// Claim lifecycle and bond escrow. See docs/design.md §2.
 pragma solidity 0.8.26;
 
 import {Claim, Status, Verdict, IClaimRegistry, IWitnessRoster, IStandingWriter} from

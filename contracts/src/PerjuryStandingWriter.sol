@@ -1,16 +1,5 @@
 // SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — PerjuryStandingWriter.sol
-// Provenance: AI-ASSISTED.
-//   Human-specified: this contract holds the ENS Enhanced Access
-//     Control role, and must be incapable of anything except
-//     writing the two reputation records. It has no function that
-//     can setAddr, transfer a name, grant a role, or touch
-//     identity data — so even a full compromise of this contract
-//     is bounded to one text record per agent.
-//   AI-implemented: standing arithmetic, int↔string encoding.
-// See docs/design.md §2.4 and §4.2.
-// ─────────────────────────────────────────────────────────────
+// Narrow ENS write adapter for reputation records. See docs/design.md §2.4 and §4.2.
 pragma solidity 0.8.26;
 
 import {Verdict, IClaimRegistry, IStandingWriter, IWitnessRoster, ITextResolver, Claim} from

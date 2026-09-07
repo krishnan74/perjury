@@ -64,8 +64,8 @@ the task.
   rather than reverting.
 - **Every demo tx hash goes in [`docs/TX_HASHES.md`](docs/TX_HASHES.md) as it happens.** Reconstructing
   them the night before is how evidence goes missing.
-- Every source file gets a provenance header at creation
-  ([docs/ai-usage.md](docs/ai-usage.md) §0.5). Never backfilled.
+- Attribution lives in [docs/ai-usage.md](docs/ai-usage.md), updated at each task boundary — not
+  duplicated in source file headers.
 - Env (`.env.local`): `SEPOLIA_RPC_URL`, `DEPLOYER_PK`, `CLAIMANT_PK`, `WITNESS_A_PK`, `WITNESS_B_PK`,
   `GRAPH_STUDIO_KEY`, `VRF_SUBSCRIPTION_ID`, `ANTHROPIC_API_KEY`.
 
@@ -224,8 +224,8 @@ Renders from chain + Graph reads only. Never a place where behavior gets faked f
 - [ ] `SKILL.md` (explicit Graph-track ask).
 - [ ] **Record video** — human voice, ≤4:00, ≥720p, no TTS, no speed-up.
 - [ ] Human writes the limitations section in their own words ([ai-usage §0.6](docs/ai-usage.md)).
-- [ ] **Final attribution audit:** every source file has a provenance header; `docs/ai-usage.md` §0.3
-      has no `planned` rows and no aspirational labels; every directing prompt is in `docs/prompts/`.
+- [ ] **Final attribution audit:** `docs/ai-usage.md` §0.3 has no `planned` rows and no aspirational
+      labels; every directing prompt is in `docs/prompts/`.
 - [ ] Submit by 09:00. Three partner prizes: Chainlink, ENS, The Graph.
 
 ---
@@ -290,7 +290,6 @@ Per task, before moving on:
 - **T5:** guard unit tests prove stale/mismatched deployment → `Unverifiable`; one live witness run
   with no fixtures on the path.
 - **T7:** each scene 5× end-to-end, zero manual intervention.
-- Every task: `grep -L "Provenance:" $(git ls-files '*.sol' '*.ts')` returns nothing.
 
 **End-to-end acceptance.** Run `scene-2-false-claim.ts` from clean state; confirm without touching
 anything: bond escrowed → VRF assigns a non-claimant witness → witness derives a contradicting

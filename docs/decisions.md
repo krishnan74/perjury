@@ -224,8 +224,8 @@ Attribution reconstructed at the end of a build is guesswork, and reads like gue
 **Living attribution log, updated at every milestone exit.** Concretely:
 
 - [`../ai-usage.md`](ai-usage.md) holds the component attribution table and the decision log.
-- Every source file carries a provenance header naming **what the human specified** and **what AI
-  implemented**, separately. A header that says only "AI-assisted" doesn't meet our own convention.
+- Attribution is recorded in one authoritative table rather than duplicated into source headers,
+  which drift out of date the moment a file is edited.
 - Every prompt that materially directs committed work is committed verbatim to
   [`../prompts/`](prompts/), including prompts that led to approaches later abandoned.
 - Four components are reserved for direct human authorship, chosen because they're what a judge would

@@ -8,7 +8,7 @@
 
 | Policy clause | How this project satisfies it | Where |
 |---|---|---|
-| **Attribution** — document where and how AI tools were used, down to specific files/assets | Every source file carries a provenance header (§0.5). The component attribution table (§0.3) is the index. Provenance tags appear at the top of every spec chapter in [`docs/`](../README.md). | §0.3, §0.5, per-file headers |
+| **Attribution** — document where and how AI tools were used, down to specific files/assets | The component attribution table (§0.3) records provenance per file, and is the single authoritative record. Spec chapters in [`design.md`](design.md) carry their own human-specified vs. AI-proposed split. | §0.3 |
 | **Involvement** — AI assists, does not create the entire project; meaningful human contribution required | The protocol design, threat model, sponsor-integration strategy, and demo scenarios are human-authored (§0.4). Specific components are reserved for direct human authorship (§0.6). | §0.4, §0.6 |
 | **Spec-Driven Development** — all spec files, prompts, and planning artifacts must be in the repo | Every directing prompt is committed verbatim in `docs/prompts/`. This plan is committed at repo root and its revision history is preserved in git. | `docs/prompts/`, `plan.md` |
 
@@ -91,40 +91,14 @@ choice alone.
 
 *(Append D9+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
 
-### 0.5 Per-file attribution convention
+### 0.5 Where attribution lives
 
-Every source file carries a provenance header as its first comment block. No exceptions, added at
-file creation rather than backfilled.
+Attribution lives in this file, not scattered through the source. Source files carry a one-line
+purpose comment and a pointer to the relevant design section; they do not repeat provenance labels.
 
-```solidity
-// SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — WitnessRoster.sol
-// Provenance: HUMAN-LED. Assignment algorithm and eligibility
-//   semantics authored by the team; AI assisted with VRF
-//   consumer boilerplate and test scaffolding only.
-// Human-specified constraints: claimant can never supply or
-//   influence the witness; eligibility read live from ENS at
-//   assignment time; no admin path to override an assignment.
-// See plan.md §0.3 for the full attribution table.
-// ─────────────────────────────────────────────────────────────
-```
-
-```typescript
-/**
- * Perjury — graph-guard/index.ts
- * Provenance: AI-ASSISTED.
- * Human-specified: provenance/freshness failure must produce
- *   UNVERIFIABLE, never a silent pass. Rejection is a
- *   correctness requirement, not a nicety.
- * AI-implemented: deployment-ID pinning, block-delta math,
- *   attestation hashing.
- * See plan.md §0.3.
- */
-```
-
-The header records **what the human specified** and **what AI implemented** separately. A header that
-says only "AI-assisted" is not compliant with our own convention — it must say assisted *with what*.
+Rationale: duplicated headers drift out of date the moment a file is edited, and a reviewer checking
+"who wrote what" wants one authoritative table, not 30 comment blocks to cross-reference. The table
+in §0.3 is that table.
 
 ### 0.6 The Involvement requirement — an honest read
 
@@ -165,8 +139,7 @@ find out in about two questions.
 - Every milestone ([the build plan](../plan.md)) ends with an attribution pass: update §0.3 statuses, confirm or correct
   intended provenance labels, append any new decisions to §0.4.
 - Any prompt that materially directs committed work gets appended to `docs/prompts/` verbatim.
-- Before submission: verify every source file has a provenance header, that §0.3 has no `planned`
-  rows left, and that no row is labeled aspirationally.
+- Before submission: verify §0.3 has no `planned` rows left and no row is labeled aspirationally.
 
 ---
 

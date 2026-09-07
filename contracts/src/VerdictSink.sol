@@ -1,14 +1,5 @@
 // SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — VerdictSink.sol
-// Provenance: AI-ASSISTED.
-//   Human-specified: exactly one address may deliver a verdict,
-//     set at construction and never mutable. Changing the CRE
-//     writer is a redeploy, not a setter — "only the tribunal can
-//     write" has to survive a hostile read of this file.
-//   AI-implemented: report decoding and dispatch.
-// See docs/design.md §2.3.
-// ─────────────────────────────────────────────────────────────
+// The single entry point for tribunal verdicts. See docs/design.md §2.3.
 pragma solidity 0.8.26;
 
 import {Verdict, IClaimRegistry, IStandingWriter} from "./interfaces/IPerjury.sol";

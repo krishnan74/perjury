@@ -1,13 +1,5 @@
 // SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — IPerjury.sol (shared types & interfaces)
-// Provenance: AI-ASSISTED.
-//   Human-specified: the claim lifecycle and the three-valued
-//     verdict (Match / Mismatch / Unverifiable) — "unverifiable"
-//     exists so bad provenance can never become a silent pass.
-//   AI-implemented: Solidity type layout and interface surfaces.
-// See docs/ai-usage.md §0.3.
-// ─────────────────────────────────────────────────────────────
+// Shared types and interfaces for the Perjury protocol.
 pragma solidity 0.8.26;
 
 enum Status {

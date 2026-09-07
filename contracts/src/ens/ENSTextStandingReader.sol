@@ -1,15 +1,5 @@
 // SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — ENSTextStandingReader.sol
-// Provenance: AI-ASSISTED.
-//   Human-specified: eligibility must be a pure function of the
-//     ENS record at the instant of assignment — no cache, no cron,
-//     no admin. This is what makes exclusion a consequence of the
-//     record rather than of an operator transaction.
-//   AI-implemented: direct resolver text() read + int parsing,
-//     deliberately avoiding a universal-resolver CCIP-read hop to
-//     keep the VRF callback within its gas limit (docs §4.3).
-// ─────────────────────────────────────────────────────────────
+// Reads an agent's standing from its ENS text record. See docs/design.md §4.3.
 pragma solidity 0.8.26;
 
 import {IStandingReader, ITextResolver} from "../interfaces/IPerjury.sol";

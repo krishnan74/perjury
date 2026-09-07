@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Perjury — shared test fixture.
-// Provenance: AI-ASSISTED. Human specified the test matrix (docs/design.md §2.5),
-// including which negative cases must exist; AI implemented the harness.
+// Shared test fixture: deploys and wires the full protocol.
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";

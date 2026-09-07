@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Perjury — test mocks.
-// Provenance: AI-GENERATED (test scaffolding).
+// Test doubles for the VRF coordinator and an EAC-enforcing ENS resolver.
 pragma solidity 0.8.26;
 
 import {ITextResolver} from "../../src/interfaces/IPerjury.sol";

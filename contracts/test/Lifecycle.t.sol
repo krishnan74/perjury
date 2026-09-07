@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Perjury — claim lifecycle, bond settlement, and the reputation loop.
-// Provenance: AI-ASSISTED against the human-specified test matrix (docs/design.md §2.5).
+// Claim lifecycle, bond settlement, and the reputation loop.
 pragma solidity 0.8.26;
 
 import {Base} from "./Base.t.sol";

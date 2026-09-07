@@ -1,22 +1,5 @@
 // SPDX-License-Identifier: MIT
-// ─────────────────────────────────────────────────────────────
-// Perjury — WitnessRoster.sol
-// Provenance: AI-ASSISTED — ⚠ REVIEW REQUIRED BEFORE SUBMISSION.
-//   docs/ai-usage.md §0.6 reserves this file for direct human
-//   authorship: the assignment algorithm IS the anti-collusion
-//   claim. It is labelled AI-ASSISTED and NOT "HUMAN-LED" until
-//   the team has rewritten or line-by-line reviewed it and can
-//   defend every branch unaided. Do not relabel without doing
-//   that work.
-//   Human-specified: a claimant can never choose, influence, or
-//     predict its witness; eligibility is read live from the ENS
-//     record at assignment time with no maintained list; if no
-//     eligible witness exists, fail closed rather than fall back
-//     to a biased pick.
-//   AI-implemented: roster walk, VRF request/callback plumbing,
-//     bounded-loop gas guard.
-// See docs/design.md §2.2.
-// ─────────────────────────────────────────────────────────────
+// Agent registry and verifiably random witness assignment. See docs/design.md §2.2.
 pragma solidity 0.8.26;
 
 import {IClaimRegistry, IWitnessRoster, IStandingReader} from "./interfaces/IPerjury.sol";

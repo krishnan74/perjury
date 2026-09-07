@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Perjury — witness assignment properties.
-// Provenance: AI-ASSISTED. ⚠ WitnessRoster itself is reserved for human authorship
-// (docs/ai-usage.md §0.6); these tests state the properties the human must be able
-// to defend. Human-specified properties: a claimant is never its own witness;
-// assignment is uniform over the eligible set; a claimant cannot raise its odds
-// beyond 1/n per sybil; no eligible witness ⇒ fail closed, never a biased pick.
+// Witness assignment properties: claimant exclusion, uniformity, fail-closed,
+// and the residual 1/n collusion risk asserted as a fact.
 pragma solidity 0.8.26;
 
 import {Base} from "./Base.t.sol";
