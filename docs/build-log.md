@@ -49,6 +49,24 @@ live. See [`../plan.md`](../plan.md).
 
 ---
 
+## 2026-09-07 (later) — T2 + contract half of T3
+
+- Repo created and pushed: github.com/krishnan74/perjury
+- Foundry toolchain installed; four contracts written and compiling under 0.8.26.
+- 28 tests pass (1024 fuzz runs). The ones that matter are the negatives: a verdict
+  from an EOA or the deployer reverts, `rawFulfillRandomWords` from anyone but the
+  coordinator reverts, and an agent cannot write its own standing record.
+- Two test bugs of my own, both caught by the suite rather than by reading: an invalid
+  hex literal `0xCRE`, and an absolute-balance assertion that ignored payouts alice had
+  already earned as a witness. Contract logic was right in both cases.
+- `test_collusionIsThrottledNotEliminated` asserts BOTH directions on purpose — the
+  accomplice is drawn well under 2/3 of the time, and strictly more than zero. The
+  second assertion is the honest limitation encoded as a test rather than a caveat.
+- **Not done, needs live credentials:** CRE workflow (T1), real VRF wiring, ENSv2
+  registration and EAC grants (T4), Graph layer and agents (T5), dashboard (T6).
+- **Outstanding:** WitnessRoster is still labelled AI-ASSISTED. Per ai-usage §0.6 it
+  needs a line-by-line human pass before it can be called HUMAN-LED.
+
 <!-- Next entry template:
 
 ## YYYY-MM-DD — <milestone or topic>
