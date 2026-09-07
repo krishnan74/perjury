@@ -375,19 +375,37 @@ exact* blobs if a party chooses to reveal them, without the protocol ever publis
 
 #### 3.4 Why the confidentiality is load-bearing (Chainlink qualification)
 
-Judges will ask "could you have done this in a public contract?" The answer must be no, on the
-merits:
+*Revised Sep 7, after actually running the workflow. The earlier draft claimed the enclave protects
+the tribunal's methodology. That is false, and worth stating plainly.*
 
-- The claimant's evidence blob contains **its methodology** — which subgraphs it trusts, what
-  thresholds it applies, what private off-chain sources it consulted. Publishing that is publishing
-  the agent's edge, and worse, it lets future claimants **reverse-engineer what a witness will
-  check** and tailor claims to pass. Public adjudication destroys the mechanism it implements.
-- The witness's blob must stay private for the symmetric reason: a public witness methodology is a
-  public rubric to game.
-- Yet the *verdict* must be public and trusted. That is exactly the shape TEE adjudication exists
-  for: private inputs, public verifiable output.
-- It is core to functionality: **remove the enclave and the protocol has no adjudicator at all** —
-  there is no other component that decides match/mismatch. It is not a side feature.
+**What is and is not confidential.** The workflow binary — including the adjudication rule — is
+provided by the Workflow DON to the enclave, so **the rule is public**. What the enclave keeps
+confidential is the *data* the rule computes over: Vault DON secrets, the request and response
+payloads of HTTP calls made from inside the enclave, and intermediate values.
+
+That division is the right one for a tribunal, and stronger than what we originally claimed:
+
+- **The rule is auditable.** Anyone can read how a verdict is reached. A court whose procedure is
+  secret is not a court; the point was never to hide the comparison.
+- **The evidence is sealed.** Each agent's raw findings and methodology reach the enclave over
+  Confidential HTTP and never become visible to node operators, to the other party, or to the chain.
+- **The verdict is public.** `claimId`, verdict, confidence bucket, and a commitment — nothing else
+  crosses back via `usingTheDons()`.
+
+**Why a public contract cannot do this job.** The comparison needs both parties' evidence in one
+place. On-chain, that means publishing it — which destroys the mechanism twice over: it exposes each
+agent's methodology, and it hands future claimants a rubric describing exactly what a witness will
+check, so claims get tailored to pass. Sealed inputs with a public rule and a public verdict is the
+only shape that works.
+
+**It is core, not decorative.** Remove the enclave and the protocol has no adjudicator — there is no
+other component that decides match from mismatch. The confidential HTTP round-trip *is* the evidence
+channel, not a wrapper around one.
+
+**Demonstrated, not asserted.** `packages/tribunal/test/adjudicate.test.ts` includes leak tests that
+fail if evidence, methodology, query hashes, metric names, or the disputed values appear in the
+serialized report. And the simulator prints, on camera: *"During real execution, user logs for this
+trigger will not be visible, and will not leave the TEE."*
 
 #### 3.5 Access path (highest-risk item — start day 0)
 

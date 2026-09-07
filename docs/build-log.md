@@ -26,5 +26,18 @@ evidence, methodology, or disputed value appears in the serialized report. CRE w
 confirm the local simulator runs confidential workflows *without* approval. T1 was never actually
 blocked; the risk ranking overstated it. Downgraded from highest risk to medium.
 
+**Sep 7 — T1 RUNS.** CRE CLI v1.32.0 + Bun installed, logged in (org_QgykQWgrYIfOqRSQ, deploy access
+not enabled). Scaffolded the real `hello-confidential-workflows-ts` template, rewrote `cre/` to match
+it, and the Perjury tribunal now simulates end-to-end inside a TEE handler: `verdict=1 confidence=high`
+on two independently-derived values agreeing within tolerance. Confirms Darby's answer — no beta grant
+needed to simulate.
+
+Three of my guesses were wrong: the handler is `cre.handlerInTee(trigger, fn, [{tee:'nitro',
+regions:['us-west-2']}])` and synchronous, not async; `btoa` doesn't exist in the WASM runtime
+(`hexToBase64(toHex(...))`); and the confidentiality claim in design §3.4 was overstated — the
+workflow binary, including the adjudication rule, is revealed to the enclave. Only the *data* is
+confidential. Rewrote §3.4; the honest version is a stronger story (public rule, sealed evidence,
+public verdict).
+
 Blocked on credentials: T4 (ENSv2), T5 live Graph + agents, T6 (dashboard).
 Outstanding: `WitnessRoster` still needs the human review reserved in [ai-usage.md](ai-usage.md) §0.6.

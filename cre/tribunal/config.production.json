@@ -1,0 +1,8 @@
+{
+  "schedule": "0 */1 * * * *",
+  "evidenceGatewayUrl": "https://postman-echo.com/post",
+  "secretId": "COMMITMENT_SALT",
+  "toleranceBps": 50,
+  "verdictSinkAddress": "0x0000000000000000000000000000000000000000",
+  "chainName": "ethereum-testnet-sepolia"
+}

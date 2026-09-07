@@ -16,5 +16,8 @@
       "@perjury/graph-guard": ["packages/graph-guard/src/index.ts"]
     }
   },
-  "include": ["packages/**/*.ts", "agents/**/*.ts", "scripts/**/*.ts", "cre/**/*.ts"]
+  "include": ["packages/**/*.ts", "agents/**/*.ts", "scripts/**/*.ts"],
+  // cre/ compiles to a standalone WASM binary with its own dependency tree and
+  // tsconfig — typecheck it with `bun run typecheck --cwd cre/tribunal`.
+  "exclude": ["node_modules", "cre"]
 }
