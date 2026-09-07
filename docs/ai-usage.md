@@ -48,11 +48,13 @@ be confirmed or corrected when the file is actually written; an intended label i
 | `plan.md` | **AI-ASSISTED** | done | Milestone sequencing, risk ranking, verification criteria — AI-proposed against human constraints (tribunal-first ordering, nothing mocked). |
 | `README.md` | AI-ASSISTED | done | Human's framing and mechanism; AI drafted the prose. |
 | **Contracts** | | | |
-| `contracts/src/ClaimRegistry.sol` | AI-ASSISTED *(intended)* | planned | Human specifies: bond escrow semantics, no-admin-override constraint, immutable wiring. |
-| `contracts/src/WitnessRoster.sol` | **HUMAN-LED** *(intended)* | planned | The anti-collusion core. Assignment algorithm and eligibility semantics are the project's central claim — **human should author or line-by-line rewrite this**, see §0.6. |
-| `contracts/src/VerdictSink.sol` | AI-ASSISTED *(intended)* | planned | Small, single-purpose; human specifies the single-authorized-sender constraint. |
-| `contracts/src/PerjuryStandingWriter.sol` | AI-ASSISTED *(intended)* | planned | Human specifies the narrow-scope requirement (one function, one record). |
-| `contracts/test/**` | AI-ASSISTED *(intended)* | planned | Human specifies the test matrix ([§2.5](design.md)), including which negative cases must exist. |
+| `contracts/src/ClaimRegistry.sol` | AI-ASSISTED | done | Human specified bond escrow semantics, the no-admin-override constraint, and that no witness parameter may exist on its external surface. AI implemented the lifecycle machine and pull-payment settlement. **Human review outstanding.** |
+| `contracts/src/WitnessRoster.sol` | **AI-ASSISTED — ⚠ NOT YET HUMAN-LED** | done, **review required** | The anti-collusion core. Written by AI against human-specified properties. The file header and §0.6 both keep it labelled AI-ASSISTED until the team rewrites or line-by-line reviews it; `contracts/test/Assignment.t.sol` states the properties to defend. **Do not relabel without doing that work.** |
+| `contracts/src/VerdictSink.sol` | AI-ASSISTED | done | Human specified the single immutable authorized sender and that no setter may exist. |
+| `contracts/src/PerjuryStandingWriter.sol` | AI-ASSISTED | done | Human specified the narrow-scope requirement: one mutating function, one record, no reachable path to setAddr/setOwner/roles. |
+| `contracts/test/**` | AI-ASSISTED | done | Human specified the test matrix ([§2.5](design.md)) and which negative cases must exist. 28 tests, 1024 fuzz runs. |
+| `contracts/src/ens/ENSTextStandingReader.sol` | AI-ASSISTED | done | Human specified that eligibility be a pure function of the ENS record at assignment time — no cache, no cron, no admin. |
+| `contracts/test/mocks/Mocks.sol` | AI-GENERATED | done | Test scaffolding: VRF coordinator and an ENS resolver that models EAC enforcement. |
 | **CRE workflow** | | | |
 | `cre/tribunal/main.ts` | AI-ASSISTED *(intended)* | planned | Human specifies the enclave boundary ([§3.2](design.md)) — what enters, what may never leave. That boundary is a design decision, not an implementation detail. |
 | **Graph layer** | | | |
