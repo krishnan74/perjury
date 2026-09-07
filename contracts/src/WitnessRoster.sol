@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: MIT
+// ─────────────────────────────────────────────────────────────
+// Perjury — WitnessRoster.sol
+// Provenance: AI-ASSISTED — ⚠ REVIEW REQUIRED BEFORE SUBMISSION.
+//   docs/ai-usage.md §0.6 reserves this file for direct human
+//   authorship: the assignment algorithm IS the anti-collusion
+//   claim. It is labelled AI-ASSISTED and NOT "HUMAN-LED" until
+//   the team has rewritten or line-by-line reviewed it and can
+//   defend every branch unaided. Do not relabel without doing
+//   that work.
+//   Human-specified: a claimant can never choose, influence, or
+//     predict its witness; eligibility is read live from the ENS
+//     record at assignment time with no maintained list; if no
+//     eligible witness exists, fail closed rather than fall back
+//     to a biased pick.
+//   AI-implemented: roster walk, VRF request/callback plumbing,
+//     bounded-loop gas guard.
+// See docs/design.md §2.2.
+// ─────────────────────────────────────────────────────────────
+pragma solidity 0.8.26;
+
+import {IClaimRegistry, IWitnessRoster, IStandingReader} from "./interfaces/IPerjury.sol";
+
+interface IVRFCoordinator {
+    function requestRandomWords(bytes32 keyHash, uint64 subId, uint16 confirmations, uint32 gasLimit, uint32 numWords)
+        external
+        returns (uint256 requestId);
+}
+
+/// @title WitnessRoster — agent registry and verifiably random witness assignment
+/// @notice The anti-collusion core. `submitClaim` on ClaimRegistry has no witness
+///         parameter, and nothing here lets a caller name one: the only path to
+///         `_assign` is the VRF coordinator's callback.
+contract WitnessRoster is IWitnessRoster {
+    int256 public constant MIN_STANDING = 0;
+    uint64 public constant FLAG_COOLDOWN = 24 hours;
+    /// @dev Bounded so the VRF callback can never run out of gas walking a large roster.
+    uint256 public constant MAX_WALK = 32;
+
+    struct Agent {
+        bytes32 ensNode;
+        bool active;
+        uint64 registeredAt;
+    }
+
+    IVRFCoordinator public immutable coordinator;
+    IStandingReader public immutable standingReader;
+    bytes32 public immutable keyHash;
+    uint64 public immutable subId;
+    uint32 public immutable callbackGasLimit;
+
+    IClaimRegistry public registry;
+    bool public wired;
+    address private immutable _deployer;
+
+    address[] public agentList;
+    mapping(address => Agent) public agents;
+    mapping(bytes32 => bool) public nodeTaken;
+    mapping(address => uint64) public flaggedUntil;
+
+    struct Request {
+        uint256 claimId;
+        address claimant;
+        bool pending;
+    }
+
+    mapping(uint256 => Request) public requests;
+
+    event AgentRegistered(address indexed agent, bytes32 indexed ensNode);
+    event WitnessRequested(uint256 indexed claimId, uint256 indexed requestId);
+    event WitnessDrawn(uint256 indexed claimId, address indexed witness, uint256 seed);
+    event NoEligibleWitness(uint256 indexed claimId);
+    event AgentFlagged(address indexed agent, uint64 until);
+
+    error NotCoordinator();
+    error NotRegistry();
+    error NotDeployer();
+    error AlreadyWired();
+    error AlreadyRegistered();
+    error NodeTaken();
+    error UnknownRequest();
+    error NotStandingWriter();
+
+    constructor(
+        IVRFCoordinator coordinator_,
+        IStandingReader standingReader_,
+        bytes32 keyHash_,
+        uint64 subId_,
+        uint32 callbackGasLimit_
+    ) {
+        coordinator = coordinator_;
+        standingReader = standingReader_;
+        keyHash = keyHash_;
+        subId = subId_;
+        callbackGasLimit = callbackGasLimit_;
+        _deployer = msg.sender;
+    }
+
+    function wireRegistry(IClaimRegistry registry_) external {
+        if (msg.sender != _deployer) revert NotDeployer();
+        if (wired) revert AlreadyWired();
+        registry = registry_;
+        wired = true;
+    }
+
+    /// @notice Self-registration. One address, one ENS node.
+    function registerAgent(bytes32 ensNode) external {
+        if (agents[msg.sender].active) revert AlreadyRegistered();
+        if (nodeTaken[ensNode]) revert NodeTaken();
+        agents[msg.sender] = Agent({ensNode: ensNode, active: true, registeredAt: uint64(block.timestamp)});
+        nodeTaken[ensNode] = true;
+        agentList.push(msg.sender);
+        emit AgentRegistered(msg.sender, ensNode);
+    }
+
+    function isRegistered(address agent) public view returns (bool) {
+        return agents[agent].active;
+    }
+
+    function nodeOf(address agent) external view returns (bytes32) {
+        return agents[agent].ensNode;
+    }
+
+    function agentCount() external view returns (uint256) {
+        return agentList.length;
+    }
+
+    /// @notice Eligibility is derived live from the ENS standing record — there is
+    ///         no maintained allowlist and no admin path to include or exclude.
+    function isEligible(address candidate) public view returns (bool) {
+        Agent memory a = agents[candidate];
+        if (!a.active) return false;
+        if (flaggedUntil[candidate] > block.timestamp) return false;
+        try standingReader.standingOf(a.ensNode) returns (int256 standing) {
+            return standing >= MIN_STANDING;
+        } catch {
+            // A record we cannot read is not a record we can trust.
+            return false;
+        }
+    }
+
+    function eligibleCountExcluding(address excluded) public view returns (uint256 n) {
+        uint256 len = agentList.length;
+        for (uint256 i; i < len; ++i) {
+            address c = agentList[i];
+            if (c != excluded && isEligible(c)) ++n;
+        }
+    }
+
+    function requestWitness(uint256 claimId, address claimant) external returns (uint256 requestId) {
+        if (msg.sender != address(registry)) revert NotRegistry();
+        requestId = coordinator.requestRandomWords(keyHash, subId, 3, callbackGasLimit, 1);
+        requests[requestId] = Request({claimId: claimId, claimant: claimant, pending: true});
+        emit WitnessRequested(claimId, requestId);
+    }
+
+    /// @dev The ONLY entry point to assignment, and only the coordinator may call it.
+    function rawFulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) external {
+        if (msg.sender != address(coordinator)) revert NotCoordinator();
+        Request memory r = requests[requestId];
+        if (!r.pending) revert UnknownRequest();
+        delete requests[requestId];
+        _assign(r.claimId, r.claimant, randomWords[0]);
+    }
+
+    function _assign(uint256 claimId, address claimant, uint256 seed) internal {
+        uint256 len = agentList.length;
+        if (len != 0) {
+            uint256 walk = len < MAX_WALK ? len : MAX_WALK;
+            uint256 start = seed % len;
+            for (uint256 i; i < walk; ++i) {
+                address cand = agentList[(start + i) % len];
+                if (cand != claimant && isEligible(cand)) {
+                    emit WitnessDrawn(claimId, cand, seed);
+                    registry.onWitnessAssigned(claimId, cand);
+                    return;
+                }
+            }
+        }
+        emit NoEligibleWitness(claimId);
+        registry.onAssignmentFailed(claimId);
+    }
+
+    /// @notice Cooldown flag applied on a mismatch. Only the standing writer
+    ///         reaches this, and only from the settlement path — never an operator.
+    function onMismatch(address claimant) external {
+        if (msg.sender != ClaimRegistryLike(address(registry)).standingWriter()) revert NotStandingWriter();
+        uint64 until = uint64(block.timestamp) + FLAG_COOLDOWN;
+        flaggedUntil[claimant] = until;
+        emit AgentFlagged(claimant, until);
+    }
+}
+
+interface ClaimRegistryLike {
+    function standingWriter() external view returns (address);
+}

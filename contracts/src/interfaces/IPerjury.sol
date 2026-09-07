@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: MIT
+// ─────────────────────────────────────────────────────────────
+// Perjury — IPerjury.sol (shared types & interfaces)
+// Provenance: AI-ASSISTED.
+//   Human-specified: the claim lifecycle and the three-valued
+//     verdict (Match / Mismatch / Unverifiable) — "unverifiable"
+//     exists so bad provenance can never become a silent pass.
+//   AI-implemented: Solidity type layout and interface surfaces.
+// See docs/ai-usage.md §0.3.
+// ─────────────────────────────────────────────────────────────
+pragma solidity 0.8.26;
+
+enum Status {
+    None,
+    Pending, // bond escrowed, awaiting VRF
+    WitnessAssigned, // witness drawn, awaiting finding + adjudication
+    Adjudicated, // tribunal returned a verdict
+    Settled // bond paid out
+}
+
+/// @dev Unverifiable is NOT a pass. It returns the bond and leaves standing untouched.
+enum Verdict {
+    None,
+    Match,
+    Mismatch,
+    Unverifiable
+}
+
+struct Claim {
+    address claimant;
+    address witness; // 0 until VRF fulfils
+    bytes32 subject; // what the claim is about
+    bytes32 claimHash; // commitment to claim text + claimant evidence
+    bytes32 evidenceCommitment; // set by the tribunal at adjudication
+    uint256 bond;
+    uint64 submittedAt;
+    uint64 assignedAt;
+    Status status;
+    Verdict verdict;
+}
+
+interface IClaimRegistry {
+    function onWitnessAssigned(uint256 claimId, address witness) external;
+    function onAssignmentFailed(uint256 claimId) external;
+    function recordVerdict(uint256 claimId, Verdict verdict, bytes32 evidenceCommitment) external;
+    function claimOf(uint256 claimId) external view returns (Claim memory);
+}
+
+interface IWitnessRoster {
+    function isRegistered(address agent) external view returns (bool);
+    function isEligible(address candidate) external view returns (bool);
+    function requestWitness(uint256 claimId, address claimant) external returns (uint256 requestId);
+    function nodeOf(address agent) external view returns (bytes32);
+    function onMismatch(address claimant) external;
+}
+
+/// @notice Reads an agent's standing from its ENS record. Implemented over a
+///         resolver text record; mocked in tests.
+interface IStandingReader {
+    function standingOf(bytes32 node) external view returns (int256);
+}
+
+interface IStandingWriter {
+    function applyVerdict(uint256 claimId, Verdict verdict) external;
+}
+
+/// @notice Minimal ENS resolver surface Perjury touches. Deliberately tiny:
+///         the writer must not be able to reach setAddr, setOwner, or roles.
+interface ITextResolver {
+    function text(bytes32 node, string calldata key) external view returns (string memory);
+    function setText(bytes32 node, string calldata key, string calldata value) external;
+}

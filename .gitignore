@@ -35,3 +35,6 @@ lcov.info
 *.local
 .vscode/
 .idea/
+
+# foundry libs (vendored via forge install --no-git)
+lib/
