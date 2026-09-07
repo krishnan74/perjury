@@ -1,0 +1,37 @@
+# deps
+node_modules/
+.pnp.*
+.yarn/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# foundry
+cache/
+out/
+broadcast/
+!broadcast/**/dry-run/
+
+# next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# cre
+cre/**/*.wasm
+cre/.cre/
+
+# builds & coverage
+dist/
+coverage/
+lcov.info
+*.tsbuildinfo
+
+# local
+.DS_Store
+*.local
+.vscode/
+.idea/
