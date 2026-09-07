@@ -17,20 +17,41 @@ workspaces.
 
 ## Status at a glance
 
-*Updated Sep 7.* Contracts are built and tested offline; everything remaining needs live
-credentials or a running service.
+*Updated Sep 8.* Contracts, tribunal, and the Graph layer are working. Nothing is deployed as a
+protocol yet — deliberately, see below.
 
 | Task | State |
 |---|---|
-| T0 Unblock | ◐ repo + Foundry done · **CRE access request, provisioning, Next.js scaffold outstanding** |
-| T1 CRE tribunal | ◐ logic done + tested offline · **wrapper unrun — unblocked, simulator needs no approval** |
-| T2 Contracts | ● done — 4 contracts, 28 tests, 1024 fuzz runs (CRE wiring pending T1) |
-| T3 Randomness | ◐ roster + fuzz done · **live VRF round and callback gas benchmark outstanding** |
-| T4 ENSv2 + EAC | ○ not started |
-| T5 Graph + agents | ◐ graph-guard done (13 tests) · **live Gateway + agents outstanding** |
+| T0 Unblock | ● wallet funded · VRF sub (10 LINK) · Graph key · CRE CLI + login · Foundry + Bun |
+| T1 CRE tribunal | ● **runs in a TEE handler**, report delivered on-chain, sender measured |
+| T2 Contracts | ● 4 contracts, 28 tests · **not deployed** (see blocker below) |
+| T3 Randomness | ◐ roster + fuzz done · live VRF round outstanding |
+| T4 ENSv2 | ◐ `perjury.eth` registered · EAC grants blocked on ENS answers |
+| T5 Graph | ◐ live data + guard + MCP client ● · **agent reasoning needs `ANTHROPIC_API_KEY`** |
 | T6 Dashboard | ○ not started |
 | T7 Scenes | ○ not started |
 | T8 Submit | ○ not started |
+
+### Live on-chain
+- Operator `0xDcbe075a907960951Cd4df379BB21461097eEa91` — 0.4 ETH, 11,000 MockUSDC
+- `perjury.eth` registered (ENSv2 hackathon deployment, 1 year)
+- `ScratchSink` `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` — probe, throwaway
+- CRE report delivered: tx `0xbd50a73c…6ac4721d`
+
+### Why the protocol is not deployed yet
+`VerdictSink.CRE_REPORT_WRITER` is immutable. Reports arrive from a Forwarder
+(`0x15fC6ae9…9F88`), measured — not the workflow owner. Unknown whether that address is stable across
+runs or differs on the live DON. Deploying against a run-specific forwarder recreates exactly the bug
+the probe caught. **Open question with Chainlink.**
+
+### Blocked on
+1. `ANTHROPIC_API_KEY` → the witness/claimant agents (last piece of T5)
+2. ENS answers (posted Sep 8) → EAC grants, subnames, `prove-eac.ts` shape
+3. Chainlink Forwarder stability → protocol deploy, then T3 live VRF
+
+### Resume here
+Next unblocked work is **T6 (dashboard)** — it needs no credentials and reads from chain + Graph.
+Everything else waits on the three items above.
 
 ## ⏱ Reality check
 

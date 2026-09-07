@@ -41,3 +41,19 @@ public verdict).
 
 Blocked on credentials: T4 (ENSv2), T5 live Graph + agents, T6 (dashboard).
 Outstanding: `WitnessRoster` still needs the human review reserved in [ai-usage.md](ai-usage.md) §0.6.
+
+---
+
+## Session end — Sep 8
+
+**Working:** contracts (28 tests), tribunal in a TEE handler, live Graph reads through the guard,
+Subgraph MCP client, `perjury.eth` registered. 63 tests green, both typechecks clean.
+
+**Three things I got wrong today**, all caught before they cost anything: the CRE report sender is a
+Forwarder not the workflow owner (would have bricked every verdict, since the address is immutable);
+the confidentiality claim in design §3.4 overstated what a TEE protects (the binary is revealed, only
+data is confidential); and ENSv2 `setText` takes a DNS-encoded name, not a namehash — which would
+have compiled fine and reverted on the first real write.
+
+**To resume:** `plan.md` → Status at a glance. Next unblocked task is the dashboard; everything else
+waits on `ANTHROPIC_API_KEY`, the ENS answers, or the Chainlink Forwarder question.
