@@ -3,6 +3,6 @@
   "evidenceGatewayUrl": "https://postman-echo.com/post",
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
-  "verdictSinkAddress": "0x0000000000000000000000000000000000000000",
-  "chainName": "ethereum-testnet-sepolia"
+  "verdictSinkAddress": "0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF",
+  "chainSelector": "16015286601757825753"
 }

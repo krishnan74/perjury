@@ -15,7 +15,7 @@ export const configSchema = z.object({
 	secretId: z.string(),
 	toleranceBps: z.number(),
 	verdictSinkAddress: z.string(),
-	chainName: z.string(),
+	chainSelector: z.string(), // CCIP chain selector; string because JSON has no bigint
 })
 type Config = z.infer<typeof configSchema>
 
@@ -194,7 +194,7 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		[BigInt(bundle.claimId), verdict, evidenceCommitment],
 	)
 
-	donRuntime
+	const report = donRuntime
 		.report({
 			encodedPayload: hexToBase64(encodedPayload),
 			encoderName: 'evm',
@@ -203,9 +203,17 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		})
 		.result()
 
-	// TODO(T1b): deliver on-chain via evmClient.writeReport(donRuntime, report)
-	// targeting config.verdictSinkAddress. Record the resulting tx's msg.sender —
-	// it determines VerdictSink.CRE_REPORT_WRITER, which is immutable.
+	// Deliver the signed report on-chain. The receiving contract sees a specific
+	// msg.sender, and VerdictSink.CRE_REPORT_WRITER is immutable — so that address
+	// is measured from a real transaction, never guessed.
+	const evmClient = new cre.capabilities.EVMClient(BigInt(config.chainSelector))
+	evmClient
+		.writeReport(donRuntime, {
+			receiver: config.verdictSinkAddress,
+			report,
+		})
+		.result()
+
 	return `verdict=${verdict} confidence=${confidence}`
 }
 
