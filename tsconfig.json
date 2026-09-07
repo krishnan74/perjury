@@ -14,6 +14,7 @@
       "@perjury/tribunal": ["packages/tribunal/src/index.ts"],
       "@perjury/ens": ["packages/ens/src/index.ts"],
       "@perjury/graph-client": ["packages/graph-client/src/index.ts"],
+      "@perjury/mcp-client": ["packages/mcp-client/src/index.ts"],
       "@perjury/shared": ["packages/shared/src/index.ts"],
       "@perjury/shared/pinned-deployments.json": ["packages/shared/src/pinned-deployments.json"],
       "@perjury/graph-guard": ["packages/graph-guard/src/index.ts"]

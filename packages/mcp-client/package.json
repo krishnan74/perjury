@@ -1,0 +1,2 @@
+{ "name": "@perjury/mcp-client", "version": "0.0.0", "type": "module", "main": "src/index.ts",
+  "dependencies": { "@modelcontextprotocol/sdk": "*" } }
