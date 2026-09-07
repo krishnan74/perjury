@@ -1,0 +1,17 @@
+{
+  "_status": "PLACEHOLDER — populate at T1",
+  "network": "ethereum-sepolia",
+  "contracts": {
+    "claimRegistry": "",
+    "verdictSink": ""
+  },
+  "trigger": {
+    "event": "ReadyForAdjudication(uint256)",
+    "confirmations": 2
+  },
+  "confidential": {
+    "handler": "tribunalHandler",
+    "teeTypes": ["sgx"],
+    "secrets": ["PERJURY_COMMITMENT_SALT"]
+  }
+}

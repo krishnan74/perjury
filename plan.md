@@ -23,11 +23,11 @@ credentials or a running service.
 | Task | State |
 |---|---|
 | T0 Unblock | ◐ repo + Foundry done · **CRE access request, provisioning, Next.js scaffold outstanding** |
-| T1 CRE tribunal | ○ not started — **highest risk, gated on beta access** |
+| T1 CRE tribunal | ◐ logic done + tested offline · **wrapper unrun, gated on beta access** |
 | T2 Contracts | ● done — 4 contracts, 28 tests, 1024 fuzz runs (CRE wiring pending T1) |
 | T3 Randomness | ◐ roster + fuzz done · **live VRF round and callback gas benchmark outstanding** |
 | T4 ENSv2 + EAC | ○ not started |
-| T5 Graph + agents | ○ not started |
+| T5 Graph + agents | ◐ graph-guard done (13 tests) · **live Gateway + agents outstanding** |
 | T6 Dashboard | ○ not started |
 | T7 Scenes | ○ not started |
 | T8 Submit | ○ not started |
@@ -118,8 +118,8 @@ found broken on Friday is unrecoverable.
 
 **Files:** `cre/tribunal/main.ts`, `cre/config.staging.json`, `contracts/src/ScratchSink.sol`
 
-- [ ] CRE workflow with a confidential TEE handler: two hardcoded blobs in → verdict out. No
-      contracts, no agents, no ENS.
+- [~] Adjudication logic done and tested as a pure function (`packages/tribunal`, 14 tests).
+      **CRE wrapper written but never run** — needs beta access + SDK API confirmation.
 - [ ] `cre workflow simulate` green.
 - [ ] Deploy `ScratchSink.sol` (throwaway), then `cre workflow simulate --broadcast` writing to it.
 - [ ] **Record the broadcast tx's `msg.sender`** — this settles whether `CRE_REPORT_WRITER` is the
@@ -191,8 +191,8 @@ re-plan** — every downstream decision assumes it.
 **Files:** `packages/graph-guard/**`, `packages/shared/pinned-deployments.json`,
 `agents/{witness,claimant}/**`
 
-- [ ] `graph-guard`: deployment-ID pinning, freshness gate, attestation hashing. Unit test proving
-      stale block → `Unverifiable`, **never** `Match`.
+- [x] `graph-guard`: deployment-ID pinning, freshness gate, attestation hashing. 13 tests incl.
+      stale block → `Unverifiable`, never `Match`.
 - [ ] Pin deployment IDs for the chosen claim domain. Pin a **second, backup** deployment — a lagging
       subgraph during recording correctly produces `Unverifiable` and kills the take.
 - [ ] Witness agent: LLM + Subgraph MCP, composes its own GraphQL against the standardized schema,

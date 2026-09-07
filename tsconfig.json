@@ -10,6 +10,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
+      "@perjury/tribunal": ["packages/tribunal/src/index.ts"],
       "@perjury/shared": ["packages/shared/src/index.ts"],
       "@perjury/graph-guard": ["packages/graph-guard/src/index.ts"]
     }

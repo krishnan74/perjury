@@ -16,5 +16,11 @@ unreachable except through the VRF callback, agents can't write their own standi
 `test_collusionIsThrottledNotEliminated` asserts both directions — accomplice drawn well under 2/3 of
 the time, and strictly more than zero.
 
-Blocked on credentials: T1 (CRE), T4 (ENSv2), T5 (Graph + agents), T6 (dashboard).
+**Sep 7 — graph-guard + tribunal logic.** npm workspaces up. `graph-guard` enforces deployment-ID
+pinning and freshness with no path that degrades into a pass (13 tests). Tribunal adjudication written
+as a pure function so it's testable without an enclave (14 tests) — including leak tests asserting no
+evidence, methodology, or disputed value appears in the serialized report. CRE wrapper written but
+**not run**; SDK registration API unconfirmed until access lands.
+
+Blocked on credentials: T1 run (CRE access), T4 (ENSv2), T5 live Graph + agents, T6 (dashboard).
 Outstanding: `WitnessRoster` still needs the human review reserved in [ai-usage.md](ai-usage.md) §0.6.
