@@ -16,5 +16,5 @@
       "@perjury/graph-guard": ["packages/graph-guard/src/index.ts"]
     }
   },
-  "include": ["packages/**/*.ts", "agents/**/*.ts"]
+  "include": ["packages/**/*.ts", "agents/**/*.ts", "scripts/**/*.ts", "cre/**/*.ts"]
 }
