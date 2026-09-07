@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@perjury/shared": ["packages/shared/src/index.ts"],
+      "@perjury/graph-guard": ["packages/graph-guard/src/index.ts"]
+    }
+  },
+  "include": ["packages/**/*.ts", "agents/**/*.ts"]
+}

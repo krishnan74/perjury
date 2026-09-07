@@ -1,0 +1,13 @@
+{
+  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches. Fill deploymentId from the Studio/Gateway at T5; a placeholder here must never reach the demo.",
+  "_status": "PLACEHOLDER — populate at T5 with real deployment IDs from the live Gateway",
+  "deployments": [
+    {
+      "subject": "aave-v3-ethereum-utilization",
+      "schema": "messari-lending",
+      "deploymentId": "",
+      "backupDeploymentId": "",
+      "metrics": ["totalBorrowBalanceUSD", "totalDepositBalanceUSD"]
+    }
+  ]
+}
