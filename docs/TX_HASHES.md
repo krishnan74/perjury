@@ -20,7 +20,15 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA
 (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink`
 reject every verdict, and `CRE_REPORT_WRITER` is immutable.
-**ENS root:** `perjury.eth` (ENSv2 Sepolia beta) — _pending T4_
+**ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by
+`0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
+
+| Step | Tx |
+|---|---|
+| MockUSDC mint | [`0xa7dba37e…397b6e34`](https://sepolia.etherscan.io/tx/0xa7dba37e2faafeba353fa1f1d43660fdd4f9534e7400ccb1dc9766f2397b6e34) |
+| approve registrar | [`0x9ea3de07…29138897`](https://sepolia.etherscan.io/tx/0x9ea3de075bad26e31441e490c1db0ba2beb16ae68c4d73592036e44829138897) |
+| commit | [`0x3b003778…992e42917`](https://sepolia.etherscan.io/tx/0x3b0037781683e53300c423ac8ec79b0b5d1ccd6b1161b53b1d796e0992e42917) |
+| register | [`0x7237cac5…2ef53a92`](https://sepolia.etherscan.io/tx/0x7237cac596c24e632ca537d13ab60240fb95cd5d9c419cacdfd34e6a2ef53a92) |
 
 ## Milestone evidence
 
@@ -30,6 +38,7 @@ reject every verdict, and `CRE_REPORT_WRITER` is immutable.
 | T1 | Report sender is a Forwarder, not the owner | same tx — `lastSender` on ScratchSink | Sep 8 |
 | T2 | Bond escrowed → verdict → settled | _pending_ | |
 | T3 | VRF request + fulfilment; witness assigned | _pending_ | |
+| T4 | `perjury.eth` registered direct-to-contract | see above | Sep 8 |
 | T4 | EAC: agent self-write **reverts** | _pending_ | |
 | T4 | EAC: operator write **reverts** | _pending_ | |
 | T4 | EAC: tribunal write **succeeds** | _pending_ | |
