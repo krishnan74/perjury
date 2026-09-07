@@ -39,6 +39,7 @@ reject every verdict, and `CRE_REPORT_WRITER` is immutable.
 | T2 | Bond escrowed → verdict → settled | _pending_ | |
 | T3 | VRF request + fulfilment; witness assigned | _pending_ | |
 | T4 | `perjury.eth` registered direct-to-contract | see above | Sep 8 |
+| T5 | Live guarded Graph read (Aave v3, 0 blocks stale) | no tx — Gateway read | Sep 8 |
 | T4 | EAC: agent self-write **reverts** | _pending_ | |
 | T4 | EAC: operator write **reverts** | _pending_ | |
 | T4 | EAC: tribunal write **succeeds** | _pending_ | |
