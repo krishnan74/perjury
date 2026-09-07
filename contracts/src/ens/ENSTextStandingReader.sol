@@ -5,7 +5,8 @@ pragma solidity 0.8.26;
 import {IStandingReader, ITextResolver} from "../interfaces/IPerjury.sol";
 
 contract ENSTextStandingReader is IStandingReader {
-    string public constant STANDING_KEY = "perjury.standing";
+    // Vendor-prefixed per ENS team guidance for app-specific records.
+    string public constant STANDING_KEY = "com.perjury.agent-standing";
 
     ITextResolver public immutable resolver;
 

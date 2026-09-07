@@ -7,7 +7,8 @@ import {Verdict, IClaimRegistry, IStandingWriter, IWitnessRoster, ITextResolver,
 
 /// @title PerjuryStandingWriter — the narrow ENS write adapter
 contract PerjuryStandingWriter is IStandingWriter {
-    string public constant STANDING_KEY = "perjury.standing";
+    // Vendor-prefixed per ENS team guidance for app-specific records.
+    string public constant STANDING_KEY = "com.perjury.agent-standing";
     int256 public constant MATCH_DELTA = 1;
     int256 public constant MISMATCH_DELTA = -3;
 
