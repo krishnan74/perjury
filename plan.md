@@ -67,6 +67,10 @@ the task.
   pool.
 
 **Technical:**
+- ENS: build against the **hackathon deployment addresses only** (`packages/ens/src/deployment.ts`),
+  never production ENS addresses. Override the built-in Universal Resolver.
+- CRE: `cre workflow simulate` needs no beta grant; **Vault DON secrets do**. The commitment salt
+  falls back to a local env var under simulation.
 - Bonds are native Sepolia ETH. No ERC-20 faucet dependency on the critical path.
 - Every contract that matters has **no owner, no pause, no upgrade proxy, no address setters.** Judges
   will grep for an escape hatch; the CRE-only write claim must survive that.
@@ -109,7 +113,9 @@ consistent; a mixed history looks worse than either choice.
   - [ ] Subgraph Studio API key → one live query returns data
   - [ ] VRF v2.5 subscription funded with testnet LINK → one request fulfils
   - [ ] CRE CLI installed → `cre workflow simulate` runs on a hello-world
-  - [ ] One ENSv2 name registers on Sepolia
+  - [ ] One ENSv2 name registers on Sepolia — **register directly against the contracts**
+        (commit-reveal + MockUSDC). The hackathon app has been failing on "Deploy resolver" with a
+        hardcoded 21M gas limit; ENS confirmed it's only a convenience layer.
 
 **Exit:** every external dependency independently proven. No exceptions — an unproven dependency
 found broken on Friday is unrecoverable.
@@ -171,7 +177,12 @@ re-plan** — every downstream decision assumes it.
 
 **Files:** `packages/ens/**`, `scripts/prove-eac.ts`
 
-- [ ] Register `perjury.eth` (Sepolia beta), deploy subname registry, mint 5 agent subnames.
+- [ ] **Override the Universal Resolver** in viem/ethers with the hackathon address
+      (`withHackathonResolver()` in `packages/ens`). Without this, resolution silently targets the
+      wrong deployment and every ENS result in the demo is meaningless.
+- [ ] Register `perjury.eth` **directly via contracts** (commit-reveal, MockUSDC fee), deploy subname
+      registry, mint 5 agent subnames.
+- [ ] Add ENSIP-25 / -26 records alongside the reputation records (ENS team recommendation).
 - [ ] Record-scoped EAC role → `PerjuryStandingWriter` only, on `perjury.standing` +
       `perjury.flagged-until`.
 - [ ] **Revoke agent self-write on those records.** The single most important config line in the
