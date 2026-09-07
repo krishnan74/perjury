@@ -15,6 +15,23 @@ workspaces.
 
 ---
 
+## Status at a glance
+
+*Updated Sep 7.* Contracts are built and tested offline; everything remaining needs live
+credentials or a running service.
+
+| Task | State |
+|---|---|
+| T0 Unblock | ◐ repo + Foundry done · **CRE access request, provisioning, Next.js scaffold outstanding** |
+| T1 CRE tribunal | ○ not started — **highest risk, gated on beta access** |
+| T2 Contracts | ● done — 4 contracts, 28 tests, 1024 fuzz runs (CRE wiring pending T1) |
+| T3 Randomness | ◐ roster + fuzz done · **live VRF round and callback gas benchmark outstanding** |
+| T4 ENSv2 + EAC | ○ not started |
+| T5 Graph + agents | ○ not started |
+| T6 Dashboard | ○ not started |
+| T7 Scenes | ○ not started |
+| T8 Submit | ○ not started |
+
 ## ⏱ Reality check
 
 **6 days.** The original brief assumed time was available; it isn't. Deadline gates below are hard,
@@ -82,9 +99,9 @@ consistent; a mixed history looks worse than either choice.
 
 - [ ] **Post the CRE Confidential Workflows beta access request** in the ETHGlobal Discord Chainlink
       channel. Days of latency; costs one message. [ADR 0002](docs/decisions.md)
-- [ ] `git init`, public GitHub repo, **first commit = the docs tree already written** (`README.md`,
+- [x] `git init`, public GitHub repo, **first commit = the docs tree already written** (`README.md`,
       `plan.md`, `docs/`). Establishes commit history from day one.
-- [ ] Bun workspaces + Foundry + Next.js scaffold.
+- [~] Foundry scaffold done (`foundry.toml`, `remappings.txt`, forge-std). **Bun workspaces + Next.js still to do.**
 - [ ] Provision, and **personally watch each one work before moving on**:
   - [ ] Sepolia RPC + 4 funded keys (deployer, claimant, witness-A, witness-B)
   - [ ] Subgraph Studio API key → one live query returns data
@@ -118,10 +135,10 @@ re-plan** — every downstream decision assumes it.
 
 **Files:** `contracts/src/{ClaimRegistry,VerdictSink,PerjuryStandingWriter}.sol`, `contracts/test/**`
 
-- [ ] `ClaimRegistry` — bond escrow, lifecycle, pull-payment settlement. Immutable wiring.
-- [ ] `VerdictSink` — single authorized sender, no setter.
-- [ ] `PerjuryStandingWriter` — one mutating function, callable only by the sink.
-- [ ] Foundry test matrix ([docs/03-contracts.md](docs/design.md) §2.5), **including the negative
+- [x] `ClaimRegistry` — bond escrow, lifecycle, pull-payment settlement. Immutable wiring.
+- [x] `VerdictSink` — single authorized sender, no setter.
+- [x] `PerjuryStandingWriter` — one mutating function, callable only by the sink.
+- [x] Foundry test matrix ([docs/design.md](docs/design.md) §2.5) — 28 tests, 1024 fuzz runs, **including the negative
       cases**: `recordVerdict` from an EOA reverts; `onReport` from a non-CRE address reverts;
       double-settle reverts.
 - [ ] Point T1's workflow at the real `VerdictSink`. Bond in → verdict out → bond settled, witness
@@ -135,12 +152,13 @@ re-plan** — every downstream decision assumes it.
 
 **Files:** `contracts/src/WitnessRoster.sol` (**human-authored**, see [ai-usage §0.6](docs/ai-usage.md))
 
-- [ ] `WitnessRoster` + VRF v2.5 consumer. Registration, roster walk, `isEligible`.
+- [x] `WitnessRoster` written: registration, roster walk, `isEligible`, fail-closed. **Coordinator is a
+      mock — swap in the Sepolia VRF v2.5 coordinator address for the live round.**
 - [ ] **Benchmark the ENS-read-inside-the-callback gas FIRST**, before building on it
       ([docs/05-ens.md](docs/design.md) §4.3). If it doesn't fit under `callbackGasLimit`:
       → fall back to two-step assign (VRF stores seed; permissionless `finalizeAssignment()` walks
       eligibility). **Decide today, not Saturday.**
-- [ ] Fuzz: assignment uniform over eligible set; `assigned != claimant` for every seed.
+- [x] Fuzz: assignment uniform over eligible set; `assigned != claimant` for every seed.
 - [ ] Live VRF round on Sepolia assigns a witness. Hashes → `TX_HASHES.md`.
 
 **Exit:** assignment verifiably random, flagged agents skipped, proven by test *and* a live tx.
