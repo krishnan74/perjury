@@ -56,9 +56,11 @@ be confirmed or corrected when the file is actually written; an intended label i
 | `contracts/src/ens/ENSTextStandingReader.sol` | AI-ASSISTED | done | Human specified that eligibility be a pure function of the ENS record at assignment time — no cache, no cron, no admin. |
 | `contracts/test/mocks/Mocks.sol` | AI-GENERATED | done | Test scaffolding: VRF coordinator and an ENS resolver that models EAC enforcement. |
 | **CRE workflow** | | | |
-| `cre/tribunal/main.ts` | AI-ASSISTED *(intended)* | planned | Human specifies the enclave boundary ([§3.2](design.md)) — what enters, what may never leave. That boundary is a design decision, not an implementation detail. |
+| `packages/tribunal/**` | AI-ASSISTED | done | Human specified the enclave boundary ([§3.2](design.md)): what enters, and that only verdict + commitment may leave. AI implemented tolerance comparison and the degeneracy heuristic. 14 tests, incl. leak tests asserting no evidence reaches the report. |
+| `cre/tribunal/main.ts` | AI-ASSISTED | **written, not run** | Thin wrapper over the above. SDK registration API unconfirmed until T1 — marked TODO in the file rather than assumed. |
 | **Graph layer** | | | |
-| `packages/graph-guard/**` | AI-ASSISTED *(intended)* | planned | Human specifies the reject-never-degrade rule ([§5.3](design.md)); AI implements pinning and freshness mechanics. |
+| `packages/graph-guard/**` | AI-ASSISTED | done | Human specified the reject-never-degrade rule ([§5.3](design.md)); AI implemented pinning, freshness, and attestation mechanics. 13 tests. |
+| `packages/shared/**` | AI-ASSISTED | done | Canonical assertion shape and order-stable digest, so two independent derivations are comparable. |
 | **ENS layer** | | | |
 | `packages/ens/**` | AI-ASSISTED *(intended)* | planned | Human specifies EAC scoping and the self-write revocation; AI handles ENSv2 beta API mechanics. |
 | **Agents** | | | |
