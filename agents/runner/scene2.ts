@@ -49,8 +49,8 @@ p.line("witness drawn", `${wa?.name ?? c.witness}  ${c.witness.slice(0, 12)}…`
 
 p.step("Both derive from live data. They disagree.");
 const out = publishEvidence(String(claimId), "false");
-p.assertion("CLAIMANT", out.match(/CLAIMANT.*?: "(.*?)"/)?.[1] ?? "", `${out.match(/asserts ([\d.]+)%/)?.[1]}%`, p.c.red);
-p.assertion("WITNESS", "independently re-derived from Aave v3", `${out.match(/derives ([\d.]+)/)?.[1]}%`, p.c.magenta);
+p.assertion("CLAIMANT", out.match(/CLAIMANT.*?: "(.*?)"/)?.[1] ?? "", `${round2(out.match(/asserts ([\d.]+)%/)?.[1])}%`, p.c.red);
+p.assertion("WITNESS", "independently re-derived from Aave v3", `${round2(out.match(/derives ([\d.]+)/)?.[1])}%`, p.c.magenta);
 
 p.step("The tribunal rules");
 p.verdict(runTribunal("verdict"), "The claimant's own evidence does not reproduce its stated value.");
@@ -101,3 +101,9 @@ p.finale([
   `${p.c.grey}The forfeited ETH is payable to nobody — not the witness, not us.${p.c.reset}`,
   `${p.c.grey}Paying it to the witness is what would make fabricating disagreement profitable.${p.c.reset}`,
 ]);
+
+/** Derived values carry full float precision; two decimals is what a viewer can read. */
+function round2(v: string | undefined): string {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(2) : "?";
+}

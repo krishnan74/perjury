@@ -57,7 +57,7 @@ p.note("Separate processes, separate keys, no channel between them.");
 const out = publishEvidence(String(claimId), "honest");
 const claimantLine = out.match(/CLAIMANT.*?: "(.*?)"/)?.[1] ?? "";
 const claimantVal = out.match(/asserts ([\d.]+)%/)?.[1] ?? "?";
-const witnessVal = out.match(/derives ([\d.]+)/)?.[1] ?? "?";
+const witnessVal = round2(out.match(/derives ([\d.]+)/)?.[1]);
 p.assertion("CLAIMANT", claimantLine, `${claimantVal}%`, p.c.blue);
 p.assertion("WITNESS", "independently re-derived from Aave v3 via The Graph", `${witnessVal}%`, p.c.magenta);
 
@@ -96,4 +96,10 @@ async function windowClosed(id: bigint) {
     pub.getBlock(),
   ]);
   return block.timestamp > dl;
+}
+
+/** Derived values carry full float precision; two decimals is what a viewer can read. */
+function round2(v: string | undefined): string {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(2) : "?";
 }

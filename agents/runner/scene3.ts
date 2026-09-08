@@ -16,10 +16,15 @@ import {
   rosterSnapshot, walletFor,
 } from "./lib/chain";
 
-const rounds = Number(process.argv[2] ?? 4);
-// Which agent makes the claim. Scene 2 slashes it, so pass a different one
-// per run rather than redeploying: npx tsx agents/runner/scene3.ts panel-1
-const who = claimantFor(process.argv.find((a) => !a.startsWith("-") && a.includes("perjury") === false && ["operator","witness-a","panel-1","panel-2","panel-3"].includes(a)));
+// Both arguments are optional and order-independent: a bare number is the round
+// count, a bare name is the claimant. Reading argv positionally instead made
+// `scene3.ts panel-2` parse the name as the round count, yielding NaN rounds and
+// a loop that silently never ran.
+const args = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+const rounds = Number(args.find((a) => /^\d+$/.test(a)) ?? 4);
+// Which agent makes the claim. Scene 2 slashes its claimant, so pass a different
+// one per run rather than redeploying: npx tsx agents/runner/scene3.ts panel-2
+const who = claimantFor(args.find((a) => !/^\d+$/.test(a)));
 const CLAIMANT = who.name;
 const signer = walletFor(who.pk);
 
