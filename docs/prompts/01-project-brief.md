@@ -1,9 +1,6 @@
 # Prompt 01 — Original Project Brief
 
-**Date:** 2026-09-07
-**Author:** Human (project lead)
-**Directed:** Creation of `plan.md` — the full system architecture and build plan.
-**Verbatim, unedited.**
+**Date:** 2026-09-07 **Author:** Human (project lead) **Directed:** Creation of `plan.md` — the full system architecture and build plan. **Verbatim, unedited.**
 
 ---
 
@@ -72,17 +69,9 @@ Write the plan.md now.
 
 ## Decisions the human made in response to this prompt
 
-The AI came back with four architectural questions before writing the plan. The human's answers,
-which are load-bearing for the whole design:
+The AI came back with four architectural questions before writing the plan. The human's answers, which are load-bearing for the whole design:
 
-1. **Witness randomness → Chainlink VRF v2.5.** Chosen over a CRE-internal source or
-   commit-reveal/blockhash, on the reasoning that the anti-collusion claim is the project's central
-   assertion and therefore needs the strongest verifiable-randomness provenance available, even at
-   the cost of callback latency and a LINK dependency.
-2. **CRE Confidential Workflows access → pursue beta access via the ETHGlobal Discord Chainlink
-   channel.** The human observed other teams' access requests being granted there in real time and
-   directed that the build proceed simulate-first with a clean swap to live deployment.
+1. **Witness randomness → Chainlink VRF v2.5.** Chosen over a CRE-internal source or commit-reveal/blockhash, on the reasoning that the anti-collusion claim is the project's central assertion and therefore needs the strongest verifiable-randomness provenance available, even at the cost of callback latency and a LINK dependency.
+2. **CRE Confidential Workflows access → pursue beta access via the ETHGlobal Discord Chainlink channel.** The human observed other teams' access requests being granted there in real time and directed that the build proceed simulate-first with a clean swap to live deployment.
 3. **Demo surface → Next.js dashboard**, over a CLI-only demo, for legibility in a 2–4 minute video.
-4. **Agent implementation → LLM agents driving the Subgraph MCP as tools**, over deterministic
-   scripted GraphQL, accepting on-camera nondeterminism risk in exchange for a genuine "AI use case"
-   for The Graph track.
+4. **Agent implementation → LLM agents driving the Subgraph MCP as tools**, over deterministic scripted GraphQL, accepting on-camera nondeterminism risk in exchange for a genuine "AI use case" for The Graph track.

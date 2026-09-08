@@ -1,7 +1,6 @@
 # Decision Records
 
-Architectural decisions with the options that were rejected and why — the reasoning is the
-interesting part. Append-only; superseded decisions get marked, not deleted.
+Architectural decisions with the options that were rejected and why — the reasoning is the interesting part. Append-only; superseded decisions get marked, not deleted.
 
 Decisions still open are tracked in [`../plan.md`](../plan.md).
 
@@ -17,19 +16,13 @@ Decisions still open are tracked in [`../plan.md`](../plan.md).
 
 ## 0001. Use Chainlink VRF v2.5 for witness assignment
 
-**Date:** 2026-09-07
-**Status:** Accepted
-**Decided by:** Project lead (human)
+**Date:** 2026-09-07 **Status:** Accepted **Decided by:** Project lead (human)
 
 ### Context
 
-Random witness assignment is not a feature of Perjury — it *is* Perjury. The entire anti-collusion
-claim reduces to "a claimant cannot choose, influence, or predict its witness." If the randomness is
-weak, the protocol has no security property worth demonstrating, and a judge who pulls on that thread
-finds nothing underneath.
+Random witness assignment is not a feature of Perjury — it *is* Perjury. The entire anti-collusion claim reduces to "a claimant cannot choose, influence, or predict its witness." If the randomness is weak, the protocol has no security property worth demonstrating, and a judge who pulls on that thread finds nothing underneath.
 
-So the question isn't "what's the cheapest randomness that works," it's "what randomness survives a
-hostile reading."
+So the question isn't "what's the cheapest randomness that works," it's "what randomness survives a hostile reading."
 
 ### Options considered
 
@@ -41,41 +34,25 @@ hostile reading."
 
 ### Decision
 
-**Chainlink VRF v2.5.** The anti-collusion claim is the project's central assertion, so randomness
-provenance must be independently verifiable rather than merely asserted. The latency and LINK costs
-are real and accepted; weakening the claim to avoid them would have made the rest of the build
-pointless.
+**Chainlink VRF v2.5.** The anti-collusion claim is the project's central assertion, so randomness provenance must be independently verifiable rather than merely asserted. The latency and LINK costs are real and accepted; weakening the claim to avoid them would have made the rest of the build pointless.
 
 ### Consequences
 
-- Assignment happens in a VRF callback, which introduces a **hard gas ceiling** on anything we do at
-  assignment time. This directly collides with the requirement that eligibility be read live from ENS
-  (see [`../05-ens.md`](design.md#4-ens-integration-design-ensv2-sepolia-beta) §4.3) — the two decisions are in tension and the tension is
-  real, not theoretical.
-- Tracked as risk #2 in [`../../plan.md`](../plan.md), with a designed fallback (two-step assign:
-  VRF stores the seed, a permissionless `finalizeAssignment()` does the eligibility walk) to be
-  decided at M3 rather than on demo day.
-- Gives us two linkable transactions per assignment for the demo, which is worth more on camera than
-  a single opaque one.
+- Assignment happens in a VRF callback, which introduces a **hard gas ceiling** on anything we do at assignment time. This directly collides with the requirement that eligibility be read live from ENS (see [`../05-ens.md`](design.md#4-ens-integration-design-ensv2-sepolia-beta) §4.3) — the two decisions are in tension and the tension is real, not theoretical.
+- Tracked as risk #2 in [`../../plan.md`](../plan.md), with a designed fallback (two-step assign: VRF stores the seed, a permissionless `finalizeAssignment()` does the eligibility walk) to be decided at M3 rather than on demo day.
+- Gives us two linkable transactions per assignment for the demo, which is worth more on camera than a single opaque one.
 
 ---
 
 ## 0002. Pursue CRE beta access; build simulate-first regardless
 
-**Date:** 2026-09-07
-**Status:** Accepted
-**Decided by:** Project lead (human)
+**Date:** 2026-09-07 **Status:** Accepted **Decided by:** Project lead (human)
 
 ### Context
 
-Chainlink Confidential Workflows — the tribunal, and the thing the whole protocol depends on — is
-**invite-only private beta**. You request enrollment through a Chainlink account team. That is an
-external gate on the single most important component in the project, which is an uncomfortable place
-to start a hackathon build.
+Chainlink Confidential Workflows — the tribunal, and the thing the whole protocol depends on — is **invite-only private beta**. You request enrollment through a Chainlink account team. That is an external gate on the single most important component in the project, which is an uncomfortable place to start a hackathon build.
 
-Observed in the ETHGlobal Discord Chainlink channel: other teams are posting access requests and a
-Chainlink representative is responding to them. So the gate is passable, on a timeline we don't
-control.
+Observed in the ETHGlobal Discord Chainlink channel: other teams are posting access requests and a Chainlink representative is responding to them. So the gate is passable, on a timeline we don't control.
 
 ### Options considered
 
@@ -87,36 +64,22 @@ control.
 
 ### Update — Sep 7, after checking the docs
 
-The access path is an **official Google Form**, not a Discord conversation:
-<https://docs.google.com/forms/d/e/1FAIpQLSdk8mxDZAXpEX1PHgjzCoBeKxSoQysoO9sxOb-gpBrDrjOhtA/viewform>
+The access path is an **official Google Form**, not a Discord conversation: <https://docs.google.com/forms/d/e/1FAIpQLSdk8mxDZAXpEX1PHgjzCoBeKxSoQysoO9sxOb-gpBrDrjOhtA/viewform>
 
-More importantly, Chainlink's docs state plainly: *"After submitting your request, you don't need to
-wait for early access. Your CRE organization can run Confidential Workflows using the local
-simulator."*
+More importantly, Chainlink's docs state plainly: *"After submitting your request, you don't need to wait for early access. Your CRE organization can run Confidential Workflows using the local simulator."*
 
-**This removes the external gate from the critical path.** T1 is no longer blocked on anyone's
-response — it needs the CRE CLI and an org, both self-serve. The decision below stands unchanged;
-what changes is that the fallback was never really a fallback, and the risk ranking overstated this
-item. Submit the form anyway (live deployment is still nicer for the video), but do not sequence
-around waiting for it.
+**This removes the external gate from the critical path.** T1 is no longer blocked on anyone's response — it needs the CRE CLI and an org, both self-serve. The decision below stands unchanged; what changes is that the fallback was never really a fallback, and the risk ranking overstated this item. Submit the form anyway (live deployment is still nicer for the video), but do not sequence around waiting for it.
 
 ## Decision
 
-**Submit the access form on day zero, then build simulate-first with a clean swap to live
-deployment.**
-Chainlink's own track requirements accept "execution via simulation or live deployment with
-evidence," so the simulate path is not a degraded submission — it is a qualifying one.
+**Submit the access form on day zero, then build simulate-first with a clean swap to live deployment.** Chainlink's own track requirements accept "execution via simulation or live deployment with evidence," so the simulate path is not a degraded submission — it is a qualifying one.
 
-The access request is item zero of M0, before any code. It costs one Discord message and everything
-downstream is faster if it's granted early.
+The access request is item zero of M0, before any code. It costs one Discord message and everything downstream is faster if it's granted early.
 
 ### Consequences
 
-- The **only** thing that differs between the two paths is `CRE_REPORT_WRITER` in `VerdictSink`. That
-  constraint is load-bearing and constrains the contract design: no setter, so the swap is a
-  redeploy + roster re-point, scripted to take under 30 minutes.
-- Evidence capture (simulation logs, TEE handler registration, tx hashes) is required either way, so
-  it's built into M1's exit criteria rather than gathered at the end.
+- The **only** thing that differs between the two paths is `CRE_REPORT_WRITER` in `VerdictSink`. That constraint is load-bearing and constrains the contract design: no setter, so the swap is a redeploy + roster re-point, scripted to take under 30 minutes.
+- Evidence capture (simulation logs, TEE handler registration, tx hashes) is required either way, so it's built into M1's exit criteria rather than gathered at the end.
 - The demo video is recorded *after* whichever path is final — not re-cut twice.
 - Tracked as risk #1 in [`../../plan.md`](../plan.md).
 
@@ -124,19 +87,13 @@ downstream is faster if it's granted early.
 
 ## 0003. Next.js dashboard as the demo surface
 
-**Date:** 2026-09-07
-**Status:** Accepted
-**Decided by:** Project lead (human)
+**Date:** 2026-09-07 **Status:** Accepted **Decided by:** Project lead (human)
 
 ### Context
 
-Submission is a public repo plus a 2–4 minute video. No in-person judging, no live walkthrough, no
-chance to explain something a judge misses. Whatever isn't legible on screen in those minutes does
-not exist.
+Submission is a public repo plus a 2–4 minute video. No in-person judging, no live walkthrough, no chance to explain something a judge misses. Whatever isn't legible on screen in those minutes does not exist.
 
-The hardest thing to convey is reputation *movement* — a number on an ENS text record going up and
-down, and an agent silently dropping out of the eligible set as a consequence. That's the payoff of
-the entire mechanism and it's invisible in a terminal.
+The hardest thing to convey is reputation *movement* — a number on an ENS text record going up and down, and an agent silently dropping out of the eligible set as a consequence. That's the payoff of the entire mechanism and it's invisible in a terminal.
 
 ### Options considered
 
@@ -148,35 +105,25 @@ the entire mechanism and it's invisible in a terminal.
 
 ### Decision
 
-**Next.js dashboard.** Legibility in the video is worth the M6 build cost. The specific thing it buys
-that a CLI cannot: showing that the on-chain verdict contains *only* a verdict while the evidence
-stayed sealed — the confidentiality property is otherwise unfilmable.
+**Next.js dashboard.** Legibility in the video is worth the M6 build cost. The specific thing it buys that a CLI cannot: showing that the on-chain verdict contains *only* a verdict while the evidence stayed sealed — the confidentiality property is otherwise unfilmable.
 
 ### Consequences
 
-- The dashboard is sequenced **last** (M6), after the protocol genuinely works. It presents state the
-  protocol already produces; it must never become the place where behavior is faked for the camera.
-- It renders from chain and Graph reads, not from an app database — so nothing on screen can drift
-  from what actually happened on-chain.
-- Attribution note: the dashboard is the one component intended as AI-GENERATED
-  (see [`../ai-usage.md`](ai-usage.md) §0.3). It's presentation of state, with low design-ownership
-  stakes — unlike the mechanism it displays.
+- The dashboard is sequenced **last** (M6), after the protocol genuinely works. It presents state the protocol already produces; it must never become the place where behavior is faked for the camera.
+- It renders from chain and Graph reads, not from an app database — so nothing on screen can drift from what actually happened on-chain.
+- Attribution note: the dashboard is the one component intended as AI-GENERATED (see [`../ai-usage.md`](ai-usage.md) §0.3). It's presentation of state, with low design-ownership stakes — unlike the mechanism it displays.
 
 ---
 
 ## 0004. LLM agents driving Subgraph MCP, not scripted GraphQL
 
-**Date:** 2026-09-07
-**Status:** Accepted
-**Decided by:** Project lead (human)
+**Date:** 2026-09-07 **Status:** Accepted **Decided by:** Project lead (human)
 
 ### Context
 
-The witness has to independently re-derive a finding from live on-chain data. *How* it does that
-determines whether this is an AI project or a cron job with a GraphQL string in it.
+The witness has to independently re-derive a finding from live on-chain data. *How* it does that determines whether this is an AI project or a cron job with a GraphQL string in it.
 
-The Graph's AI track requires the Graph to be "load-bearing infrastructure" performing "meaningful
-work (reasoning, decisions, automation)" — explicitly not printing a raw query result.
+The Graph's AI track requires the Graph to be "load-bearing infrastructure" performing "meaningful work (reasoning, decisions, automation)" — explicitly not printing a raw query result.
 
 ### Options considered
 
@@ -188,42 +135,27 @@ work (reasoning, decisions, automation)" — explicitly not printing a raw query
 
 ### Decision
 
-**LLM agents driving the Subgraph MCP**, with a deterministic guard layer wrapping every read. In
-practice this is the hybrid: the LLM does subgraph selection, schema interpretation, and query
-composition; `packages/graph-guard` deterministically enforces deployment-ID pinning and freshness
-and normalizes the output into a hashable typed assertion.
+**LLM agents driving the Subgraph MCP**, with a deterministic guard layer wrapping every read. In practice this is the hybrid: the LLM does subgraph selection, schema interpretation, and query composition; `packages/graph-guard` deterministically enforces deployment-ID pinning and freshness and normalizes the output into a hashable typed assertion.
 
-The split matters: **the reasoning is the agent's, the provenance guarantees are not.** An LLM cannot
-be trusted to honestly report whether its own data was stale, so that check lives outside it.
+The split matters: **the reasoning is the agent's, the provenance guarantees are not.** An LLM cannot be trusted to honestly report whether its own data was stale, so that check lives outside it.
 
 ### Consequences
 
-- On-camera nondeterminism is a real risk (#4 in [`../../plan.md`](../plan.md)). Mitigated by
-  pinned model, temperature 0, capped tool-call rounds, ≥5 rehearsals per scene, and a known-good
-  fallback take.
-- Claimant and witness must run as **separate processes with separate keys and no shared memory or
-  message channel**, so "the witness never sees the claimant's reasoning" is true by construction
-  rather than by prompt instruction. A prompt saying "don't look at this" is not an isolation
-  boundary.
-- The guard layer becomes the place where the reject-never-degrade rule is enforced
-  (see [`../06-graph.md`](design.md#5-graph-integration-design) §5.3).
+- On-camera nondeterminism is a real risk (#4 in [`../../plan.md`](../plan.md)). Mitigated by pinned model, temperature 0, capped tool-call rounds, ≥5 rehearsals per scene, and a known-good fallback take.
+- Claimant and witness must run as **separate processes with separate keys and no shared memory or message channel**, so "the witness never sees the claimant's reasoning" is true by construction rather than by prompt instruction. A prompt saying "don't look at this" is not an isolation boundary.
+- The guard layer becomes the place where the reject-never-degrade rule is enforced (see [`../06-graph.md`](design.md#5-graph-integration-design) §5.3).
 
 ---
 
 ## 0005. Living attribution log with committed prompts
 
-**Date:** 2026-09-07
-**Status:** Accepted
-**Decided by:** Project lead (human)
+**Date:** 2026-09-07 **Status:** Accepted **Decided by:** Project lead (human)
 
 ### Context
 
-ETHGlobal's AI usage policy for ETHOnline 2026 has three clauses: attribution down to specific files,
-meaningful human involvement (not merely AI output), and — if spec-driven workflows are used — every
-spec file, prompt, and planning artifact committed to the repo.
+ETHGlobal's AI usage policy for ETHOnline 2026 has three clauses: attribution down to specific files, meaningful human involvement (not merely AI output), and — if spec-driven workflows are used — every spec file, prompt, and planning artifact committed to the repo.
 
-The Involvement clause is the one with consequences: submissions relying entirely on AI "may not be
-eligible for partner prizes or finalist consideration."
+The Involvement clause is the one with consequences: submissions relying entirely on AI "may not be eligible for partner prizes or finalist consideration."
 
 Attribution reconstructed at the end of a build is guesswork, and reads like guesswork.
 
@@ -240,20 +172,12 @@ Attribution reconstructed at the end of a build is guesswork, and reads like gue
 **Living attribution log, updated at every milestone exit.** Concretely:
 
 - [`../ai-usage.md`](ai-usage.md) holds the component attribution table and the decision log.
-- Attribution is recorded in one authoritative table rather than duplicated into source headers,
-  which drift out of date the moment a file is edited.
-- Every prompt that materially directs committed work is committed verbatim to
-  [`../prompts/`](prompts/), including prompts that led to approaches later abandoned.
-- Four components are reserved for direct human authorship, chosen because they're what a judge would
-  probe: the witness assignment logic, the demo scene scripts, the limitations write-up, and the
-  enclave boundary definition.
+- Attribution is recorded in one authoritative table rather than duplicated into source headers, which drift out of date the moment a file is edited.
+- Every prompt that materially directs committed work is committed verbatim to [`../prompts/`](prompts/), including prompts that led to approaches later abandoned.
+- Four components are reserved for direct human authorship, chosen because they're what a judge would probe: the witness assignment logic, the demo scene scripts, the limitations write-up, and the enclave boundary definition.
 
 ### Consequences
 
 - Adds an attribution pass to every milestone's exit criteria.
-- Establishes an explicit honesty rule: a file is only labeled AI-ASSISTED once the human has
-  actually done the review and can defend the design unaided. Labeling aspirationally would fail the
-  clause it's meant to satisfy, and would collapse in about two questions of conversation.
-- The human's voice is required in specific places (concept framing, limitations). Those are marked
-  as TODO stubs rather than ghost-written — a ghost-written "in my own words" section defeats the
-  purpose of the exercise.
+- Establishes an explicit honesty rule: a file is only labeled AI-ASSISTED once the human has actually done the review and can defend the design unaided. Labeling aspirationally would fail the clause it's meant to satisfy, and would collapse in about two questions of conversation.
+- The human's voice is required in specific places (concept framing, limitations). Those are marked as TODO stubs rather than ghost-written — a ghost-written "in my own words" section defeats the purpose of the exercise.

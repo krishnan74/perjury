@@ -1,8 +1,6 @@
 # 0. AI Usage & Attribution
 
-> **This section is written for ETHGlobal judges as much as for the team, and it is a living
-> document — it is updated as each file lands, not reconstructed at the end.** It exists to satisfy
-> ETHGlobal's AI usage policy for ETHOnline 2026 in full.
+> **This section is written for ETHGlobal judges as much as for the team, and it is a living document — it is updated as each file lands, not reconstructed at the end.** It exists to satisfy ETHGlobal's AI usage policy for ETHOnline 2026 in full.
 
 ### 0.1 Policy compliance map
 
@@ -12,13 +10,11 @@
 | **Involvement** — AI assists, does not create the entire project; meaningful human contribution required | The protocol design, threat model, sponsor-integration strategy, and demo scenarios are human-authored (§0.4). Specific components are reserved for direct human authorship (§0.6). | §0.4, §0.6 |
 | **Spec-Driven Development** — all spec files, prompts, and planning artifacts must be in the repo | Every directing prompt is committed verbatim in `docs/prompts/`. This plan is committed at repo root and its revision history is preserved in git. | `docs/prompts/`, `plan.md` |
 
-**Tools used:** Claude Opus 5 via Claude Code (architecture planning, implementation, documentation).
-Any additional tool adopted later gets added to this line and to the affected file headers.
+**Tools used:** Claude Opus 5 via Claude Code (architecture planning, implementation, documentation). Any additional tool adopted later gets added to this line and to the affected file headers.
 
 ### 0.2 Provenance taxonomy
 
-Three labels, used consistently across the docs, in per-file headers, and in the table below. The
-distinction that matters to the Involvement clause is *who made the decisions*, not who typed:
+Three labels, used consistently across the docs, in per-file headers, and in the table below. The distinction that matters to the Involvement clause is *who made the decisions*, not who typed:
 
 | Label | Meaning |
 |---|---|
@@ -26,14 +22,11 @@ distinction that matters to the Involvement clause is *who made the decisions*, 
 | **AI-ASSISTED** | The human specified the behavior, constraints, and acceptance criteria; AI produced a draft; the human reviewed, corrected, and owns the result. The human can explain every line and chose the trade-offs. |
 | **AI-GENERATED** | AI produced this substantially independently from a short instruction. Human reviewed it for correctness but did not drive its structure. Reserved for boilerplate, scaffolding, and mechanical work. |
 
-**Honesty rule for this table:** a file is only downgraded from AI-GENERATED to AI-ASSISTED when the
-human has actually done the review and can defend the design. We do not label aspirationally.
+**Honesty rule for this table:** a file is only downgraded from AI-GENERATED to AI-ASSISTED when the human has actually done the review and can defend the design. We do not label aspirationally.
 
 ### 0.3 Component attribution table (living — update as each file lands)
 
-Status legend: `planned` (not yet written) → `in progress` → `done`.
-This table is currently pre-populated with *intended* provenance for planned files. Each entry must
-be confirmed or corrected when the file is actually written; an intended label is not a claim.
+Status legend: `planned` (not yet written) → `in progress` → `done`. This table is currently pre-populated with *intended* provenance for planned files. Each entry must be confirmed or corrected when the file is actually written; an intended label is not a claim.
 
 | Component / file | Provenance | Status | Notes |
 |---|---|---|---|
@@ -76,9 +69,7 @@ be confirmed or corrected when the file is actually written; an intended label i
 
 ### 0.4 Decision log — how the human directed the work
 
-Running log of decision points. Each entry records the options that were on the table, what the human
-chose, and the reasoning — because *the reasoning* is what evidences meaningful involvement, not the
-choice alone.
+Running log of decision points. Each entry records the options that were on the table, what the human chose, and the reasoning — because *the reasoning* is what evidences meaningful involvement, not the choice alone.
 
 | # | Date | Decision point | Options considered | Human decision & reasoning |
 |---|---|---|---|---|
@@ -95,51 +86,30 @@ choice alone.
 
 ### 0.5 Where attribution lives
 
-Attribution lives in this file, not scattered through the source. Source files carry a one-line
-purpose comment and a pointer to the relevant design section; they do not repeat provenance labels.
+Attribution lives in this file, not scattered through the source. Source files carry a one-line purpose comment and a pointer to the relevant design section; they do not repeat provenance labels.
 
-Rationale: duplicated headers drift out of date the moment a file is edited, and a reviewer checking
-"who wrote what" wants one authoritative table, not 30 comment blocks to cross-reference. The table
-in §0.3 is that table.
+Rationale: duplicated headers drift out of date the moment a file is edited, and a reviewer checking "who wrote what" wants one authoritative table, not 30 comment blocks to cross-reference. The table in §0.3 is that table.
 
 ### 0.6 The Involvement requirement — an honest read
 
-The Involvement clause is the one with teeth: *"Submissions that rely entirely on AI without
-meaningful contributions from team members may not be eligible for partner prizes or finalist
-consideration."* Being straight about where this project currently stands:
+The Involvement clause is the one with teeth: *"Submissions that rely entirely on AI without meaningful contributions from team members may not be eligible for partner prizes or finalist consideration."* Being straight about where this project currently stands:
 
-**What is genuinely human and defensible.** The protocol design is human-authored and non-obvious.
-The three constraints that generate the entire architecture — an auditor you choose is not an
-auditor, an adjudicator that publishes evidence destroys the mechanism it implements, and reputation
-the subject can write is not reputation — are the human's, and they are the project. A judge asking
-"whose idea was this?" has a clear answer, evidenced by prompt 01 predating all AI involvement.
+**What is genuinely human and defensible.** The protocol design is human-authored and non-obvious. The three constraints that generate the entire architecture — an auditor you choose is not an auditor, an adjudicator that publishes evidence destroys the mechanism it implements, and reputation the subject can write is not reputation — are the human's, and they are the project. A judge asking "whose idea was this?" has a clear answer, evidenced by prompt 01 predating all AI involvement.
 
-**Where the risk is.** If every file below the design layer ends up labeled AI-GENERATED, the
-submission is weak under this clause regardless of how good the design was. A plan authored by AI
-from a human design is fine and explicitly permitted; a codebase with no human authorship in it is
-the failure mode the clause describes.
+**Where the risk is.** If every file below the design layer ends up labeled AI-GENERATED, the submission is weak under this clause regardless of how good the design was. A plan authored by AI from a human design is fine and explicitly permitted; a codebase with no human authorship in it is the failure mode the clause describes.
 
-**Therefore — components reserved for direct human authorship**, chosen because they are exactly the
-parts a judge would probe:
+**Therefore — components reserved for direct human authorship**, chosen because they are exactly the parts a judge would probe:
 
-1. **`WitnessRoster.sol` assignment + eligibility logic.** This is the anti-collusion mechanism —
-   the project's central claim. The human should write it, or rewrite an AI draft line by line until
-   they can defend every branch without reference to notes.
-2. **The three demo scene scripts** (`agents/runner/`). The scenarios are the human's design; the
-   staging is where design meets reality, and the human should feel the friction directly.
-3. **The [§6](design.md) limitations text in the README**, written in the human's own words. This is the most
-   intellectually honest part of the submission and should read like a person wrote it.
-4. **The enclave boundary decision** ([§3.2](design.md)) — which specific fields may cross out of the TEE. The
-   human owns this table; AI implements against it.
+1. **`WitnessRoster.sol` assignment + eligibility logic.** This is the anti-collusion mechanism — the project's central claim. The human should write it, or rewrite an AI draft line by line until they can defend every branch without reference to notes.
+2. **The three demo scene scripts** (`agents/runner/`). The scenarios are the human's design; the staging is where design meets reality, and the human should feel the friction directly.
+3. **The [§6](design.md) limitations text in the README**, written in the human's own words. This is the most intellectually honest part of the submission and should read like a person wrote it.
+4. **The enclave boundary decision** ([§3.2](design.md)) — which specific fields may cross out of the TEE. The human owns this table; AI implements against it.
 
-**Anti-pattern to avoid:** accepting AI-drafted code for the four items above and relabeling it
-AI-ASSISTED without doing the review. The label would be false, and a judge in conversation would
-find out in about two questions.
+**Anti-pattern to avoid:** accepting AI-drafted code for the four items above and relabeling it AI-ASSISTED without doing the review. The label would be false, and a judge in conversation would find out in about two questions.
 
 ### 0.7 Attribution upkeep
 
-- Every milestone ([the build plan](../plan.md)) ends with an attribution pass: update §0.3 statuses, confirm or correct
-  intended provenance labels, append any new decisions to §0.4.
+- Every milestone ([the build plan](../plan.md)) ends with an attribution pass: update §0.3 statuses, confirm or correct intended provenance labels, append any new decisions to §0.4.
 - Any prompt that materially directs committed work gets appended to `docs/prompts/` verbatim.
 - Before submission: verify §0.3 has no `planned` rows left and no row is labeled aspirationally.
 

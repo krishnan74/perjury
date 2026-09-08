@@ -1,15 +1,10 @@
 # Perjury
 
-**Verification for AI agent claims.** We trust what agents tell us about their own work, but never
-check the process behind it. Perjury makes that process independently re-derived by a randomly
-assigned peer agent, privately adjudicated inside a TEE, and settled with real economic and
-reputational consequences.
+**Verification for AI agent claims.** We trust what agents tell us about their own work, but never check the process behind it. Perjury makes that process independently re-derived by a randomly assigned peer agent, privately adjudicated inside a TEE, and settled with real economic and reputational consequences.
 
 Built for **ETHOnline 2026**. Sepolia testnet.
 
-> **Status: planning.** No application code yet — design and build plan are complete, T0 is next.
-> Submission deadline **Sun Sep 13 2026, 12:00 EDT**. This README grows a quickstart, deployed
-> addresses, and demo tx hashes as they land.
+> **Status: planning.** No application code yet — design and build plan are complete, T0 is next. Submission deadline **Sun Sep 13 2026, 12:00 EDT**. This README grows a quickstart, deployed addresses, and demo tx hashes as they land.
 
 ---
 
@@ -23,28 +18,19 @@ claim + bond  →  random witness (VRF)  →  independent re-derivation (The Gra
          determines who can witness next
 ```
 
-An agent posts a claim with a bond. The protocol assigns a **random** witness — the claimant can
-never choose or influence it. The witness re-derives its own finding from live on-chain data without
-seeing the claimant's reasoning. A **confidential workflow** compares the two inside an enclave and
-publishes only a verdict, never the evidence. On mismatch the claimant forfeits its bond and its ENS
-reputation drops — which makes it ineligible to witness for anyone else, automatically, with no
-operator in the loop.
+An agent posts a claim with a bond. The protocol assigns a **random** witness — the claimant can never choose or influence it. The witness re-derives its own finding from live on-chain data without seeing the claimant's reasoning. A **confidential workflow** compares the two inside an enclave and publishes only a verdict, never the evidence. On mismatch the claimant forfeits its bond and its ENS reputation drops — which makes it ineligible to witness for anyone else, automatically, with no operator in the loop.
 
 Three constraints drive the whole design, and each rules out a simpler approach:
 
 1. **A claimant who picks its own auditor can buy a pass** → verifiably random assignment.
-2. **An adjudicator that publishes evidence hands future claimants a rubric to game** → adjudication
-   in a TEE that emits only a verdict.
-3. **Reputation the subject can write is not reputation** → ENS records writable *only* by the
-   tribunal, scoped to a single field.
+2. **An adjudicator that publishes evidence hands future claimants a rubric to game** → adjudication in a TEE that emits only a verdict.
+3. **Reputation the subject can write is not reputation** → ENS records writable *only* by the tribunal, scoped to a single field.
 
 See [docs/design.md](docs/design.md) for the full mechanism.
 
 ## What it doesn't solve
 
-Random assignment closes *deliberate* collusion. It does not catch a careless witness, and it can't
-rule out two independently-honest agents reaching the same wrong conclusion. The demo is required to
-**show** this limitation, not narrate it — see [docs/design.md §6](docs/design.md#6-the-honest-limitation-demonstrated-not-disclaimed).
+Random assignment closes *deliberate* collusion. It does not catch a careless witness, and it can't rule out two independently-honest agents reaching the same wrong conclusion. The demo is required to **show** this limitation, not narrate it — see [docs/design.md §6](docs/design.md#6-the-honest-limitation-demonstrated-not-disclaimed).
 
 ## Documentation
 
@@ -69,12 +55,7 @@ Three partner-prize slots are selectable at submission; these are ours.
 
 ## AI usage
 
-This project was designed by a human and implemented with AI assistance (Claude Code). The mechanism,
-threat model, sponsor strategy, and demo scenarios are human-authored — see
-[docs/prompts/01-project-brief.md](docs/prompts/01-project-brief.md), which predates any AI
-involvement. Per-file provenance, the decision log, and an honest account of where human authorship
-sits are in [docs/ai-usage.md](docs/ai-usage.md). Every directing prompt is committed verbatim in
-[docs/prompts/](docs/prompts/).
+This project was designed by a human and implemented with AI assistance (Claude Code). The mechanism, threat model, sponsor strategy, and demo scenarios are human-authored — see [docs/prompts/01-project-brief.md](docs/prompts/01-project-brief.md), which predates any AI involvement. Per-file provenance, the decision log, and an honest account of where human authorship sits are in [docs/ai-usage.md](docs/ai-usage.md). Every directing prompt is committed verbatim in [docs/prompts/](docs/prompts/).
 
 ## License
 

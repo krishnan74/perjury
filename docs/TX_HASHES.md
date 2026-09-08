@@ -1,7 +1,6 @@
 # Transaction Ledger
 
-Every on-chain transaction that appears in the demo or backs a claim in the submission. Logged **as
-it happens**, not reconstructed — a hash you can't find on Sunday morning is evidence you don't have.
+Every on-chain transaction that appears in the demo or backs a claim in the submission. Logged **as it happens**, not reconstructed — a hash you can't find on Sunday morning is evidence you don't have.
 
 Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<hash>`
 
@@ -16,13 +15,7 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | `ENSTextStandingReader` | `0x5bBd6E1D6F361F044cF8799F990c05681D3A80c5` | deployed | Sep 8 |
 | `VerdictSink` | _deferred_ | waiting on Forwarder-stability answer — `CRE_REPORT_WRITER` is immutable | |
 
-**CRE report writer** (the only address `VerdictSink` accepts):
-`0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a
-Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA
-(`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink`
-reject every verdict, and `CRE_REPORT_WRITER` is immutable.
-**ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by
-`0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
+**CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
 
 | Step | Tx |
 |---|---|

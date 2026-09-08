@@ -1,10 +1,6 @@
 # Prompt 02 — AI Usage & Attribution Directive
 
-**Date:** 2026-09-07
-**Author:** Human (project lead)
-**Directed:** Restructuring of `plan.md` around ETHGlobal's AI usage policy; creation of this
-`docs/prompts/` artifact directory; establishment of the per-file attribution convention.
-**Verbatim, unedited.**
+**Date:** 2026-09-07 **Author:** Human (project lead) **Directed:** Restructuring of `plan.md` around ETHGlobal's AI usage policy; creation of this `docs/prompts/` artifact directory; establishment of the per-file attribution convention. **Verbatim, unedited.**
 
 ---
 

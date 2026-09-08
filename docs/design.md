@@ -2,9 +2,7 @@
 
 *ETHOnline 2026 · Sepolia · submission due Sun Sep 13 2026, 12:00 EDT*
 
-The complete design in one document. Build sequencing lives in [`../plan.md`](../plan.md); decisions
-and their rejected alternatives in [`decisions.md`](decisions.md); AI attribution in
-[`ai-usage.md`](ai-usage.md).
+The complete design in one document. Build sequencing lives in [`../plan.md`](../plan.md); decisions and their rejected alternatives in [`decisions.md`](decisions.md); AI attribution in [`ai-usage.md`](ai-usage.md).
 
 - [0. Concept and Threat Model](#0-concept-and-threat-model)
 - [1. System Architecture](#1-system-architecture)
@@ -20,43 +18,22 @@ and their rejected alternatives in [`decisions.md`](decisions.md); AI attributio
 
 ## 0. Concept and Threat Model
 
-> **Provenance — HUMAN.** This chapter is the project's originating design, written before any AI
-> involvement. The prose is drawn from the project brief in
-> [`prompts/01-project-brief.md`](prompts/01-project-brief.md); the mechanism, the anti-collusion
-> rationale, and the threat model are the team's.
->
-> **TODO (human):** §0.1 and §0.4 currently quote the brief. Rewrite the framing in your own voice
-> before submission — it should read like the person who had the idea wrote it, because they did.
-> Keep the substance; the substance is already right.
+> **Provenance — HUMAN.** This chapter is the project's originating design, written before any AI involvement. The prose is drawn from the project brief in [`prompts/01-project-brief.md`](prompts/01-project-brief.md); the mechanism, the anti-collusion rationale, and the threat model are the team's. **TODO (human):** §0.1 and §0.4 currently quote the brief. Rewrite the framing in your own voice before submission — it should read like the person who had the idea wrote it, because they did. Keep the substance; the substance is already right.
 
 ### 0.1 The problem
 
-We trust what AI agents tell us about their own work, but never check the process behind it. An agent
-says "I checked this data before acting on it" or "I verified these sources agree," another party
-relies on that assertion, and nothing ever re-derives it.
+We trust what AI agents tell us about their own work, but never check the process behind it. An agent says "I checked this data before acting on it" or "I verified these sources agree," another party relies on that assertion, and nothing ever re-derives it.
 
-Perjury makes that process independently re-checked by a random peer agent, privately adjudicated,
-with reputation consequences.
+Perjury makes that process independently re-checked by a random peer agent, privately adjudicated, with reputation consequences.
 
 ### 0.2 The mechanism
 
-1. **Claim submission.** An agent (the *claimant*) posts a claim another party will rely on, with a
-   bond — real economic stake, not a marketplace listing.
-2. **Random witness assignment.** The protocol randomly assigns a different registered agent as the
-   *witness*. The claimant can never choose or influence who that is. Eligibility is checked live at
-   the moment of assignment against each candidate's current on-chain reputation record — an agent
-   with a recent discrepancy flag is automatically ineligible, with no manual list maintenance.
-3. **Independent re-verification.** The witness does not see or trust the claimant's reasoning. It
-   re-derives its own finding from live, standardized on-chain data. If the data is stale or the
-   deployment ID doesn't match a pinned value, the witness must treat the claim as *unverifiable*
-   rather than silently passing it.
-4. **Private adjudication.** A tribunal inside a TEE compares the claim against the witness's
-   independently-derived finding, and writes back only a minimal verdict — never the raw evidence,
-   never either party's methodology.
-5. **Bond settlement.** On mismatch the claimant forfeits its bond to whoever exposed it. On match
-   the bond is returned and standing improves.
-6. **Reputation record.** The verdict updates the claimant's standing on an ENS record that only the
-   tribunal can write.
+1. **Claim submission.** An agent (the *claimant*) posts a claim another party will rely on, with a bond — real economic stake, not a marketplace listing.
+2. **Random witness assignment.** The protocol randomly assigns a different registered agent as the *witness*. The claimant can never choose or influence who that is. Eligibility is checked live at the moment of assignment against each candidate's current on-chain reputation record — an agent with a recent discrepancy flag is automatically ineligible, with no manual list maintenance.
+3. **Independent re-verification.** The witness does not see or trust the claimant's reasoning. It re-derives its own finding from live, standardized on-chain data. If the data is stale or the deployment ID doesn't match a pinned value, the witness must treat the claim as *unverifiable* rather than silently passing it.
+4. **Private adjudication.** A tribunal inside a TEE compares the claim against the witness's independently-derived finding, and writes back only a minimal verdict — never the raw evidence, never either party's methodology.
+5. **Bond settlement.** On mismatch the claimant forfeits its bond to whoever exposed it. On match the bond is returned and standing improves.
+6. **Reputation record.** The verdict updates the claimant's standing on an ENS record that only the tribunal can write.
 
 ### 0.3 Why the design has this shape
 
@@ -68,25 +45,17 @@ Three constraints generate the entire architecture. Each rules out an obvious si
 | **An adjudicator that publishes both sides' evidence leaks each agent's methodology, and hands future claimants a rubric to game.** | On-chain comparison; any public-diff adjudicator. | Adjudication inside an enclave that emits only a verdict — [§3](#3-cre-confidential-workflow-design-the-tribunal). |
 | **Reputation the subject can write is not reputation.** | Self-reported scores; operator-curated allowlists. | Role-restricted ENS records writable only by the tribunal, scoped to one field — [§4](#4-ens-integration-design-ensv2-sepolia-beta). |
 
-The third is the load-bearing insight. Most agent-reputation designs fail here quietly: they build an
-elaborate scoring mechanism, then let the scored party — or a project multisig — write the score.
+The third is the load-bearing insight. Most agent-reputation designs fail here quietly: they build an elaborate scoring mechanism, then let the scored party — or a project multisig — write the score.
 
 ### 0.4 What this does not solve
 
-Random assignment closes *deliberate* collusion. It does not close carelessness, correlated honest
-error, or sybils. This is treated as a first-class part of the design rather than a footnote — see
-[§6](#6-the-honest-limitation-demonstrated-not-disclaimed), which the demo must *show* rather than
-narrate.
+Random assignment closes *deliberate* collusion. It does not close carelessness, correlated honest error, or sybils. This is treated as a first-class part of the design rather than a footnote — see [§6](#6-the-honest-limitation-demonstrated-not-disclaimed), which the demo must *show* rather than narrate.
 
 ---
 
 ## 1. System Architecture
 
-> **Provenance — AI-ASSISTED.** The component decomposition and wiring below are an AI structuring of
-> the human-authored mechanism in `docs/prompts/01-project-brief.md`. The narrative roles the
-> architecture must realize — *the claimant, the witness, the tribunal, the reputation record* — and
-> the requirement that each map to an identifiable component are the human's specification (D1); the
-> mapping of those roles onto specific contracts and processes is AI-proposed and human-reviewed.
+> **Provenance — AI-ASSISTED.** The component decomposition and wiring below are an AI structuring of the human-authored mechanism in `docs/prompts/01-project-brief.md`. The narrative roles the architecture must realize — *the claimant, the witness, the tribunal, the reputation record* — and the requirement that each map to an identifiable component are the human's specification (D1); the mapping of those roles onto specific contracts and processes is AI-proposed and human-reviewed.
 
 #### 1.1 Narrative → component map
 
@@ -160,8 +129,7 @@ narrate.
                                  └──────────▶ back to step 2 (eligibility)
 ```
 
-The loop closing on itself is the point: **the tribunal's own output is the only thing that decides
-who is allowed to be a tribunal witness next time**, and no human or agent sits in that path.
+The loop closing on itself is the point: **the tribunal's own output is the only thing that decides who is allowed to be a tribunal witness next time**, and no human or agent sits in that path.
 
 #### 1.3 Repo layout
 
@@ -192,15 +160,7 @@ perjury/
 
 ## 2. Smart Contract Design
 
-> **Provenance — mixed; read the split carefully.**
-> **Human-specified (D1):** bonds must be real economic stake; a claimant must never be able to
-> choose or influence its witness; eligibility must be checked live against the on-chain reputation
-> record with no manual list maintenance; the verdict path must be unreachable by operators.
-> **AI-proposed:** the four-contract decomposition, function signatures, the roster-walk algorithm,
-> the pull-payment settlement pattern, and the test matrix. These are implementation detail serving
-> the human's constraints.
-> **Reserved for human authorship:** `WitnessRoster`'s assignment and eligibility logic ([§0.6](ai-usage.md)) — it
-> *is* the anti-collusion claim, and the team must be able to defend every branch of it unaided.
+> **Provenance — mixed; read the split carefully.** **Human-specified (D1):** bonds must be real economic stake; a claimant must never be able to choose or influence its witness; eligibility must be checked live against the on-chain reputation record with no manual list maintenance; the verdict path must be unreachable by operators. **AI-proposed:** the four-contract decomposition, function signatures, the roster-walk algorithm, the pull-payment settlement pattern, and the test matrix. These are implementation detail serving the human's constraints. **Reserved for human authorship:** `WitnessRoster`'s assignment and eligibility logic ([§0.6](ai-usage.md)) — it *is* the anti-collusion claim, and the team must be able to defend every branch of it unaided.
 
 All Solidity, Foundry, Sepolia. Four contracts + one adapter.
 
@@ -231,14 +191,10 @@ function claimOf(uint256 claimId) external view returns (Claim memory);
 
 **Access control (enforced, not described):**
 - `onWitnessAssigned` → `require(msg.sender == address(witnessRoster))`.
-- `recordVerdict` → `require(msg.sender == address(verdictSink))`. Nothing else can move a claim to
-  `Adjudicated`, so no EOA — including the deployer — can decide an outcome.
+- `recordVerdict` → `require(msg.sender == address(verdictSink))`. Nothing else can move a claim to `Adjudicated`, so no EOA — including the deployer — can decide an outcome.
 - `submitClaim` → `require(roster.isRegistered(msg.sender))`.
-- Bond is `msg.value` in native Sepolia ETH (avoids an ERC-20 faucet dependency mid-demo). Settlement
-  uses pull-payment (`withdraw()`) to keep the settle path non-reverting on camera.
-- Registry is deployed with roster/sink addresses set once and `immutable`. **No owner-settable
-  addresses, no pause, no upgrade proxy** — because "the operators can't touch the verdict" is a
-  claim we make on camera and judges will `grep` for an `onlyOwner` escape hatch.
+- Bond is `msg.value` in native Sepolia ETH (avoids an ERC-20 faucet dependency mid-demo). Settlement uses pull-payment (`withdraw()`) to keep the settle path non-reverting on camera.
+- Registry is deployed with roster/sink addresses set once and `immutable`. **No owner-settable addresses, no pause, no upgrade proxy** — because "the operators can't touch the verdict" is a claim we make on camera and judges will `grep` for an `onlyOwner` escape hatch.
 
 #### 2.2 `WitnessRoster.sol` — identity, eligibility, VRF assignment
 
@@ -269,18 +225,13 @@ function isEligible(address c) public view returns (bool) {
     return true;
 }
 ```
-`standingReader` resolves the ENS text record on-chain each call, so exclusion is a *consequence of
-the record*, not of an admin transaction. This is what makes scenario 2's "and now it can't be
-picked" provable rather than asserted.
+`standingReader` resolves the ENS text record on-chain each call, so exclusion is a *consequence of the record*, not of an admin transaction. This is what makes scenario 2's "and now it can't be picked" provable rather than asserted.
 
 **Anti-collusion invariants, unit-tested:**
 - `submitClaim` never takes a witness argument — there is no code path where a claimant supplies one.
 - `fulfillRandomWords` is `onlyCoordinator` (inherited from `VRFConsumerBaseV2Plus`).
-- Fuzz test: over N random seeds, the distribution over eligible witnesses is uniform within
-  tolerance, and `assigned != claimant` holds for every seed.
-- Test: a claimant that registers a second "friendly" address cannot raise its odds beyond `1/n` per
-  registered sybil — and each sybil needs its own bondable ENS subname (cost, not prevention; we say
-  this honestly in [§6](#6-the-honest-limitation-demonstrated-not-disclaimed)).
+- Fuzz test: over N random seeds, the distribution over eligible witnesses is uniform within tolerance, and `assigned != claimant` holds for every seed.
+- Test: a claimant that registers a second "friendly" address cannot raise its odds beyond `1/n` per registered sybil — and each sybil needs its own bondable ENS subname (cost, not prevention; we say this honestly in [§6](#6-the-honest-limitation-demonstrated-not-disclaimed)).
 
 #### 2.3 `VerdictSink.sol` — the only door the tribunal can walk through
 
@@ -294,9 +245,7 @@ function onReport(bytes calldata metadata, bytes calldata report) external {
     standingWriter.applyVerdict(claimId, Verdict(verdict));
 }
 ```
-Single entry point, single authorized sender, no admin override. If the CRE address needs to change
-(simulate-key → live DON), that is a **redeploy**, not a setter — again because "only the tribunal
-can write" must survive a hostile read of the code.
+Single entry point, single authorized sender, no admin override. If the CRE address needs to change (simulate-key → live DON), that is a **redeploy**, not a setter — again because "only the tribunal can write" must survive a hostile read of the code.
 
 #### 2.4 `PerjuryStandingWriter.sol` — narrow ENS write adapter
 
@@ -309,15 +258,11 @@ function applyVerdict(uint256 claimId, Verdict v) external {
     resolver.setText(node, "perjury.standing", _encode(newStanding));
 }
 ```
-It has **no** function that can call `setAddr`, `setOwner`, transfer the name, write any other text
-key, or grant roles. Even if this contract were fully compromised, the blast radius is one text
-record per agent. That containment is the on-chain half of the ENS story; the EAC role config ([§4](#4-ens-integration-design-ensv2-sepolia-beta))
-is the other half, and both must hold.
+It has **no** function that can call `setAddr`, `setOwner`, transfer the name, write any other text key, or grant roles. Even if this contract were fully compromised, the blast radius is one text record per agent. That containment is the on-chain half of the ENS story; the EAC role config ([§4](#4-ens-integration-design-ensv2-sepolia-beta)) is the other half, and both must hold.
 
 #### 2.5 Contract test matrix (Foundry)
 
-- Bond escrow: submit → mismatch → witness receives exactly the bond; submit → match → claimant
-  refunded; double-settle reverts.
+- Bond escrow: submit → mismatch → witness receives exactly the bond; submit → match → claimant refunded; double-settle reverts.
 - `recordVerdict` from a random EOA reverts. From the sink, succeeds.
 - `onReport` from a non-CRE address reverts.
 - Assignment excludes claimant, excludes flagged agents, is uniform over eligible set (fuzz).
@@ -330,23 +275,14 @@ is the other half, and both must hold.
 
 ## 3. CRE Confidential Workflow Design — "the tribunal"
 
-> **Provenance — mixed.**
-> **Human-specified (D1):** that adjudication happen inside a TEE; that it compare the claim against
-> an independently-derived finding; that it emit *only* a minimal verdict and never the raw evidence,
-> methodology, or reasoning; and that the confidentiality be load-bearing rather than decorative.
-> The enclave boundary table in §3.2 is a design decision the human owns ([§0.6](ai-usage.md)).
-> **AI-proposed:** the trigger shape, the five-step adjudication sequence, the `evidenceCommitment`
-> construction, and the §3.5 access strategy mechanics.
+> **Provenance — mixed.** **Human-specified (D1):** that adjudication happen inside a TEE; that it compare the claim against an independently-derived finding; that it emit *only* a minimal verdict and never the raw evidence, methodology, or reasoning; and that the confidentiality be load-bearing rather than decorative. The enclave boundary table in §3.2 is a design decision the human owns ([§0.6](ai-usage.md)). **AI-proposed:** the trigger shape, the five-step adjudication sequence, the `evidenceCommitment` construction, and the §3.5 access strategy mechanics.
 
 `cre/tribunal/main.ts`, TypeScript, `@chainlink/cre-sdk`.
 
 #### 3.1 Trigger and shape
 
-- **Trigger:** EVM log trigger on `ClaimRegistry.ReadyForAdjudication(claimId)` — emitted once both
-  the claimant's sealed evidence pointer and the witness's sealed finding pointer are posted.
-- **Structure:** a standard CRE workflow with an explicit confidential handler. The non-confidential
-  part does trigger decoding and the onchain report write; the TEE handler does everything that
-  touches evidence.
+- **Trigger:** EVM log trigger on `ClaimRegistry.ReadyForAdjudication(claimId)` — emitted once both the claimant's sealed evidence pointer and the witness's sealed finding pointer are posted.
+- **Structure:** a standard CRE workflow with an explicit confidential handler. The non-confidential part does trigger decoding and the onchain report write; the TEE handler does everything that touches evidence.
 
 #### 3.2 What crosses which boundary
 
@@ -356,70 +292,40 @@ is the other half, and both must hold.
 | **Stays inside, never emitted** | Every one of the above. Any diff detail. Which subgraph either party chose. Either party's reasoning chain. Any numeric intermediate. | — |
 | **Leaves the enclave** | `claimId`, `verdict ∈ {Match, Mismatch, Unverifiable}`, `confidenceBucket ∈ {high, low}`, `evidenceCommitment = keccak(both blobs ‖ salt)` | public CRE report → `VerdictSink.onReport` |
 
-`evidenceCommitment` is the honesty hook: it lets anyone later verify the tribunal judged *these
-exact* blobs if a party chooses to reveal them, without the protocol ever publishing them.
+`evidenceCommitment` is the honesty hook: it lets anyone later verify the tribunal judged *these exact* blobs if a party chooses to reveal them, without the protocol ever publishing them.
 
 #### 3.3 Adjudication logic inside the TEE
 
-1. **Provenance gate.** If either side's `graph-guard` attestation fails (deployment ID ≠ pinned, or
-   indexed block older than the freshness window), return `Unverifiable`. Never `Match`.
-2. **Normalize.** Both claim and finding are reduced to a canonical typed assertion
-   (`{subject, metric, comparator, value, unit, asOfBlock}`) — the claimant's prose claim was
-   committed to this schema at submission; the witness derives one independently.
-3. **Consensus check.** Compare on `metric`/`comparator`/`value` with a per-metric tolerance band.
-   Agreement within band → `Match`; outside → `Mismatch`.
-4. **Degeneracy check.** If the witness's blob is byte-suspiciously derivative of the claimant's, or
-   its evidence shows zero independent queries, downgrade `confidenceBucket` to `low`. This is the
-   one place where careless-witness detection is even *possible*, and it is partial — see [§6](#6-the-honest-limitation-demonstrated-not-disclaimed).
+1. **Provenance gate.** If either side's `graph-guard` attestation fails (deployment ID ≠ pinned, or indexed block older than the freshness window), return `Unverifiable`. Never `Match`.
+2. **Normalize.** Both claim and finding are reduced to a canonical typed assertion (`{subject, metric, comparator, value, unit, asOfBlock}`) — the claimant's prose claim was committed to this schema at submission; the witness derives one independently.
+3. **Consensus check.** Compare on `metric`/`comparator`/`value` with a per-metric tolerance band. Agreement within band → `Match`; outside → `Mismatch`.
+4. **Degeneracy check.** If the witness's blob is byte-suspiciously derivative of the claimant's, or its evidence shows zero independent queries, downgrade `confidenceBucket` to `low`. This is the one place where careless-witness detection is even *possible*, and it is partial — see [§6](#6-the-honest-limitation-demonstrated-not-disclaimed).
 5. **Emit** the minimal report.
 
 #### 3.4 Why the confidentiality is load-bearing (Chainlink qualification)
 
-*Revised Sep 7, after actually running the workflow. The earlier draft claimed the enclave protects
-the tribunal's methodology. That is false, and worth stating plainly.*
+*Revised Sep 7, after actually running the workflow. The earlier draft claimed the enclave protects the tribunal's methodology. That is false, and worth stating plainly.*
 
-**What is and is not confidential.** The workflow binary — including the adjudication rule — is
-provided by the Workflow DON to the enclave, so **the rule is public**. What the enclave keeps
-confidential is the *data* the rule computes over: Vault DON secrets, the request and response
-payloads of HTTP calls made from inside the enclave, and intermediate values.
+**What is and is not confidential.** The workflow binary — including the adjudication rule — is provided by the Workflow DON to the enclave, so **the rule is public**. What the enclave keeps confidential is the *data* the rule computes over: Vault DON secrets, the request and response payloads of HTTP calls made from inside the enclave, and intermediate values.
 
 That division is the right one for a tribunal, and stronger than what we originally claimed:
 
-- **The rule is auditable.** Anyone can read how a verdict is reached. A court whose procedure is
-  secret is not a court; the point was never to hide the comparison.
-- **The evidence is sealed.** Each agent's raw findings and methodology reach the enclave over
-  Confidential HTTP and never become visible to node operators, to the other party, or to the chain.
-- **The verdict is public.** `claimId`, verdict, confidence bucket, and a commitment — nothing else
-  crosses back via `usingTheDons()`.
+- **The rule is auditable.** Anyone can read how a verdict is reached. A court whose procedure is secret is not a court; the point was never to hide the comparison.
+- **The evidence is sealed.** Each agent's raw findings and methodology reach the enclave over Confidential HTTP and never become visible to node operators, to the other party, or to the chain.
+- **The verdict is public.** `claimId`, verdict, confidence bucket, and a commitment — nothing else crosses back via `usingTheDons()`.
 
-**Why a public contract cannot do this job.** The comparison needs both parties' evidence in one
-place. On-chain, that means publishing it — which destroys the mechanism twice over: it exposes each
-agent's methodology, and it hands future claimants a rubric describing exactly what a witness will
-check, so claims get tailored to pass. Sealed inputs with a public rule and a public verdict is the
-only shape that works.
+**Why a public contract cannot do this job.** The comparison needs both parties' evidence in one place. On-chain, that means publishing it — which destroys the mechanism twice over: it exposes each agent's methodology, and it hands future claimants a rubric describing exactly what a witness will check, so claims get tailored to pass. Sealed inputs with a public rule and a public verdict is the only shape that works.
 
-**It is core, not decorative.** Remove the enclave and the protocol has no adjudicator — there is no
-other component that decides match from mismatch. The confidential HTTP round-trip *is* the evidence
-channel, not a wrapper around one.
+**It is core, not decorative.** Remove the enclave and the protocol has no adjudicator — there is no other component that decides match from mismatch. The confidential HTTP round-trip *is* the evidence channel, not a wrapper around one.
 
-**Demonstrated, not asserted.** `packages/tribunal/test/adjudicate.test.ts` includes leak tests that
-fail if evidence, methodology, query hashes, metric names, or the disputed values appear in the
-serialized report. And the simulator prints, on camera: *"During real execution, user logs for this
-trigger will not be visible, and will not leave the TEE."*
+**Demonstrated, not asserted.** `packages/tribunal/test/adjudicate.test.ts` includes leak tests that fail if evidence, methodology, query hashes, metric names, or the disputed values appear in the serialized report. And the simulator prints, on camera: *"During real execution, user logs for this trigger will not be visible, and will not leave the TEE."*
 
 #### 3.5 Access path (highest-risk item — start day 0)
 
-- **Item zero of the whole build:** post the Confidential Workflows beta access request in the
-  ETHGlobal Discord Chainlink channel, same format others are using. Do this before writing any code.
-- **Primary path if access is slow:** `cre workflow simulate --target staging-settings --config
-  config.staging.json --broadcast cre/tribunal/main.ts`. This executes the real workflow binary and
-  **broadcasts real Sepolia transactions**, satisfying "demonstrate execution via simulation or live
-  deployment with evidence." The demo is fully real either way; only the enclave hosting differs.
-- **Swap point:** the only thing that differs between simulate and live is `CRE_REPORT_WRITER` in
-  `VerdictSink`. Keep deployment scripted so the swap is one redeploy + one roster re-point, doable
-  in under 30 minutes. Record the video *after* whichever path is final.
-- Capture evidence either way: simulation logs, the TEE handler registration, tx hashes, and a short
-  README section citing them.
+- **Item zero of the whole build:** post the Confidential Workflows beta access request in the ETHGlobal Discord Chainlink channel, same format others are using. Do this before writing any code.
+- **Primary path if access is slow:** `cre workflow simulate --target staging-settings --config config.staging.json --broadcast cre/tribunal/main.ts`. This executes the real workflow binary and **broadcasts real Sepolia transactions**, satisfying "demonstrate execution via simulation or live deployment with evidence." The demo is fully real either way; only the enclave hosting differs.
+- **Swap point:** the only thing that differs between simulate and live is `CRE_REPORT_WRITER` in `VerdictSink`. Keep deployment scripted so the swap is one redeploy + one roster re-point, doable in under 30 minutes. Record the video *after* whichever path is final.
+- Capture evidence either way: simulation logs, the TEE handler registration, tx hashes, and a short README section citing them.
 
 ---
 
@@ -427,25 +333,13 @@ trigger will not be visible, and will not leave the TEE."*
 
 ## 4. ENS Integration Design (ENSv2, Sepolia beta)
 
-> **Provenance — mixed.**
-> **Human-specified (D1):** that only the CRE workflow's address may write the record; that its
-> permission be scoped so narrowly it can only ever write the outcome field — never reassign name
-> ownership, never alter witness eligibility, never touch identity data; and that agent identity use
-> agents-as-namespaces. The insight driving all of it — *reputation the subject can write is not
-> reputation* — is the human's.
-> **AI-proposed:** the record-key layout, the `PerjuryStandingWriter` indirection, the
-> `prove-eac.ts` three-transaction evidence artifact, and the §4.3 gas-risk analysis.
+> **Provenance — mixed.** **Human-specified (D1):** that only the CRE workflow's address may write the record; that its permission be scoped so narrowly it can only ever write the outcome field — never reassign name ownership, never alter witness eligibility, never touch identity data; and that agent identity use agents-as-namespaces. The insight driving all of it — *reputation the subject can write is not reputation* — is the human's. **AI-proposed:** the record-key layout, the `PerjuryStandingWriter` indirection, the `prove-eac.ts` three-transaction evidence artifact, and the §4.3 gas-risk analysis.
 
 #### 4.1 Namespace: agents as namespaces
 
 - Register `perjury.eth` on the ENSv2 Sepolia beta.
-- Deploy a **subname registry** under it so every registered agent gets `<agent>.perjury.eth` —
-  minted at `WitnessRoster.registerAgent()` time (script-assisted; the subname node hash is what the
-  roster stores).
-- Each agent gets its **own permissioned resolver proxy** (ENSv2 gives each account one), so
-  permissions are per-agent, not global. This is the "agents as namespaces" bonus the track calls
-  out, taken literally: the agent's identity, its permissions, and its reputation are all one ENS
-  name, and the name is the primary key the protocol indexes on.
+- Deploy a **subname registry** under it so every registered agent gets `<agent>.perjury.eth` — minted at `WitnessRoster.registerAgent()` time (script-assisted; the subname node hash is what the roster stores).
+- Each agent gets its **own permissioned resolver proxy** (ENSv2 gives each account one), so permissions are per-agent, not global. This is the "agents as namespaces" bonus the track calls out, taken literally: the agent's identity, its permissions, and its reputation are all one ENS name, and the name is the primary key the protocol indexes on.
 
 Records per agent:
 | Key | Written by | Meaning |
@@ -457,61 +351,39 @@ Records per agent:
 
 #### 4.2 Enhanced Access Control configuration
 
-*Revised Sep 7 against the ENSv2 Permissioned Resolver docs — the original text assumed node-scoped
-roles, which is not how resolver resources work.*
+*Revised Sep 8 with answers from the ENS team. Two earlier drafts of this section were wrong: the first assumed node-scoped roles, the second assumed we would need to revoke the agent's own write permission. Neither is how ENSv2 works.*
 
-**How resolver scoping actually works.** Roles are a `uint256` bitmap (32 regular roles in bits
-0–127, their admin counterparts at `role << 128`). Crucially, **resolver resources derive from the
-setter argument alone — names play no part in resource computation.** For a text record the resource
-is `keccak256(bytes(key))`. Since ENSv2 gives every account its own Permissioned Resolver proxy, a
-grant is therefore scoped to *(this resolver, this text key)* — narrower than the node-level scoping
-originally assumed here.
+**Registry and resolver are separate permission worlds.** Registering a name grants roles on the **registry entry** — `SET_RESOLVER`, `SET_SUBREGISTRY`, `TRANSFER_ADMIN` and so on. It grants **nothing on any resolver**. Resolvers are deployed separately through the **VerifiableFactory** (`0x894bc9cc…07780`), and their EAC roles are supplied *at deployment time* as `(account, roleBitmap)` pairs.
 
-Constants and helpers live in `packages/ens/src/eac.ts`.
+This makes the design simpler and strictly stronger than planned: **there is nothing to revoke.** An agent has no resolver write permission unless we grant it, so we simply never do.
 
-The setup, done once per agent subname at registration:
+**Resolver-level configuration.** One shared Permissioned Resolver serves every agent subname. Per the ENS team, a resolver per agent is only needed if agents must self-manage records of their own; ours do not — identity records were a nice-to-have, and dropping them removes a deployment per agent. At deployment we grant:
 
-1. Grant `PerjuryStandingWriter` (the [§2.4](#2-smart-contract-design) contract, itself only callable
-   by `VerdictSink`, itself only callable by the CRE address) `ROLE_SET_TEXT` (`1 << 4`) on the
-   agent's Permissioned Resolver, for exactly two resources:
-   `keccak256("com.perjury.agent-standing")` and `keccak256("com.perjury.agent-flagged-until")`.
-2. **Revoke** the agent owner's own `ROLE_SET_TEXT` for those two resources. An agent must not be
-   able to edit its own reputation — the single most important config line in the project.
-3. Grant **nothing else**: no `ROLE_SET_ADDRESS`, `ROLE_SET_NAME`, `ROLE_LINK`, `ROLE_UPGRADE`,
-   `ROLE_CAN_NAME`, and **no admin role** (`role << 128`), so the writer cannot re-grant to anyone.
-   No registry-level roles at all: it cannot reassign ownership, create or burn subnames, change the
-   subregistry, or alter witness eligibility (which is derived, not stored — [§2.2](#2-smart-contract-design)).
-4. Keep role admin on a deployer key used by no agent and not by the CRE workflow, and show on camera
-   that even that key cannot write the standing record.
+| Account | Role | Resource |
+|---|---|---|
+| `PerjuryStandingWriter` | `ROLE_SET_TEXT` (`1 << 4`) | `keccak256("com.perjury.agent-standing")` |
+| `PerjuryStandingWriter` | `ROLE_SET_TEXT` | `keccak256("com.perjury.agent-flagged-until")` |
+| *agents* | **nothing** | — |
 
-`FORBIDDEN_TRIBUNAL_ROLES` in `packages/ens/src/eac.ts` lists what the tribunal must never hold, and
-`packages/ens/test/eac.test.ts` asserts the grant set never intersects it.
+The writer receives no `SET_ADDRESS`, `SET_NAME`, `LINK`, `UPGRADE`, `CAN_NAME`, and **no admin role** (`role << 128`), so it cannot re-grant to anyone. `FORBIDDEN_TRIBUNAL_ROLES` in `packages/ens/src/eac.ts` lists what it must never hold, and a test asserts the grant set never intersects it.
 
-**Record keys** are vendor-prefixed per ENS team guidance: app-specific records take a
-`com.example.agent-*` prefix, so Perjury writes `com.perjury.agent-standing` and
-`com.perjury.agent-flagged-until` (not the `perjury.standing` used in earlier drafts).
+**⚠ The registry-level bypass.** Resolver scoping is worthless if an agent can point its name at a different resolver. When issuing agent subnames we must **withhold `SET_RESOLVER`** — otherwise an agent repoints `alice.perjury.eth` at a resolver it controls and writes whatever standing it likes. The bypass lives in the *registry* permission world, which is not where you look when you have spent two days reasoning about resolver roles. Flagged by the ENS team; encoded as `FORBIDDEN_AGENT_REGISTRY_ROLES` with a test.
 
-**Note on `setText`:** ENSv2 takes a **DNS-encoded name** (`setText(bytes name, string key, string
-value)`), while reads use a namehash. `WitnessRoster` stores both per agent.
+**Failure mode is a revert.** An unauthorised `setText` reverts with `EACUnauthorizedAccountRoles` — it does not silently no-op. That confirms the shape of `scripts/prove-eac.ts`, which demonstrates the guarantee by showing two transactions *fail*.
 
-**Prove it on camera, don't narrate it:** a `scripts/prove-eac.ts` that fires three transactions and
-shows two reverting — agent tries to write its own standing (revert), deployer/operator tries
-(revert), tribunal path (succeeds). This 20-second clip carries the ENS track.
+**Record keys** are vendor-prefixed per ENS guidance: `com.perjury.agent-standing` and `com.perjury.agent-flagged-until`.
+
+**Note on `setText`:** ENSv2 takes a **DNS-encoded name** (`setText(bytes name, string key, string value)`), while reads use a namehash. `WitnessRoster` stores both per agent.
+
+**Prove it on camera, don't narrate it:** `scripts/prove-eac.ts` fires three transactions and shows two reverting — an agent writing its own standing, and an operator writing it. This clip carries the ENS track.
 
 #### 4.3 Live reputation lookup at assignment time
 
-`WitnessRoster.isEligible()` calls `standingReader.standingOf(node)`, which performs an on-chain ENS
-resolution of the agent's `perjury.standing` record inside the VRF callback. Consequences:
+`WitnessRoster.isEligible()` calls `standingReader.standingOf(node)`, which performs an on-chain ENS resolution of the agent's `perjury.standing` record inside the VRF callback. Consequences:
 
-- Eligibility is a pure function of the ENS record at the instant of assignment. No cached list, no
-  cron, no admin.
-- The moment the tribunal writes a mismatch, the agent is excluded from the very next assignment —
-  which is precisely what scenario 2 shows.
-- **Gas risk:** ENS resolution inside a VRF callback costs gas and the callback has a gas limit.
-  Mitigation: keep the reader path minimal (direct resolver `text()` call, no universal-resolver
-  ccip-read hop), set VRF `callbackGasLimit` generously (~500k), and cap roster walk iterations with
-  a bounded loop that falls through to `Unverifiable` rather than reverting. **Benchmark this in
-  Milestone 3 — an OOG in the callback on camera is the worst-case demo failure.**
+- Eligibility is a pure function of the ENS record at the instant of assignment. No cached list, no cron, no admin.
+- The moment the tribunal writes a mismatch, the agent is excluded from the very next assignment — which is precisely what scenario 2 shows.
+- **Gas risk:** ENS resolution inside a VRF callback costs gas and the callback has a gas limit. Mitigation: keep the reader path minimal (direct resolver `text()` call, no universal-resolver ccip-read hop), set VRF `callbackGasLimit` generously (~500k), and cap roster walk iterations with a bounded loop that falls through to `Unverifiable` rather than reverting. **Benchmark this in Milestone 3 — an OOG in the callback on camera is the worst-case demo failure.**
 
 ---
 
@@ -519,31 +391,15 @@ resolution of the agent's `perjury.standing` record inside the VRF callback. Con
 
 ## 5. Graph Integration Design
 
-> **Provenance — mixed.**
-> **Human-specified (D1):** that the witness re-derive its finding independently from live
-> standardized on-chain data rather than reviewing the claimant's reasoning; and the reject-never-
-> degrade rule — stale data or a deployment-ID mismatch must produce *unverifiable*, never a silent
-> pass, because provenance is a correctness requirement. Human also directed evaluation of Messari
-> standardized schemas and ERC-8004/Agent0 subgraphs specifically.
-> **AI-proposed:** the `Provenance` type, the freshness-window mechanics, the attestation flow, and
-> the §5.4 second-track observation.
+> **Provenance — mixed.** **Human-specified (D1):** that the witness re-derive its finding independently from live standardized on-chain data rather than reviewing the claimant's reasoning; and the reject-never- degrade rule — stale data or a deployment-ID mismatch must produce *unverifiable*, never a silent pass, because provenance is a correctness requirement. Human also directed evaluation of Messari standardized schemas and ERC-8004/Agent0 subgraphs specifically. **AI-proposed:** the `Provenance` type, the freshness-window mechanics, the attestation flow, and the §5.4 second-track observation.
 
 #### 5.1 What is queried and why it is load-bearing
 
-The witness's finding is *derived entirely* from The Graph. There is no other data source in the
-verification path. If the Graph layer is removed, the witness has nothing to say and the tribunal
-has nothing to compare — that is the load-bearing test.
+The witness's finding is *derived entirely* from The Graph. There is no other data source in the verification path. If the Graph layer is removed, the witness has nothing to say and the tribunal has nothing to compare — that is the load-bearing test.
 
-- **Source:** live Graph Network Gateway via **Subgraph MCP**, authenticated with a Subgraph Studio
-  API key. No local graph-node, no cached fixtures, no static JSON — mocked data explicitly
-  disqualifies.
-- **Schema:** **Messari Standardized Subgraphs** for the claim domain (lending/DEX metrics: TVL,
-  utilization, total borrow, pool reserves). Standardization is the point: because Messari schemas
-  are identical across protocols, claimant and witness can produce *comparable* assertions without
-  agreeing on a schema in advance — that comparability is what makes the tribunal's diff meaningful.
-- **Secondary:** ERC-8004 / Agent0 agent-registry subgraphs where available, to cross-check that a
-  registered agent identity exists on-chain independent of our own roster. Nice-to-have; do not block
-  on it.
+- **Source:** live Graph Network Gateway via **Subgraph MCP**, authenticated with a Subgraph Studio API key. No local graph-node, no cached fixtures, no static JSON — mocked data explicitly disqualifies.
+- **Schema:** **Messari Standardized Subgraphs** for the claim domain (lending/DEX metrics: TVL, utilization, total borrow, pool reserves). Standardization is the point: because Messari schemas are identical across protocols, claimant and witness can produce *comparable* assertions without agreeing on a schema in advance — that comparability is what makes the tribunal's diff meaningful.
+- **Secondary:** ERC-8004 / Agent0 agent-registry subgraphs where available, to cross-check that a registered agent identity exists on-chain independent of our own roster. Nice-to-have; do not block on it.
 
 #### 5.2 How the witness actually uses MCP (the "AI use case")
 
@@ -554,10 +410,7 @@ The witness is an LLM agent with the Subgraph MCP mounted as tools. Its loop:
 3. Read the schema, **compose its own GraphQL query** — it is not handed one.
 4. Execute, interpret the result against the claim's metric, produce a typed assertion.
 
-The reasoning — which subgraph to trust, how to map a prose claim onto a standardized schema field,
-what tolerance is appropriate — is the agent's, not a hardcoded query. That is the difference
-between "an AI use case" and "printing a query result," and the video must show the agent's tool
-calls scrolling.
+The reasoning — which subgraph to trust, how to map a prose claim onto a standardized schema field, what tolerance is appropriate — is the agent's, not a hardcoded query. That is the difference between "an AI use case" and "printing a query result," and the video must show the agent's tool calls scrolling.
 
 #### 5.3 Provenance and freshness — reject, never degrade
 
@@ -582,21 +435,13 @@ function guard(res, pinned): Attestation {
 }
 ```
 
-- Pinned deployment IDs live in `packages/shared/pinned-deployments.json`, committed. A subgraph
-  silently redeploying under the same name is exactly the substitution attack this catches.
-- On any guard failure the finding becomes **`UNVERIFIABLE`**, which propagates to the tribunal and
-  results in **bond returned, no standing change**. It never silently becomes a pass. Stating this is
-  cheap; a unit test asserting `guard()` throws on a stale block and that the resulting verdict is
-  `Unverifiable` (not `Match`) is what actually earns it.
-- Every attestation is included in the enclave input, so the tribunal — not the witness — is the one
-  that decides whether provenance was adequate. The witness can't wave itself through.
+- Pinned deployment IDs live in `packages/shared/pinned-deployments.json`, committed. A subgraph silently redeploying under the same name is exactly the substitution attack this catches.
+- On any guard failure the finding becomes **`UNVERIFIABLE`**, which propagates to the tribunal and results in **bond returned, no standing change**. It never silently becomes a pass. Stating this is cheap; a unit test asserting `guard()` throws on a stale block and that the resulting verdict is `Unverifiable` (not `Match`) is what actually earns it.
+- Every attestation is included in the enclave input, so the tribunal — not the witness — is the one that decides whether provenance was adequate. The witness can't wave itself through.
 
 #### 5.4 Opportunistic second Graph track
 
-The *Composable/Standardized Graph Products* track ($5,000) wants two+ Graph products composed **or**
-a standardized schema. We already do both: Subgraph MCP + Gateway + Messari standardized schemas. If
-the event permits submitting to both Graph tracks, add one README section making the standards
-leverage explicit and submit to both. **Open question — confirm dual-submission rules ([the build plan](../plan.md)).**
+The *Composable/Standardized Graph Products* track ($5,000) wants two+ Graph products composed **or** a standardized schema. We already do both: Subgraph MCP + Gateway + Messari standardized schemas. If the event permits submitting to both Graph tracks, add one README section making the standards leverage explicit and submit to both. **Open question — confirm dual-submission rules ([the build plan](../plan.md)).**
 
 ---
 
@@ -604,29 +449,16 @@ leverage explicit and submit to both. **Open question — confirm dual-submissio
 
 ## 6. The Honest Limitation — demonstrated, not disclaimed
 
-> **Provenance — HUMAN (D2).** The limitation itself is the human's own analysis, identified
-> unprompted in the original brief: random assignment closes *deliberate* collusion but does not
-> catch a careless witness, and cannot rule out two independently-honest agents reaching the same
-> wrong conclusion. The human also set the standard that it be *demonstrated on camera rather than
-> disclaimed in text*. AI contributed only the sybil-cost framing and the prose arrangement.
-> **The README version of this section must be written in the human's own words ([§0.6](ai-usage.md)).**
+> **Provenance — HUMAN (D2).** The limitation itself is the human's own analysis, identified unprompted in the original brief: random assignment closes *deliberate* collusion but does not catch a careless witness, and cannot rule out two independently-honest agents reaching the same wrong conclusion. The human also set the standard that it be *demonstrated on camera rather than disclaimed in text*. AI contributed only the sybil-cost framing and the prose arrangement. **The README version of this section must be written in the human's own words ([§0.6](ai-usage.md)).**
 
-**The claim we can defend:** random assignment makes *deliberate* collusion structurally
-unavailable — a claimant cannot choose, influence, or predict its witness, and cannot become its own
-witness.
+**The claim we can defend:** random assignment makes *deliberate* collusion structurally unavailable — a claimant cannot choose, influence, or predict its witness, and cannot become its own witness.
 
 **What it does not close, stated plainly in the README and shown in the video:**
-- A **careless** witness that does minimal work and happens to agree costs the claimant nothing. Our
-  degeneracy check ([§3.3](#3-cre-confidential-workflow-design-the-tribunal) step 4) catches only the crudest version; it is a heuristic, not a solution.
-- Two **independently honest** agents can reach the same wrong conclusion — e.g. both trust the same
-  subgraph, and the subgraph is wrong. Standardized schemas make this *more* likely, not less. The
-  provenance gate limits the blast radius; it does not eliminate it.
-- **Sybils** raise a claimant's odds of drawing a friendly witness linearly in the number of funded,
-  ENS-named, bondable identities it controls. Bond + registration cost makes this expensive, not
-  impossible.
+- A **careless** witness that does minimal work and happens to agree costs the claimant nothing. Our degeneracy check ([§3.3](#3-cre-confidential-workflow-design-the-tribunal) step 4) catches only the crudest version; it is a heuristic, not a solution.
+- Two **independently honest** agents can reach the same wrong conclusion — e.g. both trust the same subgraph, and the subgraph is wrong. Standardized schemas make this *more* likely, not less. The provenance gate limits the blast radius; it does not eliminate it.
+- **Sybils** raise a claimant's odds of drawing a friendly witness linearly in the number of funded, ENS-named, bondable identities it controls. Bond + registration cost makes this expensive, not impossible.
 
-Scenario 3 ([§7](#7-on-camera-checklist-what-must-be-true-and-shown)) shows the *first* of these bounded by the mechanism itself, on camera — two agents
-who have agreed to collude, repeatedly failing to be paired.
+Scenario 3 ([§7](#7-on-camera-checklist-what-must-be-true-and-shown)) shows the *first* of these bounded by the mechanism itself, on camera — two agents who have agreed to collude, repeatedly failing to be paired.
 
 ---
 
@@ -634,12 +466,9 @@ who have agreed to collude, repeatedly failing to be paired.
 
 ## 7. On-Camera Checklist — what must be TRUE and SHOWN
 
-> **Provenance — mixed.** The three scenarios, and the standard that nothing be narrated which isn't
-> shown, are human-authored (D3). The expansion into per-shot rows with a required visible artifact
-> for each is AI-ASSISTED — mechanical elaboration of the human's requirement.
+> **Provenance — mixed.** The three scenarios, and the standard that nothing be narrated which isn't shown, are human-authored (D3). The expansion into per-shot rows with a required visible artifact for each is AI-ASSISTED — mechanical elaboration of the human's requirement.
 
-Rule for the whole video: **if it is narrated but not on screen, it does not count.** Every row below
-needs a visible artifact — a tx hash, a state change, a revert, or a rendered value that moves.
+Rule for the whole video: **if it is narrated but not on screen, it does not count.** Every row below needs a visible artifact — a tx hash, a state change, a revert, or a rendered value that moves.
 
 #### Scenario 1 — a TRUE claim, opportunistically challenged
 
@@ -681,8 +510,7 @@ needs a visible artifact — a tx hash, a state change, a revert, or a rendered 
 #### Cross-cutting (must be true across all three)
 
 - Every transaction is on a public Sepolia explorer and hash-visible; nothing is a local fork.
-- Every Graph query hits the live Gateway with a Studio API key; show a network panel or MCP log
-  proving it is not a fixture.
+- Every Graph query hits the live Gateway with a Studio API key; show a network panel or MCP log proving it is not a fixture.
 - The EAC proof clip ([§4.2](#4-ens-integration-design-ensv2-sepolia-beta)): agent self-write reverts, operator write reverts, tribunal path succeeds.
 - The repo is public and every commit is dated within the event window.
 
@@ -692,12 +520,9 @@ needs a visible artifact — a tx hash, a state change, a revert, or a rendered 
 
 ## 8. Prior Art
 
-> **Provenance — AI-ASSISTED.** Landscape research and contrasts drafted by AI; the positioning
-> claim (that push-assignment plus private adjudication is the novel combination) is the human's,
-> implicit in the original brief.
+> **Provenance — AI-ASSISTED.** Landscape research and contrasts drafted by AI; the positioning claim (that push-assignment plus private adjudication is the novel combination) is the human's, implicit in the original brief.
 
-Name the neighbours before a judge does. Perjury is not the first system to verify claims with
-economic stake — the question is what it does that the existing ones don't.
+Name the neighbours before a judge does. Perjury is not the first system to verify claims with economic stake — the question is what it does that the existing ones don't.
 
 ### The landscape
 
@@ -714,19 +539,11 @@ economic stake — the question is what it does that the existing ones don't.
 
 Two things in combination, neither novel alone:
 
-1. **Push-based, verifiably random assignment.** Existing dispute systems wait for a challenger.
-   Perjury conscripts one. This closes deliberate collusion, because the claimant cannot choose,
-   influence, or predict who checks it.
-2. **Private adjudication of a public verdict.** The comparison happens where neither party's evidence
-   or methodology leaks, so verification doesn't hand future claimants a rubric to game — while the
-   verdict itself remains public and trusted.
+1. **Push-based, verifiably random assignment.** Existing dispute systems wait for a challenger. Perjury conscripts one. This closes deliberate collusion, because the claimant cannot choose, influence, or predict who checks it.
+2. **Private adjudication of a public verdict.** The comparison happens where neither party's evidence or methodology leaks, so verification doesn't hand future claimants a rubric to game — while the verdict itself remains public and trusted.
 
-Systems that have (1) tend to publish everything (Kleros). Systems with confidential compute tend to
-attest execution rather than adjudicate competing claims. Putting them together is the contribution.
+Systems that have (1) tend to publish everything (Kleros). Systems with confidential compute tend to attest execution rather than adjudicate competing claims. Putting them together is the contribution.
 
 ### What we inherit and don't fix
 
-Perjury does **not** solve the verifier's dilemma. A witness paid only on mismatch has weak incentive
-to work hard on claims that look true, which is precisely the careless-witness failure in
-[§6 Limitations](#6-the-honest-limitation-demonstrated-not-disclaimed). Truebit attacked this with forced errors and jackpots; we don't,
-and we say so rather than implying random assignment closed a problem it didn't.
+Perjury does **not** solve the verifier's dilemma. A witness paid only on mismatch has weak incentive to work hard on claims that look true, which is precisely the careless-witness failure in [§6 Limitations](#6-the-honest-limitation-demonstrated-not-disclaimed). Truebit attacked this with forced errors and jackpots; we don't, and we say so rather than implying random assignment closed a problem it didn't.
