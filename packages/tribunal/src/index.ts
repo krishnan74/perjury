@@ -141,10 +141,20 @@ export function adjudicate(
   if (claimValue === null || witnessValue === null) {
     return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
   }
-  const claimConsistent = withinTolerance(claimValue, a.value, tolerance);
-  const witnessConsistent = withinTolerance(witnessValue, b.value, tolerance);
-  if (!claimConsistent || !witnessConsistent) {
-    // Someone's stated answer does not follow from the evidence they supplied.
+  // The two roles are not symmetric, and treating them as such made lying safe.
+  //
+  // The claimant is asserting something. If its own evidence does not reproduce
+  // its stated value, the claim is provably misrepresented — that is a Mismatch,
+  // not an absence of information. Returning Unverifiable here would let a
+  // claimant escape penalty by submitting truthful evidence under a false
+  // conclusion, which is easier than lying convincingly.
+  if (!withinTolerance(claimValue, a.value, tolerance)) {
+    return { ...base, verdict: Verdict.Mismatch, confidence: "high" };
+  }
+  // The witness is checking. If its conclusion does not follow from its evidence
+  // it has not performed a check, so there is nothing to compare against — and
+  // an unreliable check must not convict the claimant.
+  if (!withinTolerance(witnessValue, b.value, tolerance)) {
     return { ...base, verdict: Verdict.Unverifiable, confidence: "low" };
   }
 
@@ -156,6 +166,63 @@ export function adjudicate(
     a.comparator === b.comparator && withinTolerance(claimValue, witnessValue, tolerance);
 
   return { ...base, verdict: agrees ? Verdict.Match : Verdict.Mismatch, confidence };
+}
+
+/** One panel member's independent finding on an appealed claim. */
+export interface PanelFinding {
+  member: string;
+  submission: SealedSubmission;
+}
+
+export interface PanelReport {
+  claimId: bigint;
+  verdict: VerdictValue;
+  /** How the seats split, for the record. Counts only — never who said what. */
+  tally: { match: number; mismatch: number; unverifiable: number };
+  evidenceCommitment: string;
+}
+
+/**
+ * Adjudicate an appeal.
+ *
+ * Each seat is judged against the original claim independently, using the same
+ * rules as a single witness — including recomputation from raw evidence, so a
+ * bought seat cannot simply assert a number. The majority of seats that reached
+ * a conclusion stands.
+ *
+ * Unverifiable seats are excluded rather than counted as dissent: a member that
+ * could not read the data has not disagreed with anything. If fewer than half
+ * the seats reached a conclusion, or the conclusive seats tie, the panel returns
+ * Unverifiable — a panel that cannot form a majority has not overturned
+ * anything, and the original verdict should stand.
+ */
+export function adjudicatePanel(
+  claimId: bigint,
+  claim: SealedSubmission,
+  panel: PanelFinding[],
+  salt: string,
+  tolerance: number = DEFAULT_TOLERANCE,
+): PanelReport {
+  const evidenceCommitment = sha256(canonicalize({ claim, panel, salt }));
+  const tally = { match: 0, mismatch: 0, unverifiable: 0 };
+
+  for (const seat of panel) {
+    const r = adjudicate(claimId, claim, seat.submission, salt, tolerance);
+    if (r.verdict === Verdict.Match) tally.match++;
+    else if (r.verdict === Verdict.Mismatch) tally.mismatch++;
+    else tally.unverifiable++;
+  }
+
+  const conclusive = tally.match + tally.mismatch;
+  if (conclusive === 0 || conclusive <= panel.length / 2 || tally.match === tally.mismatch) {
+    return { claimId, verdict: Verdict.Unverifiable, tally, evidenceCommitment };
+  }
+  return {
+    claimId,
+    verdict: tally.match > tally.mismatch ? Verdict.Match : Verdict.Mismatch,
+    tally,
+    evidenceCommitment,
+  };
 }
 
 /** ABI-encodable tuple handed to VerdictSink.onReport. Verdict + commitment only. */

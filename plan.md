@@ -231,7 +231,7 @@ From [docs/threat-audit.md](docs/threat-audit.md). A loophole-free mechanism mat
 - [ ] **Eligibility on submit.** `submitClaim` checks `isRegistered`, not `isEligible`, so an agent slashed to zero can keep claiming with no collateral left.
 - [ ] **Reputation reads fail open.** `standingOfName` returns 0 on any failure and `MIN_STANDING` is 0, so an unreadable record reads as eligible and a resolver outage erases negative standing. Distinguish "absent" from "unreadable"; treat unreadable as ineligible.
 - [ ] **Block-skew tolerance.** `adjudicate` ignores `asOfBlock`, so two honest parties reading blocks apart on a volatile metric produce a Mismatch and the claimant is slashed for being truthful. Reject when the block gap is too wide.
-- [ ] **Model diversity** (from Immunity). Require claimant and witness to run different model families, so correlated honest error becomes materially less likely. Converts a disclosed limitation into a partial mitigation. `LlmClient` already abstracts the backend.
+- [x] **Model diversity** (from Immunity). Panel seats run different models — `seatPanel()` assigns one per seat. With only Anthropic credentials this is intra-family diversity, which reduces correlated error without eliminating it; a second provider key would make it cross-family, and any `LlmClient` can be seated.
 - [ ] **K-of-N corroboration** (from Immunity) — optional. A single witness decides an outcome today; requiring K agreeing findings for high-value claims would remove that.
 
 **Borrowed from finalists:** Immunity uses different model families as judges and bonds both sides; ENShell validates the CRE-only ENS write pattern; KOLlateral is a reminder that where ground truth is objectively observable, an adversarial mechanism may be unnecessary.

@@ -116,10 +116,14 @@ const adjudicate = (
 	if (claimValue === null || witnessValue === null) {
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
-	if (
-		!withinTolerance(claimValue, a.value, toleranceBps) ||
-		!withinTolerance(witnessValue, b.value, toleranceBps)
-	) {
+	// Asymmetric by design. A claimant whose evidence does not reproduce its
+	// stated value has misrepresented — that is a Mismatch. A witness in the same
+	// position has simply not performed a check, and an unreliable check must not
+	// convict the claimant.
+	if (!withinTolerance(claimValue, a.value, toleranceBps)) {
+		return { verdict: VERDICT.Mismatch, confidence: 'high' }
+	}
+	if (!withinTolerance(witnessValue, b.value, toleranceBps)) {
 		return { verdict: VERDICT.Unverifiable, confidence: 'low' }
 	}
 

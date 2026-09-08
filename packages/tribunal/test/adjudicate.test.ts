@@ -1,7 +1,10 @@
 // Tribunal adjudication. The leak tests are the important ones: whatever else
 // changes, evidence and methodology must never appear in the report.
 import { describe, expect, it } from "vitest";
-import { adjudicate, encodeReport, looksDerivative, recompute, type SealedSubmission } from "@perjury/tribunal";
+import {
+  adjudicate, adjudicatePanel, encodeReport, looksDerivative, recompute,
+  type PanelFinding, type SealedSubmission,
+} from "@perjury/tribunal";
 import { Verdict, type Attestation, type TypedAssertion } from "@perjury/shared";
 
 const assertion = (value: number, over: Partial<TypedAssertion> = {}): TypedAssertion => ({
@@ -190,14 +193,17 @@ describe("lying witness", () => {
     expect(r.verdict).toBe(Verdict.Unverifiable);
   });
 
-  it("catches a lying claimant the same way", () => {
+  // Asymmetric on purpose. Returning Unverifiable here would make lying SAFER
+  // than telling the truth: a claimant could submit honest evidence under a
+  // false conclusion and get its bond back.
+  it("a claimant whose evidence contradicts its own claim is a Mismatch, not Unverifiable", () => {
     const r = adjudicate(
       1n,
       sub(85, evidence(40, 100), "claimant-q"),
       sub(util(40, 100), evidence(40, 100), "witness-q"),
       "salt",
     );
-    expect(r.verdict).toBe(Verdict.Unverifiable);
+    expect(r.verdict).toBe(Verdict.Mismatch);
   });
 
   // A witness willing to fabricate consistent evidence still faces the
@@ -216,5 +222,96 @@ describe("lying witness", () => {
     expect(recompute(evidence(40, 100), "utilizationRatio")).toBeCloseTo(40);
     expect(recompute({ lendingProtocols: [] }, "utilizationRatio")).toBeNull();
     expect(recompute(null, "utilizationRatio")).toBeNull();
+  });
+});
+
+// The appeal panel. A single witness can fabricate evidence that reproduces its
+// own false conclusion; three independent derivations are what catches it.
+describe("adjudicatePanel", () => {
+  const ev = (b: number, d: number) => ({
+    lendingProtocols: [{ totalBorrowBalanceUSD: String(b), totalDepositBalanceUSD: String(d) }],
+  });
+  const u = (b: number, d: number) => (b / d) * 100;
+  const seat = (member: string, stated: number, evidence: unknown): PanelFinding => ({
+    member,
+    submission: {
+      attestation: {
+        provenance: {
+          deploymentId: "QmPinned", indexedBlock: 1000, chainHead: 1005,
+          queriedAt: 1, queryHash: `q-${member}`, hasIndexingErrors: false,
+        },
+        assertion: {
+          subject: "aave-v3-eth", metric: "utilizationRatio", comparator: "gt",
+          value: stated, unit: "percent", asOfBlock: 1000,
+        },
+        digest: `d-${member}`,
+      },
+      methodology: `seat ${member}`,
+      evidence,
+    },
+  });
+
+  const truthfulClaim = seat("claimant", u(40, 100), ev(40, 100)).submission;
+  const lyingClaim = seat("claimant", u(85, 100), ev(85, 100)).submission;
+
+  it("upholds a Mismatch when the panel agrees the claim was false", () => {
+    const r = adjudicatePanel(1n, lyingClaim, [
+      seat("a", u(40, 100), ev(40, 100)),
+      seat("b", u(40, 100), ev(40, 100)),
+      seat("c", u(40, 100), ev(40, 100)),
+    ], "salt");
+    expect(r.verdict).toBe(Verdict.Mismatch);
+    expect(r.tally.mismatch).toBe(3);
+  });
+
+  // The case the appeal layer exists for: one witness lied, the panel does not.
+  it("overturns to Match when the panel agrees with an honest claimant", () => {
+    const r = adjudicatePanel(1n, truthfulClaim, [
+      seat("a", u(40, 100), ev(40, 100)),
+      seat("b", u(40, 100), ev(40, 100)),
+      seat("c", u(40, 100), ev(40, 100)),
+    ], "salt");
+    expect(r.verdict).toBe(Verdict.Match);
+  });
+
+  it("a single dissenting seat does not decide the outcome", () => {
+    const r = adjudicatePanel(1n, truthfulClaim, [
+      seat("a", u(40, 100), ev(40, 100)),
+      seat("b", u(40, 100), ev(40, 100)),
+      seat("liar", u(85, 100), ev(85, 100)),
+    ], "salt");
+    expect(r.verdict).toBe(Verdict.Match);
+    expect(r.tally).toEqual({ match: 2, mismatch: 1, unverifiable: 0 });
+  });
+
+  it("returns Unverifiable when too few seats reached a conclusion", () => {
+    const blind = (m: string): PanelFinding => ({
+      member: m,
+      submission: { attestation: null, methodology: m, evidence: null, unverifiableReason: "stale-index" },
+    });
+    const r = adjudicatePanel(1n, truthfulClaim, [
+      seat("a", u(40, 100), ev(40, 100)), blind("b"), blind("c"),
+    ], "salt");
+    expect(r.verdict).toBe(Verdict.Unverifiable);
+  });
+
+  it("a tie does not overturn anything", () => {
+    const r = adjudicatePanel(1n, truthfulClaim, [
+      seat("a", u(40, 100), ev(40, 100)),
+      seat("b", u(85, 100), ev(85, 100)),
+    ], "salt");
+    expect(r.verdict).toBe(Verdict.Unverifiable);
+  });
+
+  it("publishes counts, never who said what", () => {
+    const r = adjudicatePanel(1n, truthfulClaim, [
+      seat("alice-agent", u(40, 100), ev(40, 100)),
+      seat("bob-agent", u(40, 100), ev(40, 100)),
+      seat("carol-agent", u(40, 100), ev(40, 100)),
+    ], "salt");
+    const wire = JSON.stringify(r, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+    for (const name of ["alice-agent", "bob-agent", "carol-agent", "QmPinned"]) {
+      expect(wire).not.toContain(name);
+    }
   });
 });
