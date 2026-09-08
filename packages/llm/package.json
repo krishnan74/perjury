@@ -1,0 +1,1 @@
+{ "name": "@perjury/llm", "version": "0.0.0", "type": "module", "main": "src/index.ts" }

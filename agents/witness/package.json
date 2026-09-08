@@ -1,0 +1,2 @@
+{ "name": "@perjury/witness", "version": "0.0.0", "type": "module", "main": "src/index.ts",
+  "dependencies": { "@perjury/shared": "*", "@perjury/graph-guard": "*", "@perjury/graph-client": "*", "@perjury/llm": "*" } }

@@ -71,6 +71,23 @@ export function guard(
   if (res.data === null || res.data === undefined) {
     throw new UnverifiableError("no-data", "query returned no data");
   }
+  // An empty result set is not data. A query whose filter matched nothing looks
+  // successful — `{ lendingProtocols: [] }` is a valid response — and would let a
+  // caller derive a finding from nothing. Treat it as unverifiable.
+  const payload = res.data as Record<string, unknown>;
+  const substantive = Object.entries(payload).filter(([k]) => k !== "_meta");
+  if (substantive.length === 0) {
+    throw new UnverifiableError("no-data", "response contained only _meta");
+  }
+  const allEmpty = substantive.every(
+    ([, v]) => v === null || v === undefined || (Array.isArray(v) && v.length === 0),
+  );
+  if (allEmpty) {
+    throw new UnverifiableError(
+      "no-data",
+      `query matched nothing: ${substantive.map(([k]) => k).join(", ")} empty`,
+    );
+  }
 
   return {
     deploymentId: deployment,

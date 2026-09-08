@@ -37,6 +37,38 @@ export async function chainHead(): Promise<number> {
   return Number.parseInt(json.result, 16);
 }
 
+/**
+ * Build a full query document from a selection set, always adding root `_meta`.
+ * Accepts either a bare selection ("lendingProtocols { id }") or a full document
+ * ("{ lendingProtocols { id } }"), and strips any `_meta` the caller supplied so
+ * a nested one cannot break the query.
+ */
+export function composeDocument(selectionOrDocument: string): string {
+  let sel = selectionOrDocument.trim();
+  if (sel.startsWith("query")) sel = sel.slice(sel.indexOf("{"));
+  if (sel.startsWith("{") && sel.endsWith("}")) sel = sel.slice(1, -1);
+  // Remove any _meta block the caller wrote, wherever it landed.
+  sel = stripMeta(sel);
+  return `{ _meta { deployment block { number } hasIndexingErrors } ${sel.trim()} }`;
+}
+
+/** Remove a `_meta { ... }` block by brace matching, not regex. */
+function stripMeta(s: string): string {
+  const i = s.indexOf("_meta");
+  if (i === -1) return s;
+  const open = s.indexOf("{", i);
+  if (open === -1) return s.slice(0, i) + s.slice(i + 5);
+  let depth = 0;
+  for (let j = open; j < s.length; j++) {
+    if (s[j] === "{") depth++;
+    else if (s[j] === "}") {
+      depth--;
+      if (depth === 0) return stripMeta(s.slice(0, i) + s.slice(j + 1));
+    }
+  }
+  return s.slice(0, i);
+}
+
 export interface GuardedResult<T> {
   data: T;
   provenance: Provenance;
@@ -56,10 +88,10 @@ export async function query<T>(
   if (!apiKey) throw new Error("GRAPH_STUDIO_KEY unset — live Gateway access is required");
   const entry = pinnedFor(subject);
 
-  // _meta is requested alongside every query so provenance travels with the data.
-  const withMeta = document.includes("_meta")
-    ? document
-    : document.replace(/^\s*\{/, "{ _meta { deployment block { number } hasIndexingErrors }");
+  // _meta must be a ROOT field — nesting it inside an entity selection is a
+  // GraphQL error, and an LLM composing the whole document gets this wrong. So
+  // callers pass a selection set and we compose the document ourselves.
+  const withMeta = composeDocument(document);
 
   const [res, head] = await Promise.all([
     fetch(`${GATEWAY}/${entry.subgraphId}`, {

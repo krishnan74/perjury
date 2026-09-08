@@ -95,6 +95,32 @@ describe("guard", () => {
     }
   });
 
+  // A filter that matched nothing returns a valid-looking response. Deriving a
+  // finding from an empty array is exactly the silent degradation we forbid.
+  it("rejects a result set where every collection is empty", () => {
+    try {
+      guard(response({ data: { lendingProtocols: [] } }), PINNED);
+      throw new Error("should have thrown");
+    } catch (e) {
+      expect(isUnverifiable(e) && e.reason).toBe("no-data");
+    }
+  });
+
+  it("rejects a response carrying only _meta", () => {
+    try {
+      guard(response({ data: {} }), PINNED);
+      throw new Error("should have thrown");
+    } catch (e) {
+      expect(isUnverifiable(e) && e.reason).toBe("no-data");
+    }
+  });
+
+  it("accepts a partially empty result if something matched", () => {
+    expect(() =>
+      guard(response({ data: { lendingProtocols: [{ id: "1" }], markets: [] } }), PINNED),
+    ).not.toThrow();
+  });
+
   it("rejects an empty data payload", () => {
     try {
       guard(response({ data: null }), PINNED);

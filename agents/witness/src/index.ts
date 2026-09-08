@@ -1,0 +1,139 @@
+// The witness agent. See docs/design.md §5.2.
+//
+// Given a claim, it independently re-derives its own finding from live Graph
+// data. It never sees the claimant's reasoning — that isolation is structural
+// (separate process, separate key, no channel), not a prompt instruction.
+//
+// The split that matters: the LLM decides WHAT to query and HOW to map the
+// result onto a typed assertion. It does not get to decide whether the data was
+// trustworthy — graph-guard makes that call deterministically, because an agent
+// cannot be relied on to report honestly about its own data.
+import { query, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
+import { isUnverifiable } from "@perjury/graph-guard";
+import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
+import type { Attestation, TypedAssertion, Comparator } from "@perjury/shared";
+import { digestOf } from "@perjury/shared";
+
+export interface Claim {
+  claimId: string;
+  subject: string;
+  /** Prose, as an agent would actually post it. */
+  text: string;
+}
+
+export interface Finding {
+  attestation: Attestation | null;
+  methodology: string;
+  unverifiableReason?: string;
+  /** Raw rows the assertion was derived from. Sealed; never published. */
+  evidence: unknown;
+}
+
+const PLAN_SYSTEM = `You translate a prose claim about DeFi protocol metrics into a GraphQL query and a typed assertion schema.
+Output ONLY a JSON object, no prose, no code fences.`;
+
+const READ_SYSTEM = `You extract one numeric metric from GraphQL results and state it as a typed assertion.
+Output ONLY a JSON object, no prose, no code fences.`;
+
+interface QueryPlan {
+  selection: string;
+  metric: string;
+  unit: string;
+  comparator: Comparator;
+  claimedValue: number;
+  reasoning: string;
+}
+
+/** Step 1 — the agent composes its own query against the pinned schema. */
+async function planQuery(llm: LlmClient, claim: Claim, pinned: PinnedEntry): Promise<QueryPlan> {
+  const res = await llm.complete({
+    system: PLAN_SYSTEM,
+    temperature: 0,
+    prompt: `Subgraph: ${pinned.protocolName} (${pinned.schema} schema).
+Available metrics on the LendingProtocol entity: ${pinned.metrics.join(", ")}.
+Note: lending metrics live on "lendingProtocols", not "protocols".
+This subgraph indexes exactly one protocol, so select lendingProtocols with NO where-filter.
+Do not guess filter values — a filter that matches nothing yields an empty result and the
+finding will be rejected as unverifiable.
+
+Claim to verify: "${claim.text}"
+
+Return JSON:
+{
+  "selection": "<ONLY the root selection set, e.g. lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD }. No outer braces, no query keyword, and do NOT include _meta — it is added automatically.>",
+  "metric": "<the metric field name being tested>",
+  "unit": "<USD or percent>",
+  "comparator": "<one of eq|gt|gte|lt|lte — what the claim asserts>",
+  "claimedValue": <the numeric threshold the claim asserts>,
+  "reasoning": "<one sentence on why this query answers the claim>"
+}`,
+  });
+  return extractJson<QueryPlan>(res.text);
+}
+
+/** Step 2 — the agent interprets the rows into its own assertion. */
+async function deriveAssertion(
+  llm: LlmClient,
+  claim: Claim,
+  plan: QueryPlan,
+  data: unknown,
+  indexedBlock: number,
+): Promise<TypedAssertion> {
+  const res = await llm.complete({
+    system: READ_SYSTEM,
+    temperature: 0,
+    prompt: `Claim: "${claim.text}"
+Metric under test: ${plan.metric} (${plan.unit})
+Query results: ${JSON.stringify(data).slice(0, 4000)}
+
+Compute the actual value of the metric from the results. If the metric is a percentage/ratio, compute it from the underlying figures and express it as a percentage (0-100).
+
+Return JSON:
+{ "value": <the ACTUAL value you derived from the data>, "comparator": "${plan.comparator}", "unit": "${plan.unit}" }`,
+  });
+  const out = extractJson<{ value: number; comparator: Comparator; unit: string }>(res.text);
+  return {
+    subject: claim.subject,
+    metric: plan.metric,
+    comparator: out.comparator ?? plan.comparator,
+    value: Number(out.value),
+    unit: out.unit ?? plan.unit,
+    asOfBlock: indexedBlock,
+  };
+}
+
+/**
+ * Produce an independent finding for a claim.
+ *
+ * Any provenance failure returns UNVERIFIABLE rather than a value — there is no
+ * path here that degrades into an implicit pass.
+ */
+export async function witness(claim: Claim, llm: LlmClient = defaultClient()): Promise<Finding> {
+  const pinned = pinnedFor(claim.subject);
+
+  try {
+    const plan = await planQuery(llm, claim, pinned);
+
+    // graph-client runs the guard: pinned deployment, freshness, indexing errors.
+    const { data, provenance } = await query<Record<string, unknown>>(claim.subject, plan.selection);
+
+    const assertion = await deriveAssertion(llm, claim, plan, data, provenance.indexedBlock);
+
+    return {
+      attestation: { provenance, assertion, digest: digestOf(provenance, assertion) },
+      methodology: `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}`,
+      evidence: data,
+    };
+  } catch (e) {
+    if (isUnverifiable(e)) {
+      return {
+        attestation: null,
+        // Keep the detail: "unverifiable" with no reason is undebuggable.
+        methodology: `witness: provenance check failed — ${e.message}`,
+        unverifiableReason: e.reason,
+        evidence: null,
+      };
+    }
+    throw e;
+  }
+}
