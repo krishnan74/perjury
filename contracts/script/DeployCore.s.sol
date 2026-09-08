@@ -24,7 +24,9 @@ contract DeployCore is Script {
         ENSTextStandingReader reader = new ENSTextStandingReader(IExtendedResolver(resolver));
         WitnessRoster roster =
             new WitnessRoster(IVRFCoordinator(vrfCoordinator), reader, keyHash, subId, gasLimit);
-        ClaimRegistry registry = new ClaimRegistry(IWitnessRoster(address(roster)));
+        // Short on testnet so a demo can show settlement; an hour in production.
+        uint64 challengeWindow = uint64(vm.envOr("CHALLENGE_WINDOW_SECONDS", uint256(120)));
+        ClaimRegistry registry = new ClaimRegistry(IWitnessRoster(address(roster)), challengeWindow);
         PerjuryStandingWriter writer = new PerjuryStandingWriter(
             ITextResolver(resolver), IClaimRegistry(address(registry)), IWitnessRoster(address(roster))
         );

@@ -22,8 +22,12 @@ contract ClaimRegistry is IClaimRegistry {
     ///      a free option on every adverse outcome.
     uint256 public constant APPEAL_BOND = 0.02 ether;
 
-    /// @dev How long a verdict can be challenged before it becomes final.
-    uint64 public constant CHALLENGE_WINDOW = 1 hours;
+    /// @dev How long a verdict can be challenged before it becomes final. Set at
+    ///      deployment rather than fixed, because the right value differs by
+    ///      environment: an hour is sensible in production, and a demo cannot
+    ///      wait an hour between a verdict and its settlement. Immutable, so it
+    ///      still cannot be changed to suit a particular claim.
+    uint64 public immutable CHALLENGE_WINDOW;
 
     IWitnessRoster public immutable roster;
 
@@ -86,8 +90,9 @@ contract ClaimRegistry is IClaimRegistry {
     error AppealBondTooSmall();
     error AlreadyAppealed();
 
-    constructor(IWitnessRoster roster_) {
+    constructor(IWitnessRoster roster_, uint64 challengeWindow_) {
         roster = roster_;
+        CHALLENGE_WINDOW = challengeWindow_;
         _deployer = msg.sender;
     }
 

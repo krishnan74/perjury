@@ -81,7 +81,7 @@ contract AccessControlTest is Base {
     }
 
     function test_wiring_notDeployer_reverts() public {
-        ClaimRegistry fresh = new ClaimRegistry(roster);
+        ClaimRegistry fresh = new ClaimRegistry(roster, 1 hours);
         vm.prank(operator);
         vm.expectRevert(ClaimRegistry.NotDeployer.selector);
         fresh.wireSink(address(1), address(2));
