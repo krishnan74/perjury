@@ -143,7 +143,7 @@ contract WitnessRoster is IWitnessRoster {
         Agent storage a = agents[candidate];
         if (!a.active) return false;
         if (flaggedUntil[candidate] > block.timestamp) return false;
-        try standingReader.standingOf(a.ensNode) returns (int256 standing) {
+        try standingReader.standingOfName(a.ensNode, a.dnsName) returns (int256 standing) {
             return standing >= MIN_STANDING;
         } catch {
             // A record we cannot read is not a record we can trust.

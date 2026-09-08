@@ -7,7 +7,7 @@ import {ClaimRegistry} from "../src/ClaimRegistry.sol";
 import {WitnessRoster, IVRFCoordinator} from "../src/WitnessRoster.sol";
 import {VerdictSink} from "../src/VerdictSink.sol";
 import {PerjuryStandingWriter} from "../src/PerjuryStandingWriter.sol";
-import {ENSTextStandingReader} from "../src/ens/ENSTextStandingReader.sol";
+import {ENSTextStandingReader, IExtendedResolver} from "../src/ens/ENSTextStandingReader.sol";
 import {IClaimRegistry, IWitnessRoster, IStandingWriter, ITextResolver} from "../src/interfaces/IPerjury.sol";
 
 contract Deploy is Script {
@@ -26,7 +26,7 @@ contract Deploy is Script {
 
         vm.startBroadcast();  // key supplied via --private-key
 
-        ENSTextStandingReader reader = new ENSTextStandingReader(ITextResolver(resolver));
+        ENSTextStandingReader reader = new ENSTextStandingReader(IExtendedResolver(resolver));
 
         WitnessRoster roster =
             new WitnessRoster(IVRFCoordinator(vrfCoordinator), reader, keyHash, subId, callbackGasLimit);

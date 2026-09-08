@@ -42,7 +42,7 @@ contract LifecycleTest is Base {
         assertEq(uint8(c.verdict), uint8(Verdict.Match));
         assertEq(uint8(c.status), uint8(Status.Settled));
         assertEq(registry.withdrawable(alice), BOND);
-        assertEq(reader.standingOf(_node(alice)), 1);
+        assertEq(reader.standingOfName(_node(alice), _dns(alice)), 1);
     }
 
     /// @dev Scenario 2: a false claim. Bond forfeited to the witness, standing drops,
@@ -57,7 +57,7 @@ contract LifecycleTest is Base {
 
         assertEq(registry.withdrawable(witness), BOND, "bond goes to the witness");
         assertEq(registry.withdrawable(alice), 0);
-        assertEq(reader.standingOf(_node(alice)), -3);
+        assertEq(reader.standingOfName(_node(alice), _dns(alice)), -3);
         assertFalse(roster.isEligible(alice), "flagged agent is ineligible immediately");
     }
 
@@ -89,7 +89,7 @@ contract LifecycleTest is Base {
         _report(id, Verdict.Unverifiable);
 
         assertEq(registry.withdrawable(alice), BOND, "bond returned");
-        assertEq(reader.standingOf(_node(alice)), 0, "standing untouched");
+        assertEq(reader.standingOfName(_node(alice), _dns(alice)), 0, "standing untouched");
         assertTrue(roster.isEligible(alice));
     }
 

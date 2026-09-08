@@ -53,14 +53,22 @@ For our project that is a complete bypass of the central security property. And 
 
 **Suggestion.** Add a security note wherever subname issuance is documented: "withholding `SET_RESOLVER` is required if you rely on resolver-level permissions; a holder with `SET_RESOLVER` can repoint the name and write anything." This deserves a callout box rather than a line in a role table — it is the kind of thing that turns a correct-looking permission model into a decorative one.
 
-## 6. Answered, and worth writing down
+## 6. The Permissioned Resolver serves reads only through ENSIP-10 `resolve()`
+
+Both `text(bytes32,string)` and `text(bytes,string)` revert on a factory-deployed Permissioned Resolver. Reads work through `resolve(bytes dnsName, bytes data)` — the ENSIP-10 wildcard interface — with the inner call ABI-encoded.
+
+We wrote a contract that reads a text record directly, which is the obvious shape and matches how ENSv1 resolvers behave. It compiled, it passed against our mock, and on-chain it reverted. In our case the caller catches read failures and treats an unreadable record as ineligible, so the symptom would have been every agent silently becoming ineligible and every assignment failing closed — a protocol that quietly refuses to work rather than one that errors.
+
+**Suggestion.** State on the Permissioned Resolver page that reads are served via `resolve()` and that direct `text()` calls revert, with a short contract-to-contract read example. The write path (`setText`, DNS-encoded name) is documented; the read path is the half a contract integrator actually needs first, and the asymmetry between them is genuinely surprising.
+
+## 7. Answered, and worth writing down
 
 Two questions we couldn't answer from the docs, both answered quickly in the channel:
 
 - **Unauthorized `setText` reverts** with `EACUnauthorizedAccountRoles`. It does not silently no-op. This determines how anyone writes tests and demos against EAC, and belongs in the resolver docs.
 - **A contract can hold EAC roles exactly as an EOA can.** Obvious in hindsight, but the whole write path of any protocol-controlled record depends on it, and it isn't stated.
 
-## 7. The registration app blocked teams, and the channel was the only signal
+## 8. The registration app blocked teams, and the channel was the only signal
 
 We did **not** hit this ourselves — but only because we read the channel first. Multiple teams reported the "Deploy resolver" step failing with `gas limit too high (cap: 16777216, tx: 21000000)` across three separate RPC providers, plus a malformed `initialize` payload. Registration is the very first thing any project does, so absent that warning we would have spent hours there before suspecting the app rather than our own setup.
 
@@ -68,7 +76,7 @@ The team's response was fast and correct — the app is a convenience layer, reg
 
 **Suggestion.** When a known-broken path exists during an event, a banner in the app saying "resolver deploy is currently failing, register directly against the contracts — see docs" would reach every team rather than the ones reading the channel at the right moment. A hardcoded 21M gas limit above what most providers accept is also worth a fix regardless.
 
-## 8. Hackathon deployment domains trip wallet warnings
+## 9. Hackathon deployment domains trip wallet warnings
 
 The deployment is served from `*.workers.dev` and `*.pages.dev`, and MetaMask flagged the app domain as potentially malicious when we went to open it. Very likely a domain-reputation false positive on the shared subdomain rather than anything wrong with the deployment — but it is hard to verify independently, and it made us stop before connecting a wallet.
 

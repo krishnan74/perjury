@@ -7,7 +7,7 @@ import {ClaimRegistry} from "../src/ClaimRegistry.sol";
 import {WitnessRoster, IVRFCoordinator} from "../src/WitnessRoster.sol";
 import {VerdictSink} from "../src/VerdictSink.sol";
 import {PerjuryStandingWriter} from "../src/PerjuryStandingWriter.sol";
-import {ENSTextStandingReader} from "../src/ens/ENSTextStandingReader.sol";
+import {ENSTextStandingReader, IExtendedResolver} from "../src/ens/ENSTextStandingReader.sol";
 import {IClaimRegistry, IWitnessRoster, IStandingWriter, ITextResolver, Verdict, Status} from
     "../src/interfaces/IPerjury.sol";
 import {MockVRFCoordinator, MockResolver} from "./mocks/Mocks.sol";
@@ -33,7 +33,7 @@ contract Base is Test {
     function setUp() public virtual {
         vrf = new MockVRFCoordinator();
         resolver = new MockResolver();
-        reader = new ENSTextStandingReader(ITextResolver(address(resolver)));
+        reader = new ENSTextStandingReader(IExtendedResolver(address(resolver)));
 
         roster = new WitnessRoster(IVRFCoordinator(address(vrf)), reader, bytes32("key"), 1, 500_000);
         registry = new ClaimRegistry(IWitnessRoster(address(roster)));

@@ -8,7 +8,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {ClaimRegistry} from "../src/ClaimRegistry.sol";
 import {WitnessRoster, IVRFCoordinator} from "../src/WitnessRoster.sol";
 import {PerjuryStandingWriter} from "../src/PerjuryStandingWriter.sol";
-import {ENSTextStandingReader} from "../src/ens/ENSTextStandingReader.sol";
+import {ENSTextStandingReader, IExtendedResolver} from "../src/ens/ENSTextStandingReader.sol";
 import {IClaimRegistry, IWitnessRoster, ITextResolver} from "../src/interfaces/IPerjury.sol";
 
 contract DeployCore is Script {
@@ -21,7 +21,7 @@ contract DeployCore is Script {
 
         vm.startBroadcast();
 
-        ENSTextStandingReader reader = new ENSTextStandingReader(ITextResolver(resolver));
+        ENSTextStandingReader reader = new ENSTextStandingReader(IExtendedResolver(resolver));
         WitnessRoster roster =
             new WitnessRoster(IVRFCoordinator(vrfCoordinator), reader, keyHash, subId, gasLimit);
         ClaimRegistry registry = new ClaimRegistry(IWitnessRoster(address(roster)));

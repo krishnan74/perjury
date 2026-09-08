@@ -34,6 +34,13 @@ contract MockVRFCoordinator is IVRFCoordinator {
 
 /// @dev Minimal ENS resolver. Records writes so tests can assert on them.
 contract MockResolver is ITextResolver {
+    /// @dev ENSIP-10 read path, matching the real Permissioned Resolver.
+    function resolve(bytes calldata dnsName, bytes calldata data) external view returns (bytes memory) {
+        bytes32 node = nodeFor[keccak256(dnsName)];
+        (, string memory key) = abi.decode(data[4:], (bytes32, string));
+        return abi.encode(_text[node][key]);
+    }
+
     mapping(bytes32 => mapping(string => string)) private _text;
     mapping(address => bool) public canWrite;
     bool public enforceAcl;
