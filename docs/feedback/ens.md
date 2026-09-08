@@ -78,10 +78,17 @@ Two things would have saved us the round trip:
   ability to change it" is likely to be what most people building on EAC actually want, and it is not
   derivable from the reference pages — `grantSetterRoles` is documented, but not that init grants are
   root-only, so nothing signals that the extra step is necessary.
-- **We could not find the inverse.** `revokeSetterRoles(setter, account)` reverts, and
-  `revokeRoles(keccak256(key), roleBitmap, account)` reverts as well, so we could not undo a
-  setter-scoped grant issued during testing. A permission that can be added but not removed is a
-  sharp edge worth documenting, if it is intended.
+- **The inverse is not straightforward.** The team confirmed the revoke path is `revokeRoles`,
+  requiring that you still hold `ROLE_SET_TEXT_ADMIN`. We do hold it at root — `hasRootRoles` returns
+  true — and the resource is confirmed to be `keccak256(key)`, since the `EACUnauthorizedAccountRoles`
+  revert on an unauthorised write reports exactly that value. `revokeRoles(keccak256(key), 1<<4,
+  account)` nonetheless reverts for a grant issued via `grantSetterRoles`.
+
+  Our reading is that root admin does not authorise revoking a *resource-scoped* grant, and that
+  `grantSetterRoles` does not leave the granter with admin at that resource. If that is right, a
+  setter-scoped grant is effectively one-way unless you deliberately take admin at each resource
+  first — worth stating plainly, because the natural mental model is that holding the admin role lets
+  you undo what you granted.
 
 ## 8. Answered, and worth writing down
 
