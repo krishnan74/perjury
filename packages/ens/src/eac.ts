@@ -33,11 +33,63 @@ export const textResource = (key: string): `0x${string}` => keccak256(toBytes(ke
  * It receives SET_TEXT scoped to two keys. It receives no SET_ADDRESS, no
  * SET_NAME, no LINK, no UPGRADE, and no admin role of any kind, so it cannot
  * reassign ownership, alter identity records, or grant roles to anyone else.
+ *
+ * These are supplied to the VerifiableFactory at resolver-deployment time, not
+ * granted afterwards. Agents are granted NOTHING on this resolver — confirmed by
+ * the ENS team: registration grants only registry roles, so an agent has no
+ * resolver write permission unless explicitly given one. There is nothing to
+ * revoke.
  */
 export const TRIBUNAL_GRANTS = [
   { role: ROLE.SET_TEXT, key: RECORD_KEYS.standing, resource: textResource(RECORD_KEYS.standing) },
   { role: ROLE.SET_TEXT, key: RECORD_KEYS.flaggedUntil, resource: textResource(RECORD_KEYS.flaggedUntil) },
 ] as const;
+
+/**
+ * Registry roles. Distinct from resolver roles — a separate permission world.
+ * `register(label, owner, registry, resolver, roleBitmap, expiry)` grants the
+ * owner exactly the roles in `roleBitmap`, so withholding is simply omission.
+ */
+export const REGISTRY_ROLE = {
+  REGISTRAR: 1n << 0n,
+  REGISTER_RESERVED: 1n << 4n,
+  SET_PARENT: 1n << 8n,
+  UNREGISTER: 1n << 12n,
+  RENEW: 1n << 16n,
+  SET_SUBREGISTRY: 1n << 20n,
+  SET_RESOLVER: 1n << 24n,
+  CAN_TRANSFER_ADMIN: (1n << 28n) << 128n,
+  SET_URI: 1n << 36n,
+  UPGRADE: 1n << 124n,
+} as const;
+
+/**
+ * The roleBitmap we grant an agent when issuing its subname.
+ *
+ * Deliberately minimal — and specifically WITHOUT SET_RESOLVER, which would let
+ * the agent repoint its name at a resolver it controls and write any standing it
+ * likes, bypassing every resolver-level restriction. RENEW only: the agent may
+ * keep its own name alive and do nothing else.
+ */
+export const AGENT_SUBNAME_ROLES = REGISTRY_ROLE.RENEW;
+
+/**
+ * Registry roles that must NEVER be granted to an agent on its own subname.
+ *
+ * SET_RESOLVER is the important one and it is not obvious: an agent holding it can
+ * repoint its name at a resolver it controls and write any standing it likes,
+ * bypassing every resolver-level restriction below. The bypass lives in the
+ * registry permission world, not the resolver one. Flagged by the ENS team.
+ */
+export const FORBIDDEN_AGENT_REGISTRY_ROLES = [
+  { name: "SET_RESOLVER", role: REGISTRY_ROLE.SET_RESOLVER }, // repoint at an attacker-controlled resolver
+  { name: "SET_SUBREGISTRY", role: REGISTRY_ROLE.SET_SUBREGISTRY }, // reissue beneath a registry they control
+  { name: "CAN_TRANSFER_ADMIN", role: REGISTRY_ROLE.CAN_TRANSFER_ADMIN }, // hand the name to another account
+  { name: "UPGRADE", role: REGISTRY_ROLE.UPGRADE },
+] as const;
+
+/** Error selector when a caller lacks the role. Confirmed: setText REVERTS. */
+export const EAC_UNAUTHORIZED_ERROR = "EACUnauthorizedAccountRoles";
 
 /** Roles the tribunal must NEVER hold. Asserted by scripts/prove-eac.ts. */
 export const FORBIDDEN_TRIBUNAL_ROLES = [

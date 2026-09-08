@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   ROLE, adminOf, textResource, dnsEncode,
   TRIBUNAL_GRANTS, FORBIDDEN_TRIBUNAL_ROLES, RECORD_KEYS,
+  FORBIDDEN_AGENT_REGISTRY_ROLES, EAC_UNAUTHORIZED_ERROR,
+  REGISTRY_ROLE, AGENT_SUBNAME_ROLES,
 } from "@perjury/ens";
 
 describe("EAC role math", () => {
@@ -39,6 +41,29 @@ describe("EAC role math", () => {
 
   it("grants no admin role, so the tribunal cannot re-grant to anyone", () => {
     for (const g of TRIBUNAL_GRANTS) expect(g.role < 1n << 128n).toBe(true);
+  });
+});
+
+describe("registry-level bypass", () => {
+  // The subtle one: resolver scoping is irrelevant if an agent can repoint its
+  // name at a resolver it controls. That power lives in the registry roles.
+  it("withholds SET_RESOLVER from agents", () => {
+    expect(FORBIDDEN_AGENT_REGISTRY_ROLES.map((r) => r.name)).toContain("SET_RESOLVER");
+  });
+
+  // The bitmap we actually pass to register() must not contain any of them.
+  it("the agent subname roleBitmap grants none of the forbidden roles", () => {
+    for (const f of FORBIDDEN_AGENT_REGISTRY_ROLES) {
+      expect(AGENT_SUBNAME_ROLES & f.role).toBe(0n);
+    }
+  });
+
+  it("grants agents only RENEW", () => {
+    expect(AGENT_SUBNAME_ROLES).toBe(REGISTRY_ROLE.RENEW);
+  });
+
+  it("records that unauthorized setText reverts", () => {
+    expect(EAC_UNAUTHORIZED_ERROR).toBe("EACUnauthorizedAccountRoles");
   });
 });
 

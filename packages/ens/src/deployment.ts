@@ -14,6 +14,13 @@ export const ENS_HACKATHON_SEPOLIA = {
   publicResolverV2: "0xf9de4979ddb290baf5b760d0e788125017bc33f6",
   /** Registration fee token. Fund the registering account with this. */
   mockUsdc: "0xcbfd80f74375c54e545af34788ff465f96f66f05",
+  /**
+   * Resolvers are deployed through this factory, and their EAC roles are supplied
+   * AT DEPLOYMENT TIME as (account, roleBitmap) pairs. Registration itself grants
+   * only registry roles — resolvers are a separate permission world.
+   */
+  verifiableFactory: "0x894bc9cc8ff1ad96b8a288c86a8c71d662c07780",
+  permissionedResolverImpl: "0xa9d3814ab151bf6e37a427432795371a8361614e",
 } as const;
 
 export const ENS_HACKATHON_URLS = {
