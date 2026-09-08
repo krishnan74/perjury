@@ -1,6 +1,6 @@
 {
   "schedule": "0 */1 * * * *",
-  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/451a4fba9967666f96b8484fd5ef4e7d",
+  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/594ae3fd4c13a4d053472c2d01210e56",
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
   "verdictSinkAddress": "0xad69AA5BAe1e6B8B06e325D7299ef32eFeE5fBd5",

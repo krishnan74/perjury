@@ -79,9 +79,17 @@ p.finale([
   `${p.c.grey}and neither can we — the deployer is refused by ENS access control.${p.c.reset}`,
 ]);
 
+/**
+ * The contract compares block.timestamp, not our clock, and blocks lag. Comparing
+ * against local time made finalize() revert with WindowOpen even though the
+ * deadline had passed by the wall clock.
+ */
 async function windowClosed(id: bigint) {
   const abi = [{ type: "function", name: "challengeDeadline", stateMutability: "view",
     inputs: [{ name: "", type: "uint256" }], outputs: [{ type: "uint64" }] }] as const;
-  const dl = await pub.readContract({ address: REGISTRY, abi, functionName: "challengeDeadline", args: [id] });
-  return BigInt(Math.floor(Date.now() / 1000)) > dl;
+  const [dl, block] = await Promise.all([
+    pub.readContract({ address: REGISTRY, abi, functionName: "challengeDeadline", args: [id] }),
+    pub.getBlock(),
+  ]);
+  return block.timestamp > dl;
 }
