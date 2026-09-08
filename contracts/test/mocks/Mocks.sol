@@ -53,8 +53,12 @@ contract MockResolver is ITextResolver {
         enforceAcl = on;
     }
 
-    function text(bytes32 node, string calldata key) external view returns (string memory) {
-        return _text[node][key];
+    /// @dev Deliberately NOT implemented. The real ENSv2 Permissioned Resolver
+    ///      does not serve text(bytes32,string) — it reverts. A mock that served
+    ///      it let two contracts ship a read path that reverted on-chain while
+    ///      every unit test passed. Reads go through resolve().
+    function text(bytes32, string calldata) external pure returns (string memory) {
+        revert("resolver: use resolve() (ENSIP-10)");
     }
 
     /// @dev ENSv2 takes a DNS-encoded name; we key storage by its hash so the

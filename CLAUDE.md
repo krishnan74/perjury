@@ -50,7 +50,10 @@ npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
 | `WitnessRoster` | `0xebC374Bf77dA3ca15e0A2A35Ec610638A684c867` (VRF consumer) |
 | `PerjuryStandingWriter` | `0xF2928c22Bb3951E891f76D166EbD1102f4888e9d` |
 | `ENSTextStandingReader` | `0x5bBd6E1D6F361F044cF8799F990c05681D3A80c5` |
-| `VerdictSink` | **not deployed** — waiting on Forwarder answer |
+| `VerdictSink` | `0xa0EE246F2ADc5206668bB55C2cF6b311219B7ac5` (mock forwarder) |
+| `PerjuryResolver` | `0x033ee97dde610f134a746f986fa60c54588a0a45` — EAC configured, operator write revoked |
+
+⚠ **The deployed registry/roster/writer/sink predate the ENSIP-10 read fix in `PerjuryStandingWriter` and must be redeployed** — see "Next step" below.
 | CRE report writer | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — a **Forwarder**, measured |
 | VRF subscription | 10 LINK, owner = operator, 0 consumers |
 
@@ -60,7 +63,9 @@ npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
 - **Two forwarders.** Simulation uses the mock `0x15fC6ae953E024d975e77382eEeC56A9101f9F88`; production uses `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`. Deploy `VerdictSink` with whichever matches the environment.
 - **CRE reports arrive from a Forwarder, not the workflow owner.** `VerdictSink.CRE_REPORT_WRITER` is immutable, so this was measured, not guessed. Unknown whether the address is stable across runs — this is why the protocol is not deployed yet.
 - **A TEE reveals the workflow binary.** Only *data* is confidential (Vault DON secrets, Confidential HTTP payloads, intermediates). `docs/design.md` §3.4 says what is actually true; do not re-inflate the claim.
-- **ENSv2 `setText` takes a DNS-encoded name**, not a namehash. Reads use namehash.
+- **ENSv2 reads go through ENSIP-10 `resolve(bytes dnsName, bytes data)`.** `text(bytes32,string)` and `text(bytes,string)` both REVERT on a factory-deployed Permissioned Resolver. Writes use `setText(bytes dnsName, ...)`. Two contracts shipped a direct `text()` call and reverted on-chain while unit tests passed; the mock now reverts on `text()` to match production.
+- **Root-resource EAC grants use `grantRootRoles` / `revokeRootRoles` / `hasRootRoles`.** `grantRoles(resource, ...)` reverts for the root resource.
+- **Resolver deployment:** `VerifiableFactory.deployProxy(impl, salt, initData)` where initData is `initialize((address,uint256)[] grants, bytes[] calls)`. Grants land on ROOT_RESOURCE. Break the resolver/writer circularity by granting the operator `SET_TEXT | SET_TEXT_ADMIN` at deployment, then granting the writer and revoking the operator's own write.
 - **Subgraph MCP parameters are snake_case** (`ipfs_hash`), not camelCase.
 - **`cre.handlerInTee(trigger, fn, [{tee:'nitro', regions:['us-west-2']}])`**, handler is synchronous. `btoa` does not exist in the WASM runtime — use `hexToBase64(toHex(...))`.
 - **`EVMClient` takes a bigint CCIP chain selector**, not a chain name.
@@ -79,6 +84,18 @@ docs/          design.md · decisions.md · ai-usage.md · build-log.md · TX_HA
 ```
 
 Gitignored working docs (local only): `docs/tracks.md`, `docs/sponsor-questions.md`, `docs/ens-discord-message.md`, `docs/cre-access-form.md`, `discord-*.md`.
+
+## Next step — redeploy the settlement path
+
+`PerjuryStandingWriter` was fixed to read via `resolve()` after deployment, so the on-chain stack is stale. Because each contract holds the next immutably (or its wiring is one-time), the cascade is:
+
+1. `DeployCore.s.sol` — redeploys reader, roster, registry, writer. Keep the existing resolver `0x033ee97d…`.
+2. `npx tsx scripts/configure-eac.ts` — grant the NEW writer `SET_TEXT`. The operator still holds `SET_TEXT_ADMIN`, so this works; its own `SET_TEXT` is already revoked.
+3. `DeploySink.s.sol` — deploys `VerdictSink` and wires registry + writer.
+4. Add the new roster as a VRF consumer; register both agents using the real namehashes (`operator.perjury.eth` = `0x83625a4d…`, `witness-a.perjury.eth` = `0xad74ee3e…`) with their DNS-encoded names.
+5. Submit a claim, wait ~2 min for VRF, then `cd cre && cre workflow simulate tribunal --target staging-settings --broadcast`.
+
+Verify settlement: claim status becomes `Settled`, `withdrawable` moves to claimant or witness, and the ENS standing record changes.
 
 ## Blocked on
 
