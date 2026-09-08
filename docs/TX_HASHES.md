@@ -47,6 +47,25 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 
 ## Demo scenes
 
+### ✅ Appeal path verified end-to-end on-chain (Sep 8)
+
+A lying claimant caught, appealing, and losing everything — deployed via `npx tsx scripts/deploy-all.ts --resolver --agents 5`.
+
+| Step | Result |
+|---|---|
+| 5 agents registered and staked | 0.01 ETH each; eligibility gated on stake |
+| Claim submitted | bond + witness fee |
+| VRF draws witness | `0x689b…44aF` — not the claimant |
+| Tribunal records **Mismatch** | status `3`, challenge window opens |
+| Claimant appeals (0.02 ETH) | status `4` UnderAppeal |
+| **VRF seats a panel of three** | `0x854a…30BE`, `0x20aa…101c`, `0x2ca9…4A6E` — neither party among them |
+| Panel **upholds** the Mismatch | recorded only; settlement stays out of the Forwarder's gas allowance |
+| Finalised | [`0x55c3e684…360030e0`](https://sepolia.etherscan.io/tx/0x55c3e68432628324ed1f555321bf38cb57c610041918b9b42958f467360030e0) |
+
+Outcome: claimant receives **nothing**, 0.03 ETH forfeited and **payable to no one**, stake slashed to zero, eligibility lost, ENS standing **−3**.
+
+The forfeited bond going to nobody is the point. Paying it to the witness is what made fabricating disagreement the witness's dominant strategy ([ADR 0007](decisions.md)).
+
 ### ✅ Hardened protocol verified end-to-end (Sep 8)
 
 Redeployed after ADR 0007. Every mechanism fired: staked agents, flat witness fee, challenge window, permissionless finalisation, per-key ENS scoping.

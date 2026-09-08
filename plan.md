@@ -23,7 +23,7 @@
 | T4 ENSv2 | ● resolver deployed, EAC configured, operator write revoked, **standing written by the tribunal on-chain** |
 | T5 Graph | ◐ live data + guard + MCP client ● · **agent reasoning needs `ANTHROPIC_API_KEY`** |
 | T6 Dashboard | ○ not started |
-| T7 Scenes | ○ not started |
+| T7 Scenes | ◐ appeal path proven on-chain; three demo scenes not yet scripted |
 | T8 Submit | ○ not started |
 
 ### Live on-chain
