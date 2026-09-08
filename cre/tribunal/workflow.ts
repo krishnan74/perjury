@@ -108,6 +108,12 @@ const adjudicate = (
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
 
+	// 2a. Readings too far apart are not comparable — two honest parties reading
+	//     different blocks have not disagreed about anything.
+	if (Math.abs(a.asOfBlock - b.asOfBlock) > 25) {
+		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
+	}
+
 	// 2b. Recompute both values from raw evidence and judge on those. A party
 	//     whose own evidence does not reproduce its stated value has not
 	//     submitted evidence.

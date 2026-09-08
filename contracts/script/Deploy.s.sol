@@ -33,7 +33,9 @@ contract Deploy is Script {
 
         // Short on testnet so a demo can show settlement; an hour in production.
         uint64 challengeWindow = uint64(vm.envOr("CHALLENGE_WINDOW_SECONDS", uint256(120)));
-        ClaimRegistry registry = new ClaimRegistry(IWitnessRoster(address(roster)), challengeWindow);
+        uint64 responseWindow = uint64(vm.envOr("RESPONSE_WINDOW_SECONDS", uint256(600)));
+        ClaimRegistry registry =
+            new ClaimRegistry(IWitnessRoster(address(roster)), challengeWindow, responseWindow);
 
         PerjuryStandingWriter writer = new PerjuryStandingWriter(
             ITextResolver(resolver), IClaimRegistry(address(registry)), IWitnessRoster(address(roster))

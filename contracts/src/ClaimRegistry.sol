@@ -29,6 +29,12 @@ contract ClaimRegistry is IClaimRegistry {
     ///      still cannot be changed to suit a particular claim.
     uint64 public immutable CHALLENGE_WINDOW;
 
+    /// @dev How long a witness has to produce a finding before it can be replaced.
+    ///      Without this a witness that simply does nothing locks the claimant's
+    ///      bond forever, costs itself nothing, and is indistinguishable from
+    ///      being slow — the cheapest attack in the system.
+    uint64 public immutable RESPONSE_WINDOW;
+
     IWitnessRoster public immutable roster;
 
     /// @dev Set once by `wireSink` then locked forever. Not an admin hatch:
@@ -70,6 +76,8 @@ contract ClaimRegistry is IClaimRegistry {
     event PanelOverturned(uint256 indexed claimId, Verdict original, Verdict panel, address contradicted, uint256 slashed);
     event PanelUpheld(uint256 indexed claimId, Verdict verdict);
     event AppealAbandoned(uint256 indexed claimId);
+    event WitnessTimedOut(uint256 indexed claimId, address indexed witness, uint256 slashed);
+    event ClaimantTimedOut(uint256 indexed claimId, address indexed claimant);
     event WitnessPaid(uint256 indexed claimId, address indexed witness, uint256 fee);
     event ClaimantSlashed(uint256 indexed claimId, address indexed claimant, uint256 bond, uint256 stakeSlashed);
     event Withdrawn(address indexed who, uint256 amount);
@@ -81,6 +89,7 @@ contract ClaimRegistry is IClaimRegistry {
     error NotWired();
     error BondTooSmall();
     error NotRegistered();
+    error NotEligible();
     error BadStatus();
     error NothingToWithdraw();
     error TransferFailed();
@@ -90,9 +99,10 @@ contract ClaimRegistry is IClaimRegistry {
     error AppealBondTooSmall();
     error AlreadyAppealed();
 
-    constructor(IWitnessRoster roster_, uint64 challengeWindow_) {
+    constructor(IWitnessRoster roster_, uint64 challengeWindow_, uint64 responseWindow_) {
         roster = roster_;
         CHALLENGE_WINDOW = challengeWindow_;
+        RESPONSE_WINDOW = responseWindow_;
         _deployer = msg.sender;
     }
 
@@ -121,7 +131,10 @@ contract ClaimRegistry is IClaimRegistry {
     ///         fee is paid to the witness whatever the verdict turns out to be.
     function submitClaim(bytes32 subject, bytes32 claimHash) external payable returns (uint256 claimId) {
         if (msg.value < MIN_BOND + WITNESS_FEE) revert BondTooSmall();
-        if (!roster.isRegistered(msg.sender)) revert NotRegistered();
+        // Eligibility, not merely registration: an agent slashed below the stake
+        // floor could otherwise keep making claims with no collateral left to
+        // slash, which is the position a liar most wants to be in.
+        if (!roster.isEligible(msg.sender)) revert NotEligible();
 
         claimId = nextClaimId++;
         Claim storage c = _claims[claimId];
@@ -229,6 +242,41 @@ contract ClaimRegistry is IClaimRegistry {
             forfeited += a.bond;
             emit PanelUpheld(claimId, panelVerdict);
         }
+        _settle(claimId);
+    }
+
+    /// @notice Replace a witness that never produced a finding.
+    ///
+    /// Permissionless, so a claimant is never dependent on the unresponsive party
+    /// choosing to act. The witness is slashed: non-response has to cost
+    /// something, or doing nothing becomes the cheapest way to grief someone.
+    function timeoutWitness(uint256 claimId) external {
+        Claim storage c = _claims[claimId];
+        if (c.status != Status.WitnessAssigned) revert BadStatus();
+        if (block.timestamp <= c.assignedAt + RESPONSE_WINDOW) revert WindowOpen();
+
+        address unresponsive = c.witness;
+        uint256 slashed = roster.slash(unresponsive, WITNESS_FEE);
+        emit WitnessTimedOut(claimId, unresponsive, slashed);
+
+        // Draw again rather than abandoning the claim. The claimant asked a
+        // legitimate question and should still get an answer.
+        c.witness = address(0);
+        c.status = Status.Pending;
+        roster.requestWitness(claimId, c.claimant);
+    }
+
+    /// @notice Abandon a claim whose claimant never supplied its evidence.
+    ///
+    /// The witness is paid regardless — it was assigned and made itself
+    /// available, and the claimant is the party that failed to proceed.
+    function timeoutClaimant(uint256 claimId) external {
+        Claim storage c = _claims[claimId];
+        if (c.status != Status.WitnessAssigned) revert BadStatus();
+        if (block.timestamp <= c.assignedAt + RESPONSE_WINDOW * 2) revert WindowOpen();
+        c.verdict = Verdict.Unverifiable;
+        c.status = Status.Adjudicated;
+        emit ClaimantTimedOut(claimId, c.claimant);
         _settle(claimId);
     }
 

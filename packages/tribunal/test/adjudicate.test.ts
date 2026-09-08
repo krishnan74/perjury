@@ -315,3 +315,39 @@ describe("adjudicatePanel", () => {
     }
   });
 });
+
+// Two honest parties reading different blocks have not disagreed about
+// anything, and must not be treated as though they had.
+describe("block skew", () => {
+  const ev = (b: number) => ({ lendingProtocols: [{ totalBorrowBalanceUSD: String(b) }] });
+  const at = (block: number, value: number): SealedSubmission => ({
+    attestation: {
+      provenance: {
+        deploymentId: "QmPinned", indexedBlock: block, chainHead: block + 2,
+        queriedAt: 1, queryHash: `q${block}`, hasIndexingErrors: false,
+      },
+      assertion: {
+        subject: "s", metric: "totalBorrowBalanceUSD", comparator: "gt",
+        value, unit: "USD", asOfBlock: block,
+      },
+      digest: `d${block}`,
+    },
+    methodology: `read at ${block}`,
+    evidence: ev(value),
+  });
+
+  it("compares readings taken close together", () => {
+    expect(adjudicate(1n, at(1000, 100), at(1005, 100), "salt").verdict).toBe(Verdict.Match);
+  });
+
+  it("refuses to judge readings taken far apart, rather than convicting", () => {
+    const r = adjudicate(1n, at(1000, 100), at(2000, 180), "salt");
+    expect(r.verdict).toBe(Verdict.Unverifiable);
+    expect(r.verdict).not.toBe(Verdict.Mismatch);
+  });
+
+  it("skew is checked before values, so a wide gap never becomes a Mismatch", () => {
+    // Values differ enormously, but the readings are 1000 blocks apart.
+    expect(adjudicate(1n, at(1000, 10), at(2000, 900), "salt").verdict).toBe(Verdict.Unverifiable);
+  });
+});

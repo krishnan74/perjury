@@ -26,17 +26,32 @@ contract ENSTextStandingReader is IStandingReader {
 
     /// @param node namehash, used to build the inner text() call
     /// @param dnsName DNS-encoded name, which resolve() addresses by
-    function standingOfName(bytes32 node, bytes calldata dnsName) public view returns (int256) {
+    /// @return standing the agent's score
+    /// @return readable whether the record could actually be read
+    /// @dev Returning a bare integer conflated "no record yet" with "could not
+    ///      read", so a resolver outage read as standing zero — which is
+    ///      eligible, and which silently erased negative standing. Everything
+    ///      else in this protocol fails closed; so does this now.
+    function standingOfNameChecked(bytes32 node, bytes calldata dnsName)
+        public
+        view
+        returns (int256 standing, bool readable)
+    {
         bytes memory inner = abi.encodeWithSignature("text(bytes32,string)", node, STANDING_KEY);
         (bool ok, bytes memory ret) = address(resolver).staticcall(
             abi.encodeWithSelector(IExtendedResolver.resolve.selector, dnsName, inner)
         );
-        if (!ok || ret.length == 0) return 0;
+        if (!ok || ret.length == 0) return (0, false);
 
         bytes memory encoded = abi.decode(ret, (bytes));
-        if (encoded.length == 0) return 0;
-        string memory raw = abi.decode(encoded, (string));
-        return _parse(raw);
+        // An empty record is a genuine zero: a newly registered agent.
+        if (encoded.length == 0) return (0, true);
+        return (_parse(abi.decode(encoded, (string))), true);
+    }
+
+    function standingOfName(bytes32 node, bytes calldata dnsName) public view returns (int256) {
+        (int256 standing,) = standingOfNameChecked(node, dnsName);
+        return standing;
     }
 
     /// @dev IStandingReader entry point. Without the DNS name we cannot address

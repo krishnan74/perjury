@@ -63,6 +63,10 @@ interface IStandingReader {
     /// @dev ENSv2 serves reads via ENSIP-10 resolve(), which addresses by the
     ///      DNS-encoded name, so the node alone is not enough.
     function standingOfName(bytes32 node, bytes calldata dnsName) external view returns (int256);
+    function standingOfNameChecked(bytes32 node, bytes calldata dnsName)
+        external
+        view
+        returns (int256 standing, bool readable);
 }
 
 interface IStandingWriter {

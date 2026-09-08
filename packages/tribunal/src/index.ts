@@ -74,6 +74,17 @@ export interface TribunalReport {
 /** Per-metric tolerance. Two honest agents may differ in the last decimal. */
 export const DEFAULT_TOLERANCE = 0.005; // 0.5%
 
+/**
+ * How far apart the two readings may be, in blocks.
+ *
+ * The claimant and witness query at different moments and therefore different
+ * blocks. On a metric that moves faster than the tolerance band, two perfectly
+ * honest parties reading blocks apart disagree — and the claimant is slashed for
+ * telling the truth about a different moment. A protocol that punishes honesty
+ * under normal operation is worse than one that occasionally misses a lie.
+ */
+export const MAX_BLOCK_SKEW = 25;
+
 function withinTolerance(a: number, b: number, tolerance: number): boolean {
   if (a === b) return true;
   const scale = Math.max(Math.abs(a), Math.abs(b));
@@ -130,6 +141,12 @@ export function adjudicate(
 
   // 2. Normalize. Assertions about different things are not evidence of anything.
   if (!comparableShape(a, b)) {
+    return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
+  }
+
+  // 2a. Readings too far apart are not comparable. Neither party has done
+  //     anything wrong; they simply looked at different states of the world.
+  if (Math.abs(a.asOfBlock - b.asOfBlock) > MAX_BLOCK_SKEW) {
     return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
   }
 

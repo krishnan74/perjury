@@ -24,11 +24,32 @@ contract LifecycleTest is Base {
         registry.submitClaim{value: 1 wei}(bytes32("s"), bytes32("h"));
     }
 
+    /// @dev A slashed agent keeps its registration but loses eligibility, and must
+    ///      not be able to keep making claims with no collateral left to slash.
+    function test_submit_bySlashedAgent_reverts() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(1, 1);
+        _reportAndFinalize(id, Verdict.Mismatch);
+        assertFalse(roster.isEligible(alice), "mismatch flags the claimant");
+        vm.prank(alice);
+        vm.expectRevert(ClaimRegistry.NotEligible.selector);
+        registry.submitClaim{value: SUBMIT_VALUE}(bytes32("s"), bytes32("h"));
+    }
+
+    /// @dev A resolver outage must not silently restore every flagged agent.
+    function test_unreadableReputationFailsClosed() public {
+        assertTrue(roster.isEligible(bob));
+        resolver.setDown(true);
+        assertFalse(roster.isEligible(bob), "unreadable record must not read as eligible");
+        resolver.setDown(false);
+        assertTrue(roster.isEligible(bob));
+    }
+
     function test_submit_unregistered_reverts() public {
         address stranger = makeAddr("stranger");
         vm.deal(stranger, 1 ether);
         vm.prank(stranger);
-        vm.expectRevert(ClaimRegistry.NotRegistered.selector);
+        vm.expectRevert(ClaimRegistry.NotEligible.selector);
         registry.submitClaim{value: SUBMIT_VALUE}(bytes32("s"), bytes32("h"));
     }
 

@@ -227,10 +227,10 @@ From [docs/threat-audit.md](docs/threat-audit.md). A loophole-free mechanism mat
 
 **Open:**
 - [x] **Appeal layer.** A verdict now opens a challenge window rather than settling. Either party may appeal against a bond; a VRF panel of three is drawn excluding both parties and the appellant; the panel's finding stands, a contradicted party is slashed, and a failed appeal forfeits the bond. `finalize()` is permissionless, so settlement never waits on a particular party. Reputation is applied at settlement rather than adjudication, so an overturned verdict never reaches the record.
-- [ ] **Timeouts — severe.** No deadline exists anywhere. A witness that does nothing locks the claimant's bond forever, costs itself nothing, and is indistinguishable from being slow. Add response deadlines both ways; slash non-response.
-- [ ] **Eligibility on submit.** `submitClaim` checks `isRegistered`, not `isEligible`, so an agent slashed to zero can keep claiming with no collateral left.
-- [ ] **Reputation reads fail open.** `standingOfName` returns 0 on any failure and `MIN_STANDING` is 0, so an unreadable record reads as eligible and a resolver outage erases negative standing. Distinguish "absent" from "unreadable"; treat unreadable as ineligible.
-- [ ] **Block-skew tolerance.** `adjudicate` ignores `asOfBlock`, so two honest parties reading blocks apart on a volatile metric produce a Mismatch and the claimant is slashed for being truthful. Reject when the block gap is too wide.
+- [x] **Timeouts.** `timeoutWitness` replaces and slashes an unresponsive witness, then redraws so the claim still gets an answer; `timeoutClaimant` settles as Unverifiable after a second window and pays the witness, which made itself available. Both permissionless, so no party depends on the unresponsive one acting.
+- [x] **Eligibility on submit.** `submitClaim` now requires `isEligible`, so a slashed agent cannot keep claiming from a position with nothing left to slash.
+- [x] **Reputation reads fail closed.** `standingOfNameChecked` returns a readability flag alongside the score, so "no record yet" and "could not read" are no longer conflated. An unreadable record is ineligible.
+- [x] **Block-skew guard.** Readings more than 25 blocks apart return Unverifiable, checked before values are compared so a wide gap can never become a Mismatch. Two honest parties reading different blocks have not disagreed about anything.
 - [x] **Model diversity** (from Immunity). Panel seats run different models — `seatPanel()` assigns one per seat. With only Anthropic credentials this is intra-family diversity, which reduces correlated error without eliminating it; a second provider key would make it cross-family, and any `LlmClient` can be seated.
 - [ ] **K-of-N corroboration** (from Immunity) — optional. A single witness decides an outcome today; requiring K agreeing findings for high-value claims would remove that.
 

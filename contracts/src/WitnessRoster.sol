@@ -174,10 +174,13 @@ contract WitnessRoster is IWitnessRoster {
         if (!a.active) return false;
         if (a.stake < REGISTRATION_STAKE) return false; // under-collateralised
         if (flaggedUntil[candidate] > block.timestamp) return false;
-        try standingReader.standingOfName(a.ensNode, a.dnsName) returns (int256 standing) {
+        try standingReader.standingOfNameChecked(a.ensNode, a.dnsName) returns (int256 standing, bool readable) {
+            // A record we cannot read is not a record we can trust — treating an
+            // unreadable record as zero would make a resolver outage silently
+            // restore every flagged agent.
+            if (!readable) return false;
             return standing >= MIN_STANDING;
         } catch {
-            // A record we cannot read is not a record we can trust.
             return false;
         }
     }
