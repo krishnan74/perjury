@@ -4,9 +4,53 @@
 
 Built for **ETHOnline 2026**. Sepolia testnet.
 
-> **Status: planning.** No application code yet — design and build plan are complete, T0 is next. Submission deadline **Sun Sep 13 2026, 12:00 EDT**. This README grows a quickstart, deployed addresses, and demo tx hashes as they land.
+> **Status: working end-to-end off-chain, settling on-chain in progress.** Contracts are deployed on Sepolia, VRF witness assignment is verified live, the CRE confidential workflow adjudicates via the official simulator, and both agents derive findings from live mainnet Graph data — Match and Mismatch both reproduced. See [What works today](#what-works-today).
 
 ---
+
+## What works today
+
+Verified on live networks, not mocked:
+
+| | Evidence |
+|---|---|
+| **Bonded claims + settlement contracts** | Deployed on Sepolia (addresses below), 32 Foundry tests |
+| **Randomly assigned witness** | Live Chainlink VRF v2.5 round: claimant `0xDcbe…eA91`, witness drawn `0xc38f…c4AF` — a different address, on-chain |
+| **Independent re-derivation** | Claimant and witness each query live Aave v3 data through the Subgraph MCP and a pinned deployment; true claim → **Match** (40.45% vs 40.42%), fabricated claim → **Mismatch** (64.74% vs 40.46%) |
+| **Provenance enforcement** | Stale index, unpinned deployment, indexing errors or an empty result set all produce `Unverifiable` — never a silent pass. 16 tests |
+| **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); report delivered on-chain, tx [`0xbd50a73c…`](https://sepolia.etherscan.io/tx/0xbd50a73caf76f55092aa19614def76173a87c81a347f2c719a72a1fa6ac4721d) |
+| **Agent identity** | `perjury.eth` registered on the ENSv2 hackathon deployment, direct-to-contract |
+
+**In progress:** `VerdictSink` deployment (deliberately last — its authorized-writer address is immutable), ENSv2 Enhanced Access Control grants, and the ENS reputation write closing the loop.
+
+**Honest scope note:** `cre workflow simulate` executes locally, not inside an enclave. We register a real TEE handler and the workflow runs end to end, but enclave execution requires confidential-DON deploy access, which we have requested. We do not claim adjudication has run inside a TEE.
+
+## Deployed on Sepolia
+
+| Contract | Address |
+|---|---|
+| `ClaimRegistry` | [`0xa16613689Ff8df7779FDA80b90BB865F0C52F874`](https://sepolia.etherscan.io/address/0xa16613689Ff8df7779FDA80b90BB865F0C52F874) |
+| `WitnessRoster` | [`0x84120516A22af6C3557bF80BAbAAd4ff4a86E309`](https://sepolia.etherscan.io/address/0x84120516A22af6C3557bF80BAbAAd4ff4a86E309) |
+| `PerjuryStandingWriter` | [`0xBCe0bcFEE2E5b7506d76D76529b1642980B8eE61`](https://sepolia.etherscan.io/address/0xBCe0bcFEE2E5b7506d76D76529b1642980B8eE61) |
+| `ENSTextStandingReader` | [`0xdE16F3E3c600240bd1bd752d07Af69A2286C7F9E`](https://sepolia.etherscan.io/address/0xdE16F3E3c600240bd1bd752d07Af69A2286C7F9E) |
+
+Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
+
+## Running it
+
+```bash
+cp .env.example .env          # add SEPOLIA_RPC_URL, GRAPH_STUDIO_KEY, keys
+npm install
+forge test                    # 32 contract tests
+npx vitest run                # 45 TypeScript tests
+
+# both agents against live mainnet Graph data, through the tribunal
+npx tsx agents/runner/duel.ts honest   # expect Match
+npx tsx agents/runner/duel.ts false    # expect Mismatch
+
+# the confidential workflow
+cd cre && cre workflow simulate tribunal --target staging-settings
+```
 
 ## How it works
 
