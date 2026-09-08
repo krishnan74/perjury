@@ -52,13 +52,15 @@ Status legend: `planned` (not yet written) → `in progress` → `done`. This ta
 | `packages/tribunal/**` | AI-ASSISTED | done | Human specified the enclave boundary ([§3.2](design.md)): what enters, and that only verdict + commitment may leave. AI implemented tolerance comparison and the degeneracy heuristic. 14 tests, incl. leak tests asserting no evidence reaches the report. |
 | `cre/tribunal/main.ts` | AI-ASSISTED | **written, not run** | Thin wrapper over the above. SDK registration API unconfirmed until T1 — marked TODO in the file rather than assumed. |
 | **Graph layer** | | | |
+| `packages/llm/**` | AI-ASSISTED | done | Two backends behind one interface: `claude -p` for testing, Anthropic API for the demo. |
+| `packages/mcp-client/**` | AI-ASSISTED | done | Subgraph MCP over SSE. |
 | `packages/graph-guard/**` | AI-ASSISTED | done | Human specified the reject-never-degrade rule ([§5.3](design.md)); AI implemented pinning, freshness, and attestation mechanics. 13 tests. |
 | `packages/shared/**` | AI-ASSISTED | done | Canonical assertion shape and order-stable digest, so two independent derivations are comparable. |
 | **ENS layer** | | | |
 | `packages/ens/**` | AI-ASSISTED *(intended)* | planned | Human specifies EAC scoping and the self-write revocation; AI handles ENSv2 beta API mechanics. |
 | **Agents** | | | |
-| `agents/witness/**` | AI-ASSISTED *(intended)* | planned | Human owns the isolation constraint and the prompt design. |
-| `agents/claimant/**` | AI-ASSISTED *(intended)* | planned | |
+| `agents/witness/**` | AI-ASSISTED | done | Human owns the isolation constraint. Witness adopts the claim's metric identity and derives only the value. |
+| `agents/claimant/**` | AI-ASSISTED | done | Includes a `false` mode that derives the true value then overstates it, for demo scene 2. |
 | `agents/runner/**` (demo scenes) | **HUMAN-LED** *(intended)* | planned | The three scenarios are the human's design (prompt 01) — scene scripts should be human-driven, see §0.6. |
 | **Frontend** | | | |
 | `app/**` | AI-GENERATED *(intended)* | planned | Dashboard UI is presentation of state the protocol already produces. Mechanically assisted; low design-ownership stakes. |

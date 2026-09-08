@@ -19,6 +19,18 @@ export interface Claim {
   subject: string;
   /** Prose, as an agent would actually post it. */
   text: string;
+  /**
+   * The metric identity the claimant committed to, taken verbatim.
+   *
+   * The witness derives the VALUE independently but must answer the SAME
+   * question — otherwise two agents inventing their own names for the same
+   * quantity disagree on the label while agreeing on the number, and the
+   * tribunal reads that as incomparable. Independence belongs in the answer,
+   * not in the question.
+   */
+  metric: string;
+  unit: string;
+  comparator: Comparator;
 }
 
 export interface Finding {
@@ -37,9 +49,6 @@ Output ONLY a JSON object, no prose, no code fences.`;
 
 interface QueryPlan {
   selection: string;
-  metric: string;
-  unit: string;
-  comparator: Comparator;
   claimedValue: number;
   reasoning: string;
 }
@@ -57,15 +66,13 @@ Do not guess filter values — a filter that matches nothing yields an empty res
 finding will be rejected as unverifiable.
 
 Claim to verify: "${claim.text}"
+The claim is about the metric "${claim.metric}" measured in ${claim.unit}.
 
 Return JSON:
 {
   "selection": "<ONLY the root selection set, e.g. lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD }. No outer braces, no query keyword, and do NOT include _meta — it is added automatically.>",
-  "metric": "<the metric field name being tested>",
-  "unit": "<USD or percent>",
-  "comparator": "<one of eq|gt|gte|lt|lte — what the claim asserts>",
   "claimedValue": <the numeric threshold the claim asserts>,
-  "reasoning": "<one sentence on why this query answers the claim>"
+  "reasoning": "<one sentence on why this query lets you compute ${claim.metric} independently>"
 }`,
   });
   return extractJson<QueryPlan>(res.text);
@@ -83,21 +90,21 @@ async function deriveAssertion(
     system: READ_SYSTEM,
     temperature: 0,
     prompt: `Claim: "${claim.text}"
-Metric under test: ${plan.metric} (${plan.unit})
+Metric under test: ${claim.metric} (${claim.unit})
 Query results: ${JSON.stringify(data).slice(0, 4000)}
 
-Compute the actual value of the metric from the results. If the metric is a percentage/ratio, compute it from the underlying figures and express it as a percentage (0-100).
+Compute the actual value of ${claim.metric} from the results. If it is a percentage or ratio, compute it from the underlying figures and express it as a percentage (0-100).
 
-Return JSON:
-{ "value": <the ACTUAL value you derived from the data>, "comparator": "${plan.comparator}", "unit": "${plan.unit}" }`,
+Return JSON: { "value": <the ACTUAL value you derived from the data> }`,
   });
-  const out = extractJson<{ value: number; comparator: Comparator; unit: string }>(res.text);
+  const out = extractJson<{ value: number }>(res.text);
+  // Metric identity comes from the claim; only the value is the witness's own.
   return {
     subject: claim.subject,
-    metric: plan.metric,
-    comparator: out.comparator ?? plan.comparator,
+    metric: claim.metric,
+    comparator: claim.comparator,
     value: Number(out.value),
-    unit: out.unit ?? plan.unit,
+    unit: claim.unit,
     asOfBlock: indexedBlock,
   };
 }

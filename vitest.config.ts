@@ -11,6 +11,7 @@ export default defineConfig({
       "@perjury/mcp-client": resolve(__dirname, "packages/mcp-client/src/index.ts"),
       "@perjury/llm": resolve(__dirname, "packages/llm/src/index.ts"),
       "@perjury/witness": resolve(__dirname, "agents/witness/src/index.ts"),
+      "@perjury/claimant": resolve(__dirname, "agents/claimant/src/index.ts"),
       "@perjury/shared": resolve(__dirname, "packages/shared/src/index.ts"),
       "@perjury/graph-guard": resolve(__dirname, "packages/graph-guard/src/index.ts"),
     },

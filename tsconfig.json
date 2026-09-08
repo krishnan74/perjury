@@ -17,6 +17,7 @@
       "@perjury/mcp-client": ["packages/mcp-client/src/index.ts"],
       "@perjury/llm": ["packages/llm/src/index.ts"],
       "@perjury/witness": ["agents/witness/src/index.ts"],
+      "@perjury/claimant": ["agents/claimant/src/index.ts"],
       "@perjury/shared": ["packages/shared/src/index.ts"],
       "@perjury/shared/pinned-deployments.json": ["packages/shared/src/pinned-deployments.json"],
       "@perjury/graph-guard": ["packages/graph-guard/src/index.ts"]
