@@ -175,19 +175,29 @@ contract WitnessRoster is IWitnessRoster {
         return agentList.length;
     }
 
-    /// @notice Eligibility is derived live from the ENS standing record — there is
-    ///         no maintained allowlist and no admin path to include or exclude.
+    /// @notice Eligibility is derived live from on-chain state at the moment of
+    ///         assignment — there is no maintained allowlist and no admin path to
+    ///         include or exclude anyone.
+    ///
+    /// @dev Exclusion is governed by the flag, not by the standing value.
+    ///
+    ///      Gating on `standing >= MIN_STANDING` made exclusion permanent and
+    ///      unrecoverable: standing is writable only by the tribunal on a Match
+    ///      verdict, earning a Match requires submitting a claim, and submitting
+    ///      requires eligibility. A single mismatch ended an agent forever, which
+    ///      also made FLAG_COOLDOWN dead code that implied the opposite.
+    ///
+    ///      So the flag is the acute penalty and expires; the standing record is
+    ///      the permanent public history and does not. The record is still read
+    ///      on-chain here and still gates — an unreadable one is ineligible —
+    ///      because a record we cannot read is not a record we can trust.
     function isEligible(address candidate) public view returns (bool) {
         Agent storage a = agents[candidate];
         if (!a.active) return false;
         if (a.stake < REGISTRATION_STAKE) return false; // under-collateralised
-        if (flaggedUntil[candidate] > block.timestamp) return false;
-        try standingReader.standingOfNameChecked(a.ensNode, a.dnsName) returns (int256 standing, bool readable) {
-            // A record we cannot read is not a record we can trust — treating an
-            // unreadable record as zero would make a resolver outage silently
-            // restore every flagged agent.
-            if (!readable) return false;
-            return standing >= MIN_STANDING;
+        if (flaggedUntil[candidate] > block.timestamp) return false; // serving a cooldown
+        try standingReader.standingOfNameChecked(a.ensNode, a.dnsName) returns (int256, bool readable) {
+            return readable;
         } catch {
             return false;
         }

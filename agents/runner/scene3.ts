@@ -12,16 +12,21 @@
 import { keccak256, toBytes } from "viem";
 import * as p from "./lib/present";
 import {
-  AGENTS, BOND, REGISTRY, REGISTRY_ABI, account, addressOf, claim, op, preflight, pub, rosterSnapshot,
+  AGENTS, BOND, REGISTRY, REGISTRY_ABI, account, addressOf, claim, claimantFor, op, preflight, pub,
+  rosterSnapshot, walletFor,
 } from "./lib/chain";
 
 const rounds = Number(process.argv[2] ?? 4);
-const CLAIMANT = "operator.perjury.eth";
+// Which agent makes the claim. Scene 2 slashes it, so pass a different one
+// per run rather than redeploying: npx tsx agents/runner/scene3.ts panel-1
+const who = claimantFor(process.argv.find((a) => !a.startsWith("-") && a.includes("perjury") === false && ["operator","witness-a","panel-1","panel-2","panel-3"].includes(a)));
+const CLAIMANT = who.name;
+const signer = walletFor(who.pk);
 
 p.scene(3, "A collusion attempt, structurally throttled",
   "Two agents agree to cover for each other. They still cannot choose to be paired.");
 
-await preflight(CLAIMANT, account.address, 3);
+await preflight(CLAIMANT, who.address, 3);
 
 const roster = await rosterSnapshot();
 const accomplice = roster.find((r) => r.name === "witness-a.perjury.eth");
@@ -38,7 +43,7 @@ p.note("submitClaim has no witness parameter — there is no code path to ask fo
 const drawn: string[] = [];
 for (let i = 0; i < rounds; i++) {
   const id = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "nextClaimId" });
-  const hash = await op.writeContract({
+  const hash = await signer.writeContract({
     address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
     args: [keccak256(toBytes(`collusion-round-${i}`)), keccak256(toBytes("claim"))],
     value: BOND,

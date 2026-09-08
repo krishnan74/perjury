@@ -12,15 +12,19 @@ import { dnsEncode } from "@perjury/ens";
 import * as p from "./lib/present";
 import {
   AGENTS, BOND, REGISTRY, REGISTRY_ABI, VERDICT, account, addressOf, claim, op, pub,
-  preflight, publishEvidence, rosterSnapshot, runTribunal, standingOf,
+  claimantFor, preflight, publishEvidence, rosterSnapshot, runTribunal, standingOf, walletFor,
 } from "./lib/chain";
 import { keccak256, toBytes } from "viem";
 
-const CLAIMANT = "operator.perjury.eth";
+// Which agent makes the claim. Scene 2 slashes it, so pass a different one
+// per run rather than redeploying: npx tsx agents/runner/scene1.ts panel-1
+const who = claimantFor(process.argv.find((a) => !a.startsWith("-") && a.includes("perjury") === false && ["operator","witness-a","panel-1","panel-2","panel-3"].includes(a)));
+const CLAIMANT = who.name;
+const signer = walletFor(who.pk);
 
 p.scene(1, "A true claim, challenged anyway", "Honest claims should cost nothing and earn standing.");
 
-await preflight(CLAIMANT, account.address, 2);
+await preflight(CLAIMANT, who.address, 2);
 
 p.step("The roster, before anything happens");
 p.agentTable(await rosterSnapshot());
@@ -30,9 +34,9 @@ const before = await standingOf(CLAIMANT);
 const claimId = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "nextClaimId" });
 
 p.step("The claimant posts a claim, and bonds it");
-p.line("claimant", `${CLAIMANT}  ${account.address.slice(0, 12)}…`);
+p.line("claimant", `${CLAIMANT}  ${who.address.slice(0, 12)}…`);
 p.line("bond", "0.010 ETH   (+ 0.002 witness fee)");
-const submitHash = await op.writeContract({
+const submitHash = await signer.writeContract({
   address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
   args: [keccak256(toBytes("aave-v3-ethereum:utilization")), keccak256(toBytes("utilization above threshold"))],
   value: BOND,
@@ -46,7 +50,7 @@ await p.waitFor("waiting for VRF", async () => (await claim(claimId)).witness !=
 const c = await claim(claimId);
 const witnessAgent = AGENTS.find((a) => addressOf(a).toLowerCase() === c.witness.toLowerCase());
 p.line("witness drawn", `${witnessAgent?.name ?? c.witness}  ${c.witness.slice(0, 12)}…`, p.c.cyan);
-p.line("is it the claimant?", c.witness.toLowerCase() === account.address.toLowerCase() ? "YES — BROKEN" : "no", p.c.green);
+p.line("is it the claimant?", c.witness.toLowerCase() === who.address.toLowerCase() ? "YES — BROKEN" : "no", p.c.green);
 
 p.step("Both agents derive an answer from live Graph data, independently");
 p.note("Separate processes, separate keys, no channel between them.");
@@ -68,7 +72,7 @@ const finHash = await op.writeContract({ address: REGISTRY, abi: REGISTRY_ABI, f
 await pub.waitForTransactionReceipt({ hash: finHash });
 p.tx("finalize", finHash);
 
-const owed = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "withdrawable", args: [account.address] });
+const owed = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "withdrawable", args: [who.address] });
 const after = await standingOf(CLAIMANT);
 p.line("bond returned", `${Number(owed) / 1e18} ETH`, p.c.green);
 p.change("ENS standing", before, after);

@@ -13,21 +13,25 @@ import { keccak256, toBytes } from "viem";
 import * as p from "./lib/present";
 import {
   AGENTS, APPEAL_BOND, BOND, REGISTRY, REGISTRY_ABI, ROSTER, ROSTER_ABI, account, addressOf,
-  claim, op, preflight, pub, publishEvidence, rosterSnapshot, runTribunal, standingOf,
+  claim, claimantFor, op, preflight, pub, publishEvidence, rosterSnapshot, runTribunal, standingOf, walletFor,
 } from "./lib/chain";
 
-const CLAIMANT = "operator.perjury.eth";
+// Which agent makes the claim. Scene 2 slashes it, so pass a different one
+// per run rather than redeploying: npx tsx agents/runner/scene2.ts panel-1
+const who = claimantFor(process.argv.find((a) => !a.startsWith("-") && a.includes("perjury") === false && ["operator","witness-a","panel-1","panel-2","panel-3"].includes(a)));
+const CLAIMANT = who.name;
+const signer = walletFor(who.pk);
 p.scene(2, "A false claim, and an appeal that fails",
   "Lying should cost the bond, the stake, the standing, and the right to judge others.");
 
-await preflight(CLAIMANT, account.address, 5);
+await preflight(CLAIMANT, who.address, 5);
 
 const beforeStanding = await standingOf(CLAIMANT);
-const beforeStake = await pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "stakeOf", args: [account.address] });
+const beforeStake = await pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "stakeOf", args: [who.address] });
 const claimId = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "nextClaimId" });
 
 p.step("The claimant posts a claim it cannot support");
-const submitHash = await op.writeContract({
+const submitHash = await signer.writeContract({
   address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
   args: [keccak256(toBytes("aave-v3-ethereum:utilization")), keccak256(toBytes("utilization far above reality"))],
   value: BOND,
@@ -52,7 +56,7 @@ p.step("The tribunal rules");
 p.verdict(runTribunal("verdict"), "The claimant's own evidence does not reproduce its stated value.");
 
 p.step("The claimant appeals — three more agents are drawn");
-const appealHash = await op.writeContract({
+const appealHash = await signer.writeContract({
   address: REGISTRY, abi: REGISTRY_ABI, functionName: "appeal", args: [claimId], value: APPEAL_BOND,
 });
 await pub.waitForTransactionReceipt({ hash: appealHash });
@@ -77,10 +81,10 @@ await pub.waitForTransactionReceipt({ hash: finHash });
 p.tx("finalize", finHash);
 
 const [owed, forfeited, stake, eligible, afterStanding] = await Promise.all([
-  pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "withdrawable", args: [account.address] }),
+  pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "withdrawable", args: [who.address] }),
   pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "forfeited" }),
-  pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "stakeOf", args: [account.address] }),
-  pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [account.address] }),
+  pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "stakeOf", args: [who.address] }),
+  pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [who.address] }),
   standingOf(CLAIMANT),
 ]);
 p.line("claimant receives", `${Number(owed) / 1e18} ETH`, p.c.red);

@@ -36,6 +36,26 @@ contract LifecycleTest is Base {
         registry.submitClaim{value: SUBMIT_VALUE}(bytes32("s"), bytes32("h"));
     }
 
+    /// @dev Exclusion must be survivable. Gating on the standing value made it
+    ///      permanent: standing rises only on a Match, a Match needs a claim, and
+    ///      a claim needs eligibility. One mismatch ended an agent forever.
+    function test_flaggedAgentRecoversAfterTheCooldown() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(1, 1);
+        _reportAndFinalize(id, Verdict.Mismatch);
+        assertFalse(roster.isEligible(alice), "flagged immediately");
+        assertEq(reader.standingOfName(_node(alice), _dns(alice)), -3, "record shows the history");
+
+        vm.warp(block.timestamp + roster.FLAG_COOLDOWN() + 1);
+        // Stake was slashed below the floor, so it must be topped up too.
+        vm.deal(alice, alice.balance + STAKE);
+        vm.prank(alice);
+        roster.topUp{value: STAKE}();
+
+        assertTrue(roster.isEligible(alice), "eligible again once the cooldown expires");
+        assertEq(reader.standingOfName(_node(alice), _dns(alice)), -3, "but the record still shows it lied");
+    }
+
     /// @dev A resolver outage must not silently restore every flagged agent.
     function test_unreadableReputationFailsClosed() public {
         assertTrue(roster.isEligible(bob));
