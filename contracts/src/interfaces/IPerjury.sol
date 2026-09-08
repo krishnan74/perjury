@@ -6,7 +6,8 @@ enum Status {
     None,
     Pending, // bond escrowed, awaiting VRF
     WitnessAssigned, // witness drawn, awaiting finding + adjudication
-    Adjudicated, // tribunal returned a verdict
+    Adjudicated, // verdict returned; challengeable until the window closes
+    UnderAppeal, // contested; an independent panel is being drawn or has been seated
     Settled // bond paid out
 }
 
@@ -33,8 +34,11 @@ struct Claim {
 
 interface IClaimRegistry {
     function onWitnessAssigned(uint256 claimId, address witness) external;
+    function onPanelAssigned(uint256 claimId, address[] calldata panel) external;
+    function onPanelUnavailable(uint256 claimId) external;
     function onAssignmentFailed(uint256 claimId) external;
     function recordVerdict(uint256 claimId, Verdict verdict, bytes32 evidenceCommitment) external;
+    function recordPanelVerdict(uint256 claimId, Verdict panelVerdict) external;
     function claimOf(uint256 claimId) external view returns (Claim memory);
 }
 
@@ -42,6 +46,9 @@ interface IWitnessRoster {
     function isRegistered(address agent) external view returns (bool);
     function isEligible(address candidate) external view returns (bool);
     function requestWitness(uint256 claimId, address claimant) external returns (uint256 requestId);
+    function requestPanel(uint256 claimId, address claimant, address originalWitness, address appellant)
+        external
+        returns (uint256 requestId);
     function nodeOf(address agent) external view returns (bytes32);
     function dnsNameOf(address agent) external view returns (bytes memory);
     function onMismatch(address claimant) external;

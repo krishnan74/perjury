@@ -36,7 +36,7 @@ contract LifecycleTest is Base {
     function test_match_returnsBondAndRaisesStanding() public {
         uint256 id = _submit(alice);
         vrf.fulfill(1, 1);
-        _report(id, Verdict.Match);
+        _reportAndFinalize(id, Verdict.Match);
 
         Claim memory c = registry.claimOf(id);
         assertEq(uint8(c.verdict), uint8(Verdict.Match));
@@ -56,7 +56,7 @@ contract LifecycleTest is Base {
         assertTrue(witness != alice, "witness must not be the claimant");
         uint256 stakeBefore = roster.stakeOf(alice);
 
-        _report(id, Verdict.Mismatch);
+        _reportAndFinalize(id, Verdict.Mismatch);
 
         assertEq(registry.withdrawable(witness), 0.002 ether, "witness gets the flat fee only");
         assertEq(registry.withdrawable(alice), 0, "claimant forfeits its bond");
@@ -71,14 +71,14 @@ contract LifecycleTest is Base {
         uint256 idA = _submit(alice);
         vrf.fulfill(vrf.nextRequestId() - 1, 1);
         address wA = registry.claimOf(idA).witness;
-        _report(idA, Verdict.Match);
+        _reportAndFinalize(idA, Verdict.Match);
         uint256 onMatch = registry.withdrawable(wA);
 
         uint256 idB = _submit(alice);
         vrf.fulfill(vrf.nextRequestId() - 1, 1);
         address wB = registry.claimOf(idB).witness;
         uint256 before = registry.withdrawable(wB);
-        _report(idB, Verdict.Mismatch);
+        _reportAndFinalize(idB, Verdict.Mismatch);
         uint256 onMismatch = registry.withdrawable(wB) - before;
 
         assertEq(onMatch, onMismatch, "witness payout must not depend on the verdict");
@@ -88,7 +88,7 @@ contract LifecycleTest is Base {
     function test_flaggedAgent_isNeverAssignedAsWitness() public {
         uint256 id = _submit(alice);
         vrf.fulfill(1, 1);
-        _report(id, Verdict.Mismatch);
+        _reportAndFinalize(id, Verdict.Mismatch);
         assertFalse(roster.isEligible(alice));
 
         // Every subsequent draw must skip alice, whatever the seed.
@@ -97,7 +97,7 @@ contract LifecycleTest is Base {
             vrf.fulfill(roster_nextRequestId(), seed);
             address w = registry.claimOf(id2).witness;
             assertTrue(w != alice, "flagged agent was assigned");
-            _report(id2, Verdict.Match);
+            _reportAndFinalize(id2, Verdict.Match);
         }
     }
 
@@ -109,7 +109,7 @@ contract LifecycleTest is Base {
     function test_unverifiable_returnsBondAndLeavesStandingUntouched() public {
         uint256 id = _submit(alice);
         vrf.fulfill(1, 1);
-        _report(id, Verdict.Unverifiable);
+        _reportAndFinalize(id, Verdict.Unverifiable);
 
         // A witness was assigned and did its job, so it is paid regardless.
         assertEq(registry.withdrawable(alice), BOND, "bond returned, fee paid to the witness");
@@ -120,7 +120,7 @@ contract LifecycleTest is Base {
     function test_doubleSettle_reverts() public {
         uint256 id = _submit(alice);
         vrf.fulfill(1, 1);
-        _report(id, Verdict.Match);
+        _reportAndFinalize(id, Verdict.Match);
         vm.prank(CRE);
         vm.expectRevert(ClaimRegistry.BadStatus.selector);
         sink.onReport("", abi.encode(id, uint8(Verdict.Match), bytes32(0)));
@@ -129,7 +129,7 @@ contract LifecycleTest is Base {
     function test_withdraw_paysOutOnce() public {
         uint256 id = _submit(alice);
         vrf.fulfill(1, 1);
-        _report(id, Verdict.Match);
+        _reportAndFinalize(id, Verdict.Match);
 
         uint256 before = alice.balance;
         vm.prank(alice);
@@ -148,8 +148,8 @@ contract LifecycleTest is Base {
         _submit(bob);
         vrf.fulfill(1, 3);
         vrf.fulfill(2, 5);
-        _report(1, Verdict.Match);
-        _report(2, Verdict.Mismatch);
+        _reportAndFinalize(1, Verdict.Match);
+        _reportAndFinalize(2, Verdict.Mismatch);
 
         uint256 owed = registry.withdrawable(alice) + registry.withdrawable(bob) + registry.withdrawable(carol)
             + registry.withdrawable(mallory);

@@ -18,6 +18,13 @@ contract ClaimRegistry is IClaimRegistry {
     ///      makes it financially indifferent to the outcome.
     uint256 public constant WITNESS_FEE = 0.002 ether;
 
+    /// @dev Posted to appeal a verdict. Higher than the bond, so appealing is not
+    ///      a free option on every adverse outcome.
+    uint256 public constant APPEAL_BOND = 0.02 ether;
+
+    /// @dev How long a verdict can be challenged before it becomes final.
+    uint64 public constant CHALLENGE_WINDOW = 1 hours;
+
     IWitnessRoster public immutable roster;
 
     /// @dev Set once by `wireSink` then locked forever. Not an admin hatch:
@@ -34,11 +41,31 @@ contract ClaimRegistry is IClaimRegistry {
     ///      penalty must not become someone's revenue.
     uint256 public forfeited;
 
+    struct Appeal {
+        address appellant;
+        uint256 bond;
+        address[] panel;
+        Verdict original;
+        bool open;
+    }
+
+    mapping(uint256 => Appeal) private _appeals;
+    mapping(uint256 => uint64) public challengeDeadline;
+
+    function appealOf(uint256 claimId) external view returns (Appeal memory) {
+        return _appeals[claimId];
+    }
+
     event ClaimSubmitted(uint256 indexed claimId, address indexed claimant, bytes32 subject, uint256 bond);
     event WitnessAssigned(uint256 indexed claimId, address indexed witness);
     event AssignmentFailed(uint256 indexed claimId);
     event VerdictRecorded(uint256 indexed claimId, Verdict verdict, bytes32 evidenceCommitment);
     event Settled(uint256 indexed claimId, address indexed claimant, Verdict verdict);
+    event Appealed(uint256 indexed claimId, address indexed appellant, uint256 bond);
+    event PanelSeated(uint256 indexed claimId, address[] panel);
+    event PanelOverturned(uint256 indexed claimId, Verdict original, Verdict panel, address contradicted, uint256 slashed);
+    event PanelUpheld(uint256 indexed claimId, Verdict verdict);
+    event AppealAbandoned(uint256 indexed claimId);
     event WitnessPaid(uint256 indexed claimId, address indexed witness, uint256 fee);
     event ClaimantSlashed(uint256 indexed claimId, address indexed claimant, uint256 bond, uint256 stakeSlashed);
     event Withdrawn(address indexed who, uint256 amount);
@@ -53,6 +80,11 @@ contract ClaimRegistry is IClaimRegistry {
     error BadStatus();
     error NothingToWithdraw();
     error TransferFailed();
+    error WindowClosed();
+    error WindowOpen();
+    error NotAParty();
+    error AppealBondTooSmall();
+    error AlreadyAppealed();
 
     constructor(IWitnessRoster roster_) {
         roster = roster_;
@@ -125,13 +157,94 @@ contract ClaimRegistry is IClaimRegistry {
         c.verdict = verdict;
         c.evidenceCommitment = evidenceCommitment;
         c.status = Status.Adjudicated;
+        challengeDeadline[claimId] = uint64(block.timestamp) + CHALLENGE_WINDOW;
         emit VerdictRecorded(claimId, verdict, evidenceCommitment);
+        // Deliberately does NOT settle. A verdict nobody can contest is an
+        // assertion, not a judgement — settlement waits for the window to close.
+    }
+
+    /// @notice Contest a verdict. Open to the claimant or the witness, within the
+    ///         window, against a bond. Draws an independent panel.
+    function appeal(uint256 claimId) external payable {
+        Claim storage c = _claims[claimId];
+        if (c.status != Status.Adjudicated) revert BadStatus();
+        if (block.timestamp > challengeDeadline[claimId]) revert WindowClosed();
+        if (msg.sender != c.claimant && msg.sender != c.witness) revert NotAParty();
+        if (msg.value < APPEAL_BOND) revert AppealBondTooSmall();
+        if (_appeals[claimId].open) revert AlreadyAppealed();
+
+        _appeals[claimId] =
+            Appeal({appellant: msg.sender, bond: msg.value, panel: new address[](0), original: c.verdict, open: true});
+        c.status = Status.UnderAppeal;
+        emit Appealed(claimId, msg.sender, msg.value);
+        roster.requestPanel(claimId, c.claimant, c.witness, msg.sender);
+    }
+
+    function onPanelAssigned(uint256 claimId, address[] calldata panel) external onlyRoster {
+        _appeals[claimId].panel = panel;
+        emit PanelSeated(claimId, panel);
+    }
+
+    /// @dev Too few independent reviewers exist. The original verdict stands and
+    ///      the appeal bond is returned — the appellant is not penalised for the
+    ///      protocol being unable to convene a panel.
+    function onPanelUnavailable(uint256 claimId) external onlyRoster {
+        Appeal storage a = _appeals[claimId];
+        Claim storage c = _claims[claimId];
+        withdrawable[a.appellant] += a.bond;
+        a.open = false;
+        c.status = Status.Adjudicated;
+        emit AppealAbandoned(claimId);
+        _settle(claimId);
+    }
+
+    /// @notice Record the panel's finding. Only the tribunal reaches this.
+    function recordPanelVerdict(uint256 claimId, Verdict panelVerdict) external onlySink {
+        Claim storage c = _claims[claimId];
+        Appeal storage a = _appeals[claimId];
+        if (c.status != Status.UnderAppeal) revert BadStatus();
+        if (!a.open) revert BadStatus();
+
+        bool appellantVindicated = panelVerdict != a.original;
+        a.open = false;
+        c.verdict = panelVerdict;
+        c.status = Status.Adjudicated;
+
+        if (appellantVindicated) {
+            // The panel contradicted the original verdict. The appellant gets its
+            // bond back, and whoever the original verdict favoured is slashed for
+            // having produced a finding the panel could not reproduce.
+            withdrawable[a.appellant] += a.bond;
+            address contradicted = a.original == Verdict.Mismatch ? c.witness : c.claimant;
+            uint256 slashed = roster.slash(contradicted, APPEAL_BOND);
+            emit PanelOverturned(claimId, a.original, panelVerdict, contradicted, slashed);
+        } else {
+            // The panel upheld it. The appeal bond is forfeited — appealing has to
+            // cost something or it becomes a free re-roll on every outcome.
+            forfeited += a.bond;
+            emit PanelUpheld(claimId, panelVerdict);
+        }
+        _settle(claimId);
+    }
+
+    /// @notice Settle a verdict once its challenge window has closed unchallenged.
+    ///         Permissionless: anyone may call it, so settlement never depends on
+    ///         a particular party choosing to act.
+    function finalize(uint256 claimId) external {
+        Claim storage c = _claims[claimId];
+        if (c.status != Status.Adjudicated) revert BadStatus();
+        if (block.timestamp <= challengeDeadline[claimId]) revert WindowOpen();
         _settle(claimId);
     }
 
     function _settle(uint256 claimId) internal {
         Claim storage c = _claims[claimId];
         c.status = Status.Settled;
+
+        // Reputation follows the verdict that stands, not the first one proposed.
+        // Applying it here rather than at recordVerdict is what makes an appeal
+        // meaningful: an overturned verdict never reaches the record.
+        IStandingWriter(standingWriter).applyVerdict(claimId, c.verdict);
 
         // The witness is paid the same whatever it reports, so it has no stake in
         // the outcome. This is the fee, not the bond.

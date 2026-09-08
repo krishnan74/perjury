@@ -37,7 +37,7 @@ contract AssignmentTest is Base {
             if (w == bob) ++bobCount;
             else if (w == carol) ++carolCount;
             else if (w == mallory) ++malloryCount;
-            _report(id, Verdict.Unverifiable); // leaves standing untouched
+            _reportAndFinalize(id, Verdict.Unverifiable); // leaves standing untouched
         }
 
         assertEq(bobCount + carolCount + malloryCount, trials);
@@ -61,7 +61,7 @@ contract AssignmentTest is Base {
             uint256 id = _submit(alice); // alice and mallory are "colluding"
             vrf.fulfill(vrf.nextRequestId() - 1, uint256(keccak256(abi.encode(i, "collude"))));
             if (registry.claimOf(id).witness == mallory) ++accompliceDrawn;
-            _report(id, Verdict.Unverifiable);
+            _reportAndFinalize(id, Verdict.Unverifiable);
         }
 
         // Throttled: nowhere near guaranteed.
@@ -94,7 +94,7 @@ contract AssignmentTest is Base {
     function _flag(address agent) internal {
         uint256 id = _submit(agent);
         vrf.fulfill(vrf.nextRequestId() - 1, 1);
-        _report(id, Verdict.Mismatch);
+        _reportAndFinalize(id, Verdict.Mismatch);
         assertFalse(roster.isEligible(agent));
     }
 

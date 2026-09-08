@@ -12,6 +12,7 @@ contract VerdictSink {
     IStandingWriter public immutable standingWriter;
 
     event ReportAccepted(uint256 indexed claimId, Verdict verdict, bytes32 evidenceCommitment);
+    event PanelReportAccepted(uint256 indexed claimId, Verdict verdict);
 
     error NotTribunal();
     error BadVerdict();
@@ -33,7 +34,17 @@ contract VerdictSink {
         Verdict verdict = Verdict(verdictRaw);
 
         registry.recordVerdict(claimId, verdict, evidenceCommitment);
-        standingWriter.applyVerdict(claimId, verdict);
         emit ReportAccepted(claimId, verdict, evidenceCommitment);
     }
+
+    /// @notice A panel's finding on an appealed claim. Same trust boundary — the
+    ///         tribunal is the only party that may deliver one.
+    function onPanelReport(bytes calldata, /* metadata */ bytes calldata report) external {
+        if (msg.sender != CRE_REPORT_WRITER) revert NotTribunal();
+        (uint256 claimId, uint8 verdictRaw) = abi.decode(report, (uint256, uint8));
+        if (verdictRaw == 0 || verdictRaw > uint8(Verdict.Unverifiable)) revert BadVerdict();
+        registry.recordPanelVerdict(claimId, Verdict(verdictRaw));
+        emit PanelReportAccepted(claimId, Verdict(verdictRaw));
+    }
+
 }

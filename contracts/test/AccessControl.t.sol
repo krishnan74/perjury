@@ -54,7 +54,7 @@ contract AccessControlTest is Base {
 
     function test_applyVerdict_fromEOA_reverts() public {
         vm.prank(operator);
-        vm.expectRevert(PerjuryStandingWriter.NotSink.selector);
+        vm.expectRevert(PerjuryStandingWriter.NotRegistry.selector);
         writer.applyVerdict(1, Verdict.Mismatch);
     }
 

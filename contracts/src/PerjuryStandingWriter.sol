@@ -23,7 +23,7 @@ contract PerjuryStandingWriter is IStandingWriter {
 
     event StandingUpdated(bytes32 indexed node, int256 oldStanding, int256 newStanding);
 
-    error NotSink();
+    error NotRegistry();
     error NotDeployer();
     error AlreadyWired();
 
@@ -41,10 +41,14 @@ contract PerjuryStandingWriter is IStandingWriter {
         wired = true;
     }
 
-    /// @notice The ONLY mutating function. Reachable only from VerdictSink,
-    ///         which is reachable only from the CRE tribunal address.
+    /// @notice The ONLY mutating function. Reachable only from ClaimRegistry's
+    ///         settlement path, which in turn only runs on a verdict delivered by
+    ///         the CRE tribunal and left unchallenged (or upheld on appeal).
+    /// @dev The caller is the registry rather than the sink because a verdict is
+    ///      no longer final when recorded — reputation must follow the outcome
+    ///      that stands, so it is written at settlement, not at adjudication.
     function applyVerdict(uint256 claimId, Verdict verdict) external {
-        if (msg.sender != verdictSink) revert NotSink();
+        if (msg.sender != address(registry)) revert NotRegistry();
         if (verdict == Verdict.Unverifiable || verdict == Verdict.None) return; // standing untouched
 
         Claim memory c = registry.claimOf(claimId);

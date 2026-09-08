@@ -86,8 +86,17 @@ contract Base is Test {
         claimId = registry.submitClaim{value: SUBMIT_VALUE}(bytes32("aave-v3-utilization"), keccak256("claim"));
     }
 
+    /// @dev Records a verdict only. Since ADR 0007 a verdict is challengeable, so
+    ///      it does not settle until the window closes.
     function _report(uint256 claimId, Verdict v) internal {
         vm.prank(CRE);
         sink.onReport("", abi.encode(claimId, uint8(v), keccak256("evidence")));
+    }
+
+    /// @dev Records a verdict and lets it become final unchallenged.
+    function _reportAndFinalize(uint256 claimId, Verdict v) internal {
+        _report(claimId, v);
+        vm.warp(block.timestamp + registry.CHALLENGE_WINDOW() + 1);
+        registry.finalize(claimId);
     }
 }

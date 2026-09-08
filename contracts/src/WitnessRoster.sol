@@ -48,6 +48,11 @@ contract WitnessRoster is IWitnessRoster {
     /// @dev Bounded so the VRF callback can never run out of gas walking a large roster.
     uint256 public constant MAX_WALK = 32;
 
+    /// @dev Panel size on appeal. Odd, so a majority always exists. Three is the
+    ///      smallest that gives one — larger panels cost gas and LINK without
+    ///      changing the shape of the guarantee.
+    uint256 public constant PANEL_SIZE = 3;
+
     struct Agent {
         bytes32 ensNode; // namehash, used for reads
         bytes dnsName; // DNS wire format, required by ENSv2 setText
@@ -75,6 +80,12 @@ contract WitnessRoster is IWitnessRoster {
         uint256 claimId;
         address claimant;
         bool pending;
+        /// @dev Panel requests draw PANEL_SIZE witnesses from one random word
+        ///      rather than PANEL_SIZE separate VRF rounds — same unpredictability,
+        ///      a third of the latency and the LINK.
+        bool isPanel;
+        address exclude1;
+        address exclude2;
     }
 
     mapping(uint256 => Request) public requests;
@@ -86,6 +97,9 @@ contract WitnessRoster is IWitnessRoster {
     event AgentFlagged(address indexed agent, uint64 until);
     event AgentSlashed(address indexed agent, uint256 amount, uint256 remainingStake);
     event AgentToppedUp(address indexed agent, uint256 stake);
+    event PanelRequested(uint256 indexed claimId, uint256 indexed requestId);
+    event PanelDrawn(uint256 indexed claimId, address[] panel);
+    event PanelUnavailable(uint256 indexed claimId, uint256 found);
 
     error NotCoordinator();
     error NotRegistry();
@@ -189,8 +203,43 @@ contract WitnessRoster is IWitnessRoster {
                 extraArgs: VRFV2PlusClient.argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
             })
         );
-        requests[requestId] = Request({claimId: claimId, claimant: claimant, pending: true});
+        requests[requestId] = Request({
+            claimId: claimId,
+            claimant: claimant,
+            pending: true,
+            isPanel: false,
+            exclude1: address(0),
+            exclude2: address(0)
+        });
         emit WitnessRequested(claimId, requestId);
+    }
+
+    /// @notice Draw an appeal panel. Excludes the claimant, the original witness
+    ///         and the appellant — a panel containing any of them is not review.
+    function requestPanel(uint256 claimId, address claimant, address originalWitness, address appellant)
+        external
+        returns (uint256 requestId)
+    {
+        if (msg.sender != address(registry)) revert NotRegistry();
+        requestId = coordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: subId,
+                requestConfirmations: 3,
+                callbackGasLimit: callbackGasLimit * 2, // three walks, not one
+                numWords: 1,
+                extraArgs: VRFV2PlusClient.argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+            })
+        );
+        requests[requestId] = Request({
+            claimId: claimId,
+            claimant: claimant,
+            pending: true,
+            isPanel: true,
+            exclude1: originalWitness,
+            exclude2: appellant
+        });
+        emit PanelRequested(claimId, requestId);
     }
 
     /// @dev The ONLY entry point to assignment, and only the coordinator may call it.
@@ -199,7 +248,11 @@ contract WitnessRoster is IWitnessRoster {
         Request memory r = requests[requestId];
         if (!r.pending) revert UnknownRequest();
         delete requests[requestId];
-        _assign(r.claimId, r.claimant, randomWords[0]);
+        if (r.isPanel) {
+            _assignPanel(r.claimId, r.claimant, r.exclude1, r.exclude2, randomWords[0]);
+        } else {
+            _assign(r.claimId, r.claimant, randomWords[0]);
+        }
     }
 
     function _assign(uint256 claimId, address claimant, uint256 seed) internal {
@@ -218,6 +271,45 @@ contract WitnessRoster is IWitnessRoster {
         }
         emit NoEligibleWitness(claimId);
         registry.onAssignmentFailed(claimId);
+    }
+
+    /// @dev Derives PANEL_SIZE distinct eligible members from one random word.
+    ///      Each successive member starts its walk from a rehash of the seed, so
+    ///      the panel is unpredictable without three separate VRF rounds.
+    function _assignPanel(uint256 claimId, address claimant, address exclude1, address exclude2, uint256 seed)
+        internal
+    {
+        address[] memory panel = new address[](PANEL_SIZE);
+        uint256 found;
+        uint256 len = agentList.length;
+
+        for (uint256 k; k < PANEL_SIZE && len != 0; ++k) {
+            uint256 s = uint256(keccak256(abi.encode(seed, k)));
+            uint256 walk = len < MAX_WALK ? len : MAX_WALK;
+            uint256 start = s % len;
+            for (uint256 i; i < walk; ++i) {
+                address cand = agentList[(start + i) % len];
+                if (cand == claimant || cand == exclude1 || cand == exclude2) continue;
+                if (!isEligible(cand)) continue;
+                bool already;
+                for (uint256 j; j < found; ++j) {
+                    if (panel[j] == cand) already = true;
+                }
+                if (already) continue;
+                panel[found++] = cand;
+                break;
+            }
+        }
+
+        if (found < PANEL_SIZE) {
+            // Not enough independent reviewers exist. Fail closed rather than
+            // convene a panel too small to carry a majority.
+            emit PanelUnavailable(claimId, found);
+            registry.onPanelUnavailable(claimId);
+            return;
+        }
+        emit PanelDrawn(claimId, panel);
+        registry.onPanelAssigned(claimId, panel);
     }
 
     /// @notice Slash an agent shown to have lied. Only the registry's settlement

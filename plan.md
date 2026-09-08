@@ -226,7 +226,7 @@ From [docs/threat-audit.md](docs/threat-audit.md). A loophole-free mechanism mat
 - [x] Agents staked nothing. Now 0.05 ETH at registration, slashable, and gating eligibility — which also makes sybil resistance economic rather than rhetorical.
 
 **Open:**
-- [ ] **Appeal layer.** A witness can still fabricate evidence that internally reproduces a false conclusion. Draw a VRF panel, majority stands, slash the contradicted party. *In progress.*
+- [x] **Appeal layer.** A verdict now opens a challenge window rather than settling. Either party may appeal against a bond; a VRF panel of three is drawn excluding both parties and the appellant; the panel's finding stands, a contradicted party is slashed, and a failed appeal forfeits the bond. `finalize()` is permissionless, so settlement never waits on a particular party. Reputation is applied at settlement rather than adjudication, so an overturned verdict never reaches the record.
 - [ ] **Timeouts — severe.** No deadline exists anywhere. A witness that does nothing locks the claimant's bond forever, costs itself nothing, and is indistinguishable from being slow. Add response deadlines both ways; slash non-response.
 - [ ] **Eligibility on submit.** `submitClaim` checks `isRegistered`, not `isEligible`, so an agent slashed to zero can keep claiming with no collateral left.
 - [ ] **Reputation reads fail open.** `standingOfName` returns 0 on any failure and `MIN_STANDING` is 0, so an unreadable record reads as eligible and a resolver outage erases negative standing. Distinguish "absent" from "unreadable"; treat unreadable as ineligible.
