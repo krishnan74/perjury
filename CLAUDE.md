@@ -8,7 +8,7 @@ Verification protocol for AI agent claims. Bonded claim → randomly assigned pe
 
 - **Ask before every `git commit`.** Show the diff and proposed message; the user reviews first.
 - **No `Co-Authored-By` / `Claude-Session` trailers.** Decided Sep 7 — AI involvement is documented in `docs/ai-usage.md`, not as a repo contributor.
-- **Commit incrementally.** Large single commits risk disqualification under the event rules.
+- **Commit at the granularity of a change, not a step.** One commit = a small feature, a complete fix, or a docs update — never every intermediate edit, and never a week of work in one blob (large single commits risk disqualification under the event rules). A fix that spans several files is still one commit: shipping half of one is how the ENSIP-10 reader was corrected while the writer's identical bug went out unnoticed. Keep docs changes separate from code.
 - Attribution lives in `docs/ai-usage.md` only, never in source file headers.
 - **Never hard-wrap prose in markdown.** One paragraph or bullet = one line, however long. Editors soft-wrap; hard wraps break when text is edited, and paste badly into Discord and forms. Applies to every `.md` in the repo.
 - **Keep `docs/feedback/*` current as the build progresses.** Add friction as it is hit, while the detail is fresh. Rules: only what we experienced first-hand, or clearly attributed when relayed; record what worked as well as what didn't; every item needs evidence (error text, tx hash, or the design change it forced) and a concrete suggestion. Never pad it to look thorough.
