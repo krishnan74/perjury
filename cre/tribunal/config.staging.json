@@ -3,6 +3,6 @@
   "evidenceGatewayUrl": "https://postman-echo.com/post",
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
-  "verdictSinkAddress": "0x3eD4314334e8c96105F6d86033B6D09b0f0eDBaa",
+  "verdictSinkAddress": "0x70D9723c3342B16421C8390cEF0a84763f959bB5",
   "chainSelector": "16015286601757825753"
 }

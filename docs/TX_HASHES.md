@@ -9,12 +9,12 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0x7AAfc44925879514356a26ACBf8c657cA2B2C83F` | deployed | Sep 8 |
-| `WitnessRoster` | `0x2F9c5f1eD1C977218F8Fbe11173AE4F4779fB15e` | deployed, callbackGasLimit 150k | Sep 8 |
-| `PerjuryStandingWriter` | `0xb4670289BC98a42d7478AF4D7B734687cB37cc8f` | deployed, holds ENS SET_TEXT | Sep 8 |
-| `ENSTextStandingReader` | `0xc9Db57f853aC1A149409B4583d1A983eF13B212e` | deployed | Sep 8 |
-| `PerjuryResolver` (ENSv2 Permissioned) | `0x033ee97dde610f134a746f986fa60c54588a0a45` | deployed, EAC configured | Sep 8 |
-| `VerdictSink` | `0x3eD4314334e8c96105F6d86033B6D09b0f0eDBaa` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
+| `ClaimRegistry` | `0xf0DF23897BFc4b9A9b76ab9f6737cCe3E20Ee2E4` | deployed | Sep 8 |
+| `WitnessRoster` | `0x6c2e1DDEb4dd35990136880eC362AFB46fbd044f` | deployed, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0x13FF77218C76e8DA972DF7bA3B9079dDe300D162` | deployed, holds ENS SET_TEXT | Sep 8 |
+| `ENSTextStandingReader` | `0x1A71eEcdB679632C5a241F2f5466d434e1759FC5` | deployed | Sep 8 |
+| `PerjuryResolver` (ENSv2 Permissioned) | `0xe2f6562f45f69e2849fedc31371195f2247223ad` | deployed, EAC configured | Sep 8 |
+| `VerdictSink` | `0x70D9723c3342B16421C8390cEF0a84763f959bB5` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
 
@@ -47,7 +47,23 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 
 ## Demo scenes
 
-### ✅ Full loop verified end-to-end (Sep 8)
+### ✅ Hardened protocol verified end-to-end (Sep 8)
+
+Redeployed after ADR 0007. Every mechanism fired: staked agents, flat witness fee, challenge window, permissionless finalisation, per-key ENS scoping.
+
+| Step | Result |
+|---|---|
+| Agents staked and registered | 0.01 ETH each, eligibility gated on stake |
+| Claim submitted (bond + fee) | [`0x61e5b394…4e65c972`](https://sepolia.etherscan.io/tx/0x61e5b394eb3de700bec5a219d31b4f836f7312d5b228732a4da2e58f4e65c972) |
+| VRF assigns witness ≠ claimant | `0xc38f…c4AF` |
+| Tribunal records verdict | status `3` Adjudicated — **deliberately not settled** while the window is open |
+| Finalised after the window, permissionlessly | [`0xc5c590e8…d689542f`](https://sepolia.etherscan.io/tx/0xc5c590e8881636508f3f68049a620517268f87d9d4c2321c222b45e9d689542f) |
+| Bond returned / witness fee paid | 0.01 ETH / 0.002 ETH — the fee is paid on **every** verdict |
+| ENS standing written by the tribunal | `com.perjury.agent-standing` → 1 |
+
+The writer holds `ROLE_SET_TEXT` for exactly two keys on this resolver; writing any other key reverts with `EACUnauthorizedAccountRoles`.
+
+### Earlier full loop (superseded by the above)
 
 Bonded claim → VRF-assigned witness → CRE tribunal → verdict on-chain → bond settled → ENS standing written.
 
