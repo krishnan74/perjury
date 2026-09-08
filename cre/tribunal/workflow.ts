@@ -39,7 +39,32 @@ type SealedSubmission = {
 	provenanceOk: boolean
 	queryHash: string
 	methodology: string
+	/** Raw query result. The tribunal recomputes from this rather than trusting
+	 *  the stated assertion — the witness earns only on Mismatch and so is the
+	 *  party with a motive to misreport (ADR 0007). */
+	evidence?: unknown
 	unverifiableReason?: string
+}
+
+/** Recompute a metric from raw evidence, ignoring the stated conclusion. */
+const recompute = (evidence: unknown, metric: string): number | null => {
+	if (evidence === null || typeof evidence !== 'object') return null
+	const rows = (evidence as Record<string, unknown>)['lendingProtocols']
+	if (!Array.isArray(rows) || rows.length === 0) return null
+	const row = rows[0] as Record<string, string>
+	const num = (k: string): number | null => {
+		const v = row[k]
+		if (v === undefined) return null
+		const n = Number(v)
+		return Number.isFinite(n) ? n : null
+	}
+	if (/utilization/i.test(metric)) {
+		const b = num('totalBorrowBalanceUSD')
+		const d = num('totalDepositBalanceUSD')
+		if (b === null || d === null || d === 0) return null
+		return (b / d) * 100
+	}
+	return num(metric)
 }
 
 // ─── Adjudication ───────────────────────────────────────────
@@ -83,13 +108,30 @@ const adjudicate = (
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
 
+	// 2b. Recompute both values from raw evidence and judge on those. A party
+	//     whose own evidence does not reproduce its stated value has not
+	//     submitted evidence.
+	const claimValue = recompute(claim.evidence, a.metric)
+	const witnessValue = recompute(witness.evidence, b.metric)
+	if (claimValue === null || witnessValue === null) {
+		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
+	}
+	if (
+		!withinTolerance(claimValue, a.value, toleranceBps) ||
+		!withinTolerance(witnessValue, b.value, toleranceBps)
+	) {
+		return { verdict: VERDICT.Unverifiable, confidence: 'low' }
+	}
+
 	// 3. Degeneracy — downgrades confidence, never flips the verdict.
 	const derivative =
 		claim.queryHash === witness.queryHash ||
 		(claim.methodology.length > 0 && claim.methodology === witness.methodology)
 
 	// 4. Consensus.
-	const agrees = a.comparator === b.comparator && withinTolerance(a.value, b.value, toleranceBps)
+	// Judge on the recomputed values, not the stated ones.
+	const agrees =
+		a.comparator === b.comparator && withinTolerance(claimValue, witnessValue, toleranceBps)
 
 	return {
 		verdict: agrees ? VERDICT.Match : VERDICT.Mismatch,
@@ -125,6 +167,9 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 			provenanceOk: true,
 			queryHash: 'claimant-query-hash',
 			methodology: 'claimant: messari lending schema, latest market snapshot',
+			evidence: {
+				lendingProtocols: [{ totalBorrowBalanceUSD: '1000000', totalDepositBalanceUSD: '1' }],
+			},
 		},
 		witness: {
 			assertion: {
@@ -138,6 +183,9 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 			provenanceOk: true,
 			queryHash: 'witness-query-hash',
 			methodology: 'witness: messari lending schema, block-pinned read',
+			evidence: {
+				lendingProtocols: [{ totalBorrowBalanceUSD: '1000400', totalDepositBalanceUSD: '1' }],
+			},
 		},
 	}
 

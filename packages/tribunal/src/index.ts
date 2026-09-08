@@ -17,10 +17,50 @@ export interface SealedSubmission {
   attestation: Attestation | null;
   /** Free-form methodology. Never emitted, never logged, never hashed alone. */
   methodology: string;
-  /** Raw evidence blob. Never emitted. */
+  /**
+   * Raw query result the assertion was derived from. Never emitted — but no
+   * longer merely stored: the tribunal recomputes the value from this rather
+   * than trusting the stated assertion (ADR 0007).
+   */
   evidence: unknown;
   /** Set when the party could not verify — carries its reason. */
   unverifiableReason?: string;
+}
+
+/**
+ * Recompute a metric from raw evidence, ignoring what the party said it was.
+ *
+ * The witness is the party with a financial motive to misreport, so its stated
+ * conclusion cannot be the input to adjudication. Deriving from the evidence
+ * means a liar must fabricate an internally consistent query result that still
+ * carries a pinned deployment id and a fresh block — a much higher bar than
+ * changing a number.
+ *
+ * Returns null when the metric cannot be recomputed from the evidence, which is
+ * itself disqualifying: a submission whose conclusion cannot be reproduced from
+ * its own evidence is not evidence.
+ */
+export function recompute(evidence: unknown, metric: string): number | null {
+  if (evidence === null || typeof evidence !== "object") return null;
+  const rows = (evidence as Record<string, unknown>)["lendingProtocols"];
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const row = rows[0] as Record<string, string>;
+
+  const num = (k: string): number | null => {
+    const v = row[k];
+    if (v === undefined) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // A ratio metric is recomputed from its components, never taken on trust.
+  if (/utilization/i.test(metric)) {
+    const borrowed = num("totalBorrowBalanceUSD");
+    const deposited = num("totalDepositBalanceUSD");
+    if (borrowed === null || deposited === null || deposited === 0) return null;
+    return (borrowed / deposited) * 100;
+  }
+  return num(metric);
 }
 
 /** The complete public output. Nothing else may cross the enclave boundary. */
@@ -93,12 +133,27 @@ export function adjudicate(
     return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
   }
 
+  // 2b. Recompute both values from raw evidence and use those, not the stated
+  //     conclusions. A party whose own evidence does not reproduce its claimed
+  //     value has submitted something that is not evidence (ADR 0007).
+  const claimValue = recompute(claim.evidence, a.metric);
+  const witnessValue = recompute(witness.evidence, b.metric);
+  if (claimValue === null || witnessValue === null) {
+    return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
+  }
+  const claimConsistent = withinTolerance(claimValue, a.value, tolerance);
+  const witnessConsistent = withinTolerance(witnessValue, b.value, tolerance);
+  if (!claimConsistent || !witnessConsistent) {
+    // Someone's stated answer does not follow from the evidence they supplied.
+    return { ...base, verdict: Verdict.Unverifiable, confidence: "low" };
+  }
+
   // 3. Degeneracy check — downgrades confidence, never flips the verdict.
   const confidence = looksDerivative(claim, witness) ? "low" : "high";
 
-  // 4. Consensus check.
+  // 4. Consensus check — on the recomputed values, not the stated ones.
   const agrees =
-    a.comparator === b.comparator && withinTolerance(a.value, b.value, tolerance);
+    a.comparator === b.comparator && withinTolerance(claimValue, witnessValue, tolerance);
 
   return { ...base, verdict: agrees ? Verdict.Match : Verdict.Mismatch, confidence };
 }

@@ -1,7 +1,7 @@
 // Tribunal adjudication. The leak tests are the important ones: whatever else
 // changes, evidence and methodology must never appear in the report.
 import { describe, expect, it } from "vitest";
-import { adjudicate, encodeReport, looksDerivative, type SealedSubmission } from "@perjury/tribunal";
+import { adjudicate, encodeReport, looksDerivative, recompute, type SealedSubmission } from "@perjury/tribunal";
 import { Verdict, type Attestation, type TypedAssertion } from "@perjury/shared";
 
 const assertion = (value: number, over: Partial<TypedAssertion> = {}): TypedAssertion => ({
@@ -18,10 +18,15 @@ const att = (value: number, queryHash = "qh1", over: Partial<TypedAssertion> = {
   digest: `digest-${value}-${queryHash}`,
 });
 
+// Evidence must reproduce the asserted value — since ADR 0007 the tribunal
+// recomputes from evidence and disregards stated conclusions, so a fixture with
+// placeholder evidence is correctly rejected as unverifiable.
 const sub = (a: Attestation | null, over: Partial<SealedSubmission> = {}): SealedSubmission => ({
   attestation: a,
   methodology: "queried messari lending schema, took latest market snapshot",
-  evidence: { secret: "raw subgraph rows and private notes" },
+  evidence: a
+    ? { lendingProtocols: [{ totalBorrowBalanceUSD: String(a.assertion.value) }] }
+    : null,
   ...over,
 });
 
@@ -132,5 +137,84 @@ describe("enclave boundary", () => {
     const e = encodeReport(adjudicate(42n, claim, witness, "salt"));
     expect(Object.keys(e).sort()).toEqual(["claimId", "evidenceCommitment", "verdict"]);
     expect(e.evidenceCommitment).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+});
+
+// ADR 0007. The witness earns only on Mismatch, so it is the party with a motive
+// to misreport. These assert that a stated conclusion carries no weight unless
+// the party's own evidence reproduces it.
+describe("lying witness", () => {
+  const evidence = (borrowed: number, deposited: number) => ({
+    lendingProtocols: [{
+      totalBorrowBalanceUSD: String(borrowed),
+      totalDepositBalanceUSD: String(deposited),
+    }],
+  });
+  const util = (b: number, d: number) => (b / d) * 100;
+
+  const sub = (stated: number, ev: unknown, m = "own method"): SealedSubmission => ({
+    attestation: {
+      provenance: {
+        deploymentId: "QmPinned", indexedBlock: 1000, chainHead: 1005,
+        queriedAt: 1, queryHash: m, hasIndexingErrors: false,
+      },
+      assertion: {
+        subject: "aave-v3-eth", metric: "utilizationRatio", comparator: "gt",
+        value: stated, unit: "percent", asOfBlock: 1000,
+      },
+      digest: `d-${stated}-${m}`,
+    },
+    methodology: m,
+    evidence: ev,
+  });
+
+  it("Match when both stated values follow from their own evidence", () => {
+    const r = adjudicate(
+      1n,
+      sub(util(40, 100), evidence(40, 100), "claimant-q"),
+      sub(util(40, 100), evidence(40, 100), "witness-q"),
+      "salt",
+    );
+    expect(r.verdict).toBe(Verdict.Match);
+  });
+
+  // The attack: a witness fabricates disagreement to capture the bond.
+  it("does NOT return Mismatch when the witness's value contradicts its own evidence", () => {
+    const r = adjudicate(
+      1n,
+      sub(util(40, 100), evidence(40, 100), "claimant-q"),
+      sub(85, evidence(40, 100), "witness-q"), // says 85%, evidence says 40%
+      "salt",
+    );
+    expect(r.verdict).not.toBe(Verdict.Mismatch);
+    expect(r.verdict).toBe(Verdict.Unverifiable);
+  });
+
+  it("catches a lying claimant the same way", () => {
+    const r = adjudicate(
+      1n,
+      sub(85, evidence(40, 100), "claimant-q"),
+      sub(util(40, 100), evidence(40, 100), "witness-q"),
+      "salt",
+    );
+    expect(r.verdict).toBe(Verdict.Unverifiable);
+  });
+
+  // A witness willing to fabricate consistent evidence still faces the
+  // provenance guard and, on appeal, a panel. This asserts the honest path.
+  it("still rules Mismatch when both are internally consistent but disagree", () => {
+    const r = adjudicate(
+      1n,
+      sub(util(85, 100), evidence(85, 100), "claimant-q"),
+      sub(util(40, 100), evidence(40, 100), "witness-q"),
+      "salt",
+    );
+    expect(r.verdict).toBe(Verdict.Mismatch);
+  });
+
+  it("recompute derives a ratio from components rather than trusting a field", () => {
+    expect(recompute(evidence(40, 100), "utilizationRatio")).toBeCloseTo(40);
+    expect(recompute({ lendingProtocols: [] }, "utilizationRatio")).toBeNull();
+    expect(recompute(null, "utilizationRatio")).toBeNull();
   });
 });
