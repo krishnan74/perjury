@@ -230,3 +230,56 @@ Now that both addresses are documented and stable, the cost of immutability is o
 - `VerdictSink` is deployed **last**, after the environment is known. `DeployCore.s.sol` already excludes it for this reason.
 - Moving to production means redeploying `VerdictSink` and calling `wireSink` on the registry and writer — both one-time and currently unset, so no redeploy of the other contracts.
 - `.env.example` documents both addresses so the wrong one can't be picked by accident.
+
+---
+
+## 0007. Close the lying-witness incentive
+
+**Date:** 2026-09-08
+**Status:** Accepted
+**Decided by:** Project lead (human), from a review question
+
+### Context
+
+The original settlement paid the entire claimant bond to the witness on Mismatch, and the witness staked nothing:
+
+```solidity
+address beneficiary = c.verdict == Verdict.Mismatch ? c.witness : c.claimant;
+```
+
+A rational witness therefore always reports disagreement. It captures the bond when it lies and earns nothing when it is honest, with no downside either way. **Lying was not a temptation, it was the dominant strategy.**
+
+We missed this because both demo scenarios modelled a lying *claimant* and an honest witness. The entire design was built around the wrong adversary — the party we were watching was not the party with the incentive.
+
+The tribunal could not catch it either. It compared two *stated* findings; when the witness stated a false value the tribunal saw genuine disagreement and ruled Mismatch correctly on its inputs. Provenance checks confirm data was fresh and pinned, not that the conclusion drawn from it was honest.
+
+### Decision
+
+Four changes, each closing a different part of the hole.
+
+**1. The tribunal derives values from raw evidence, not from stated conclusions.** Both parties already submit their raw query results alongside a derived assertion. The tribunal now recomputes from the evidence and ignores what either party claimed the answer was. A lying witness must fabricate an internally consistent subgraph response that still carries a pinned deployment ID and a fresh block — a far higher bar than changing a number.
+
+**2. Agents stake at registration.** A registration bond makes an agent eligible to be drawn, and is slashable when the agent is shown to have lied. This also converts sybil resistance from rhetorical to economic: each additional identity costs real money rather than a gas fee.
+
+**3. The witness is paid the same regardless of verdict.** A flat fee funded by a claim-submission fee, paid on Match, Mismatch and Unverifiable alike. The witness becomes financially indifferent to the outcome, which removes the incentive at its root rather than policing it after the fact.
+
+**4. Verdicts can be appealed.** Within a challenge window either party may appeal by posting an appeal bond. The appeal draws a panel of additional witnesses by VRF, excluding the claimant, the original witness and the appellant. The panel's majority finding stands; whoever is contradicted is slashed from their registration stake, and a failed appeal forfeits the appeal bond.
+
+### Consequences
+
+- Settlement is no longer a single transfer of the bond. `ClaimRegistry` gains fee accounting and slashing.
+- `WitnessRoster` gains staking, and assignment must exclude more parties during an appeal.
+- An appeal costs several VRF rounds — roughly 9 LINK reserved per draw at our callback limit, so a three-witness panel needs ~27 LINK available.
+- The demo needs more registered agents: claimant, original witness, and a panel of three is five minimum.
+- What remains open: a panel can still be wrong, and appeals could in principle recurse. We cap escalation at one round and say so.
+
+### Parameters (defaults, tunable)
+
+| | Value | Why |
+|---|---|---|
+| Registration stake | 0.05 ETH | Several times the claim bond, so lying to win one bond is unprofitable |
+| Claim bond | 0.01 ETH | Visible on camera, cheap enough to fund several agents |
+| Witness fee | 0.002 ETH | Paid regardless of verdict, funded by the claimant's submission fee |
+| Appeal bond | 0.02 ETH | Higher than the claim bond, to deter nuisance appeals |
+| Appeal panel | 3 witnesses | Smallest odd number that yields a majority |
+| Challenge window | 1 hour | Long enough to appeal, short enough to demo |
