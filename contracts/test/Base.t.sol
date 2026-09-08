@@ -38,7 +38,7 @@ contract Base is Test {
         resolver = new MockResolver();
         reader = new ENSTextStandingReader(IExtendedResolver(address(resolver)));
 
-        roster = new WitnessRoster(IVRFCoordinator(address(vrf)), reader, bytes32("key"), 1, 500_000);
+        roster = new WitnessRoster(IVRFCoordinator(address(vrf)), reader, bytes32("key"), 1, 500_000, STAKE);
         registry = new ClaimRegistry(IWitnessRoster(address(roster)), 1 hours, 10 minutes);
         writer = new PerjuryStandingWriter(
             ITextResolver(address(resolver)), IClaimRegistry(address(registry)), IWitnessRoster(address(roster))

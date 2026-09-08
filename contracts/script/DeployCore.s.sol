@@ -23,7 +23,14 @@ contract DeployCore is Script {
 
         ENSTextStandingReader reader = new ENSTextStandingReader(IExtendedResolver(resolver));
         WitnessRoster roster =
-            new WitnessRoster(IVRFCoordinator(vrfCoordinator), reader, keyHash, subId, gasLimit);
+            new WitnessRoster(
+            IVRFCoordinator(vrfCoordinator),
+            reader,
+            keyHash,
+            subId,
+            gasLimit,
+            vm.envOr("REGISTRATION_STAKE_WEI", uint256(0.01 ether))
+        );
         // Short on testnet so a demo can show settlement; an hour in production.
         uint64 challengeWindow = uint64(vm.envOr("CHALLENGE_WINDOW_SECONDS", uint256(120)));
         uint64 responseWindow = uint64(vm.envOr("RESPONSE_WINDOW_SECONDS", uint256(600)));

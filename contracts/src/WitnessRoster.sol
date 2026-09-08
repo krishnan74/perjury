@@ -41,7 +41,11 @@ contract WitnessRoster is IWitnessRoster {
     /// @dev Agents stake to be eligible. Slashable when shown to have lied, so
     ///      lying to win one bond is unprofitable, and each sybil identity costs
     ///      real money rather than a gas fee (ADR 0007).
-    uint256 public constant REGISTRATION_STAKE = 0.05 ether;
+    ///
+    ///      Set at deployment: the right size is relative to the bond and to what
+    ///      a lie is worth, which differs between a testnet demo and production.
+    ///      Immutable, so it cannot be lowered for a particular agent.
+    uint256 public immutable REGISTRATION_STAKE;
 
     int256 public constant MIN_STANDING = 0;
     uint64 public constant FLAG_COOLDOWN = 24 hours;
@@ -117,13 +121,15 @@ contract WitnessRoster is IWitnessRoster {
         IStandingReader standingReader_,
         bytes32 keyHash_,
         uint256 subId_,
-        uint32 callbackGasLimit_
+        uint32 callbackGasLimit_,
+        uint256 registrationStake_
     ) {
         coordinator = coordinator_;
         standingReader = standingReader_;
         keyHash = keyHash_;
         subId = subId_;
         callbackGasLimit = callbackGasLimit_;
+        REGISTRATION_STAKE = registrationStake_;
         _deployer = msg.sender;
     }
 
