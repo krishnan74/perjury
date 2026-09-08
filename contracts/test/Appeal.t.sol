@@ -106,7 +106,7 @@ contract AppealTest is Base {
         uint256 appellantBefore = registry.withdrawable(alice);
 
         vm.prank(CRE);
-        sink.onPanelReport("", abi.encode(id, uint8(Verdict.Match)));
+        sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Match), bytes32(0)));
 
         assertEq(uint8(registry.claimOf(id).verdict), uint8(Verdict.Match), "panel verdict stands");
         assertLt(roster.stakeOf(witness), witnessStakeBefore, "contradicted witness is slashed");
@@ -119,7 +119,7 @@ contract AppealTest is Base {
         uint256 forfeitedBefore = registry.forfeited();
 
         vm.prank(CRE);
-        sink.onPanelReport("", abi.encode(id, uint8(Verdict.Mismatch)));
+        sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Mismatch), bytes32(0)));
 
         assertEq(
             registry.forfeited(), forfeitedBefore + 0.02 ether + BOND, "appeal bond and claim bond forfeited"
@@ -130,7 +130,7 @@ contract AppealTest is Base {
         (uint256 id,) = _appealed(Verdict.Mismatch);
         vm.prank(operator);
         vm.expectRevert();
-        sink.onPanelReport("", abi.encode(id, uint8(Verdict.Match)));
+        sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Match), bytes32(0)));
     }
 
     function test_cannotAppealTwice() public {

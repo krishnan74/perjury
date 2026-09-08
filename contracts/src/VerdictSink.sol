@@ -16,6 +16,7 @@ contract VerdictSink {
 
     error NotTribunal();
     error BadVerdict();
+    error BadReportKind();
 
     constructor(address creReportWriter, IClaimRegistry registry_, IStandingWriter standingWriter_) {
         CRE_REPORT_WRITER = creReportWriter;
@@ -26,25 +27,30 @@ contract VerdictSink {
     /// @notice Receives the minimal report emitted by the CRE confidential workflow.
     /// @dev The report carries a verdict and a commitment — never evidence, never
     ///      methodology. See docs/design.md §3.2 for the enclave boundary.
+    /// @dev Report kinds. A Chainlink Forwarder only ever calls `onReport`, so a
+    ///      separate entry point for panel verdicts would be unreachable in
+    ///      production — the kind has to travel inside the payload.
+    uint8 public constant KIND_VERDICT = 0;
+    uint8 public constant KIND_PANEL = 1;
+
+    /// @notice The only entry point. Every report the tribunal delivers arrives
+    ///         here, and routes on the kind carried in the payload.
     function onReport(bytes calldata, /* metadata */ bytes calldata report) external {
         if (msg.sender != CRE_REPORT_WRITER) revert NotTribunal();
-        (uint256 claimId, uint8 verdictRaw, bytes32 evidenceCommitment) =
-            abi.decode(report, (uint256, uint8, bytes32));
+        (uint8 kind, uint256 claimId, uint8 verdictRaw, bytes32 evidenceCommitment) =
+            abi.decode(report, (uint8, uint256, uint8, bytes32));
         if (verdictRaw == 0 || verdictRaw > uint8(Verdict.Unverifiable)) revert BadVerdict();
         Verdict verdict = Verdict(verdictRaw);
 
-        registry.recordVerdict(claimId, verdict, evidenceCommitment);
-        emit ReportAccepted(claimId, verdict, evidenceCommitment);
-    }
-
-    /// @notice A panel's finding on an appealed claim. Same trust boundary — the
-    ///         tribunal is the only party that may deliver one.
-    function onPanelReport(bytes calldata, /* metadata */ bytes calldata report) external {
-        if (msg.sender != CRE_REPORT_WRITER) revert NotTribunal();
-        (uint256 claimId, uint8 verdictRaw) = abi.decode(report, (uint256, uint8));
-        if (verdictRaw == 0 || verdictRaw > uint8(Verdict.Unverifiable)) revert BadVerdict();
-        registry.recordPanelVerdict(claimId, Verdict(verdictRaw));
-        emit PanelReportAccepted(claimId, Verdict(verdictRaw));
+        if (kind == KIND_PANEL) {
+            registry.recordPanelVerdict(claimId, verdict);
+            emit PanelReportAccepted(claimId, verdict);
+        } else if (kind == KIND_VERDICT) {
+            registry.recordVerdict(claimId, verdict, evidenceCommitment);
+            emit ReportAccepted(claimId, verdict, evidenceCommitment);
+        } else {
+            revert BadReportKind();
+        }
     }
 
 }

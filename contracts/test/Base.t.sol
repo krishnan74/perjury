@@ -90,7 +90,7 @@ contract Base is Test {
     ///      it does not settle until the window closes.
     function _report(uint256 claimId, Verdict v) internal {
         vm.prank(CRE);
-        sink.onReport("", abi.encode(claimId, uint8(v), keccak256("evidence")));
+        sink.onReport("", abi.encode(uint8(0), claimId, uint8(v), keccak256("evidence")));
     }
 
     /// @dev Records a verdict and lets it become final unchallenged.

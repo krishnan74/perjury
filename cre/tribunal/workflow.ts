@@ -14,6 +14,12 @@ export const configSchema = z.object({
 	evidenceGatewayUrl: z.string(),
 	secretId: z.string(),
 	toleranceBps: z.number(),
+	/** 'verdict' for an initial adjudication, 'panel' for an appeal. */
+	reportKind: z.enum(['verdict', 'panel']).default('verdict'),
+	/** Claim under adjudication. */
+	claimId: z.string().default('1'),
+	/** Set to make the fixture disagree, for exercising the Mismatch path. */
+	fixtureWitnessValue: z.number().default(1000400),
 	verdictSinkAddress: z.string(),
 	chainSelector: z.string(), // CCIP chain selector; string because JSON has no bigint
 })
@@ -164,7 +170,7 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// arrive as encrypted-blob pointers on the trigger event; under simulation we
 	// exercise the path with a fixture so the confidential round-trip is real.
 	const evidenceRequest = {
-		claimId: '1',
+		claimId: config.claimId,
 		claim: {
 			assertion: {
 				subject: 'aave-v3-eth',
@@ -186,7 +192,7 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 				subject: 'aave-v3-eth',
 				metric: 'totalBorrowBalanceUSD',
 				comparator: 'gt',
-				value: 1_000_400,
+				value: config.fixtureWitnessValue,
 				unit: 'USD',
 				asOfBlock: 1000,
 			},
@@ -194,7 +200,9 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 			queryHash: 'witness-query-hash',
 			methodology: 'witness: messari lending schema, block-pinned read',
 			evidence: {
-				lendingProtocols: [{ totalBorrowBalanceUSD: '1000400', totalDepositBalanceUSD: '1' }],
+				lendingProtocols: [
+					{ totalBorrowBalanceUSD: String(config.fixtureWitnessValue), totalDepositBalanceUSD: '1' },
+				],
 			},
 		},
 	}
@@ -247,9 +255,12 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// confidence bucket, and a hash — never evidence, methodology, or values.
 	const donRuntime = runtime.usingTheDons()
 
+	// A Forwarder only ever calls onReport, so the report kind travels in the
+	// payload rather than in the choice of entry point.
+	const kind = config.reportKind === 'panel' ? 1 : 0
 	const encodedPayload = encodeAbiParameters(
-		parseAbiParameters('uint256 claimId, uint8 verdict, bytes32 evidenceCommitment'),
-		[BigInt(bundle.claimId), verdict, evidenceCommitment],
+		parseAbiParameters('uint8 kind, uint256 claimId, uint8 verdict, bytes32 evidenceCommitment'),
+		[kind, BigInt(bundle.claimId), verdict, evidenceCommitment],
 	)
 
 	const report = donRuntime

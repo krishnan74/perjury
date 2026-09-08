@@ -4,5 +4,8 @@
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
   "verdictSinkAddress": "0x70D9723c3342B16421C8390cEF0a84763f959bB5",
-  "chainSelector": "16015286601757825753"
+  "chainSelector": "16015286601757825753",
+  "reportKind": "verdict",
+  "claimId": "1",
+  "fixtureWitnessValue": 1000400
 }

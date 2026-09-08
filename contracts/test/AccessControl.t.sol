@@ -31,7 +31,7 @@ contract AccessControlTest is Base {
         vrf.fulfill(1, 1);
         vm.prank(operator);
         vm.expectRevert(VerdictSink.NotTribunal.selector);
-        sink.onReport("", abi.encode(id, uint8(Verdict.Match), bytes32(0)));
+        sink.onReport("", abi.encode(uint8(0), id, uint8(Verdict.Match), bytes32(0)));
     }
 
     function test_onWitnessAssigned_fromEOA_reverts() public {

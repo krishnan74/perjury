@@ -144,7 +144,7 @@ contract LifecycleTest is Base {
         _reportAndFinalize(id, Verdict.Match);
         vm.prank(CRE);
         vm.expectRevert(ClaimRegistry.BadStatus.selector);
-        sink.onReport("", abi.encode(id, uint8(Verdict.Match), bytes32(0)));
+        sink.onReport("", abi.encode(uint8(0), id, uint8(Verdict.Match), bytes32(0)));
     }
 
     function test_withdraw_paysOutOnce() public {
