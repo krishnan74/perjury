@@ -13,6 +13,10 @@ table, what is live on-chain, and what is blocked.
   in `docs/ai-usage.md`, not as a repo contributor.
 - **Commit incrementally.** Large single commits risk disqualification under the event rules.
 - Attribution lives in `docs/ai-usage.md` only, never in source file headers.
+- **Keep `docs/feedback/*` current as the build progresses.** Add friction as it is hit, while the
+  detail is fresh. Rules: only what we experienced first-hand, or clearly attributed when relayed;
+  record what worked as well as what didn't; every item needs evidence (error text, tx hash, or the
+  design change it forced) and a concrete suggestion. Never pad it to look thorough.
 - `WitnessRoster.sol` is labelled **AI-ASSISTED — ⚠ NOT YET HUMAN-LED**. It is the anti-collusion
   claim and the user reserved it for their own review. Do not relabel it.
 

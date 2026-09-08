@@ -1,0 +1,123 @@
+# Developer feedback — ENSv2
+
+From building Perjury (ETHOnline 2026). Our design depends on a property ENSv2's Enhanced Access
+Control is unusually well suited to provide: **an agent must not be able to write its own reputation
+record — only a TEE tribunal may.** So we spent our time on EAC scoping, permissioned resolvers, and
+direct-to-contract registration rather than on resolution.
+
+Written to be useful rather than polite.
+
+---
+
+## What worked well
+
+- **Direct-to-contract registration is clean.** Once we had the `ETHRegistrar` ABI, commit-reveal was
+  straightforward: `makeCommitment` → `commit` → wait `MIN_COMMITMENT_AGE` → `approve` → `register`.
+  `getRegisterPrice` returning `(base, premium)` separately is a nice touch.
+- **The team is fast and candid in Discord.** Confirming that the app is "just a convenience layer"
+  and that contracts are the real interface unblocked several teams quickly, including us.
+- **Per-record permissions are the right primitive.** Being able to say "this contract may write
+  exactly this one text key and nothing else" is precisely what a reputation system needs, and we
+  couldn't have built this honestly on ENSv1's fuses.
+- **MockUSDC has a public `mint(address,uint256)`.** This saved us entirely when the registration app
+  was failing — worth documenting deliberately rather than leaving teams to discover it.
+
+---
+
+## 1. EAC resource derivation is powerful but easy to miss *(highest impact)*
+
+The Permissioned Resolver docs contain one sentence that changes how you design an entire permission
+model:
+
+> "resolver resources are derived from the setter argument alone. Names play no part in resource
+> computation."
+
+For a text record that means `resource = keccak256(bytes(key))`. We had designed around **node-scoped**
+roles and had to revise our architecture and documentation once we understood this. The implication —
+that a grant on a shared resolver applies to that key for *every* name on it — has direct consequences
+for whether you need one resolver per subject.
+
+**Suggestion.** Give this its own callout block with a worked example, e.g. "granting `ROLE_SET_TEXT`
+for `com.example.score` on a resolver authorises that key for all names served by that resolver — use a
+resolver per subject if you need per-subject isolation." It is currently a sentence inside a
+paragraph, and it is the most consequential sentence on the page.
+
+## 2. Role constants live on contract pages, not the EAC page
+
+The Enhanced Access Control page explains bitmaps, admin roles at `role << 128`, and
+`grantRoles`/`revokeRoles`/`hasRoles` — but says role identifiers require "reviewing individual
+contract pages". We had to go to the Permissioned Resolver page for `ROLE_SET_TEXT = 1 << 4` and its
+siblings.
+
+**Suggestion.** A consolidated table on the EAC page listing every role across registry and resolver
+with its value and scope. When designing permissions, what you most want is to see the whole space at
+once — especially to reason about what you are *not* granting.
+
+## 3. `setText` takes a DNS-encoded name; reads take a namehash
+
+This asymmetry surprised us. `setText(bytes name, string key, string value)` wants DNS wire format,
+while `text(bytes32 node, string key)` wants a namehash. Our contract interface was written with
+`bytes32` for both — it compiled, tests passed against our mock, and it would have reverted on the
+first real write.
+
+**Suggestion.** Call the asymmetry out explicitly in the resolver docs, and note that a contract
+integrating both directions needs to store both forms per name. We now store `ensNode` and `dnsName`
+side by side.
+
+## 4. Revoking the owner's own permission — undocumented *(open at time of writing)*
+
+Our central requirement is that a name's owner **cannot** write a particular text record, while a
+designated contract can. We could not determine from the docs whether the owner is granted resolver
+roles automatically at registration, or whether revoking self-write is a first-class operation.
+
+**Why it matters.** "Reputation the subject cannot edit" is a broadly useful pattern — reviews,
+credentials, attestations, agent standing. ENSv2 looks like the only naming system that could support
+it natively, but the docs don't currently show anyone how.
+
+**Suggestion.** A worked example: "revoking the owner's own write permission for a single record."
+We'd guess several hackathon projects want exactly this shape.
+
+## 5. Unauthorized `setText`: revert or silent no-op? *(open)*
+
+We built a script that demonstrates our security property on camera by showing two transactions
+**fail** — the agent writing its own record, and an operator writing it. If unauthorized writes
+silently no-op instead of reverting, the demonstration has to compare record values before and after.
+
+**Suggestion.** State the failure mode in the docs. For anyone building on top of EAC, "does it revert"
+determines how you write both tests and demos.
+
+## 6. Contract-held roles — undocumented *(open)*
+
+Can a contract, rather than an EOA, hold an EAC role? Our writer is a contract reachable only from the
+tribunal. Nothing suggests it can't, but nothing confirms it either, and the whole write path assumes
+it.
+
+## 7. The registration app blocked teams, and the channel was the only signal
+
+We did **not** hit this ourselves — but only because we read the channel first. Multiple teams reported
+the "Deploy resolver" step failing with `gas limit too high (cap: 16777216, tx: 21000000)` across three
+separate RPC providers, plus a malformed `initialize` payload. Registration is the very first thing any
+project does, so absent that warning we would have spent hours there before suspecting the app rather
+than our own setup.
+
+The team's response was fast and correct — the app is a convenience layer, register against the
+contracts — and direct-to-contract worked cleanly for us. But that guidance lived in a Discord thread,
+not in the docs or in the app itself.
+
+**Suggestion.** When a known-broken path exists during an event, a banner in the app saying "resolver
+deploy is currently failing, register directly against the contracts — see docs" would reach every team
+rather than the ones reading the channel at the right moment. A hardcoded 21M gas limit above what most
+providers accept is also worth a fix regardless.
+
+## 8. Hackathon deployment domains trip wallet warnings
+
+The deployment is served from `*.workers.dev` and `*.pages.dev`, and MetaMask flagged the app domain as
+potentially malicious when we went to open it. Very likely a domain-reputation false positive on the
+shared subdomain rather than anything wrong with the deployment — but it is hard to verify
+independently, and it made us stop before connecting a wallet.
+
+It matters beyond the app: the contract addresses we build against come from a `*.pages.dev` docs
+preview too, and a team that can't establish the domain is genuinely ENS's has no easy way to confirm
+those addresses. We ended up verifying them behaviourally on-chain instead — checking each address had
+code, that the registrar answered `isAvailable`, and that MockUSDC reported the expected symbol and
+decimals. Serving both from an `ens.domains` subdomain would remove the doubt entirely.
