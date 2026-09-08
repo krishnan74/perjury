@@ -45,6 +45,8 @@ interface IWitnessRoster {
     function nodeOf(address agent) external view returns (bytes32);
     function dnsNameOf(address agent) external view returns (bytes memory);
     function onMismatch(address claimant) external;
+    function slash(address agent, uint256 amount) external returns (uint256);
+    function stakeOf(address agent) external view returns (uint256);
 }
 
 /// @notice Reads an agent's standing from its ENS record. Implemented over a

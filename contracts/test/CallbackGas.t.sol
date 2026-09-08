@@ -11,8 +11,9 @@ contract CallbackGasTest is Base {
     function _measure(uint256 agents) internal returns (uint256) {
         for (uint256 i; i < agents; ++i) {
             address a = address(uint160(0x1000 + i));
+            vm.deal(a, STAKE);
             vm.prank(a);
-            roster.registerAgent(keccak256(abi.encodePacked("extra", i)), abi.encodePacked("dns", i));
+            roster.registerAgent{value: STAKE}(keccak256(abi.encodePacked("extra", i)), abi.encodePacked("dns", i));
             resolver.bind(abi.encodePacked("dns", i), keccak256(abi.encodePacked("extra", i)));
         }
         _submit(alice);
@@ -38,8 +39,9 @@ contract CallbackGasTest is Base {
     function test_callbackGas_worstCase_manyIneligible() public {
         for (uint256 i; i < 20; ++i) {
             address a = address(uint160(0x2000 + i));
+            vm.deal(a, STAKE);
             vm.prank(a);
-            roster.registerAgent(keccak256(abi.encodePacked("bad", i)), abi.encodePacked("bdns", i));
+            roster.registerAgent{value: STAKE}(keccak256(abi.encodePacked("bad", i)), abi.encodePacked("bdns", i));
             resolver.bind(abi.encodePacked("bdns", i), keccak256(abi.encodePacked("bad", i)));
             // make them ineligible: negative standing
             vm.prank(address(writer));

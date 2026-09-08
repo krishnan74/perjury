@@ -29,6 +29,9 @@ contract Base is Test {
     address internal operator = makeAddr("operator");
 
     uint256 internal constant BOND = 0.01 ether;
+    uint256 internal constant STAKE = 0.05 ether;
+    /// @dev What a claimant sends: bond plus the flat witness fee.
+    uint256 internal constant SUBMIT_VALUE = BOND + 0.002 ether;
 
     function setUp() public virtual {
         vrf = new MockVRFCoordinator();
@@ -72,14 +75,15 @@ contract Base is Test {
     }
 
     function _register(address a) internal {
+        vm.deal(a, a.balance + STAKE);
         vm.prank(a);
-        roster.registerAgent(_node(a), _dns(a));
+        roster.registerAgent{value: STAKE}(_node(a), _dns(a));
         resolver.bind(_dns(a), _node(a));
     }
 
     function _submit(address claimant) internal returns (uint256 claimId) {
         vm.prank(claimant);
-        claimId = registry.submitClaim{value: BOND}(bytes32("aave-v3-utilization"), keccak256("claim"));
+        claimId = registry.submitClaim{value: SUBMIT_VALUE}(bytes32("aave-v3-utilization"), keccak256("claim"));
     }
 
     function _report(uint256 claimId, Verdict v) internal {

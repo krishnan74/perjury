@@ -87,7 +87,8 @@ contract AssignmentTest is Base {
         Claim memory c = registry.claimOf(id);
         assertEq(c.witness, address(0), "no witness should be assigned");
         assertEq(uint8(c.verdict), uint8(Verdict.Unverifiable));
-        assertEq(registry.withdrawable(alice) - owedBefore, BOND, "bond refunded");
+        // No witness was ever assigned, so the fee is refunded along with the bond.
+        assertEq(registry.withdrawable(alice) - owedBefore, SUBMIT_VALUE, "bond and fee refunded");
     }
 
     function _flag(address agent) internal {
@@ -108,6 +109,6 @@ contract AssignmentTest is Base {
         address sybil = makeAddr("sybil");
         vm.prank(sybil);
         vm.expectRevert();
-        roster.registerAgent(_node(alice), _dns(alice));
+        roster.registerAgent{value: STAKE}(_node(alice), _dns(alice));
     }
 }

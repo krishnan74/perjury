@@ -10,7 +10,7 @@ contract LifecycleTest is Base {
     function test_submit_escrowsBond() public {
         uint256 before = address(registry).balance;
         uint256 id = _submit(alice);
-        assertEq(address(registry).balance, before + BOND);
+        assertEq(address(registry).balance, before + SUBMIT_VALUE); // bond + witness fee
         Claim memory c = registry.claimOf(id);
         assertEq(c.claimant, alice);
         assertEq(c.bond, BOND);
@@ -29,7 +29,7 @@ contract LifecycleTest is Base {
         vm.deal(stranger, 1 ether);
         vm.prank(stranger);
         vm.expectRevert(ClaimRegistry.NotRegistered.selector);
-        registry.submitClaim{value: BOND}(bytes32("s"), bytes32("h"));
+        registry.submitClaim{value: SUBMIT_VALUE}(bytes32("s"), bytes32("h"));
     }
 
     /// @dev Scenario 1: a true claim holds up. Bond returned, standing rises.
@@ -45,20 +45,43 @@ contract LifecycleTest is Base {
         assertEq(reader.standingOfName(_node(alice), _dns(alice)), 1);
     }
 
-    /// @dev Scenario 2: a false claim. Bond forfeited to the witness, standing drops,
-    ///      and the claimant becomes ineligible with no further transaction.
-    function test_mismatch_forfeitsBondToWitnessAndFlags() public {
+    /// @dev Scenario 2: a false claim. The bond is forfeited and the claimant is
+    ///      slashed — but the bond does NOT go to the witness. Paying the witness
+    ///      from the penalty is what made fabricating disagreement profitable
+    ///      (ADR 0007). The witness receives only its flat fee.
+    function test_mismatch_forfeitsBondAndSlashesClaimant() public {
         uint256 id = _submit(alice);
         vrf.fulfill(1, 1);
         address witness = registry.claimOf(id).witness;
         assertTrue(witness != alice, "witness must not be the claimant");
+        uint256 stakeBefore = roster.stakeOf(alice);
 
         _report(id, Verdict.Mismatch);
 
-        assertEq(registry.withdrawable(witness), BOND, "bond goes to the witness");
-        assertEq(registry.withdrawable(alice), 0);
+        assertEq(registry.withdrawable(witness), 0.002 ether, "witness gets the flat fee only");
+        assertEq(registry.withdrawable(alice), 0, "claimant forfeits its bond");
+        assertEq(registry.forfeited(), BOND, "forfeited bond is held, not paid out");
+        assertLt(roster.stakeOf(alice), stakeBefore, "claimant's stake is slashed");
         assertEq(reader.standingOfName(_node(alice), _dns(alice)), -3);
         assertFalse(roster.isEligible(alice), "flagged agent is ineligible immediately");
+    }
+
+    /// @dev The core of ADR 0007: a witness cannot profit by reporting Mismatch.
+    function test_witnessEarnsTheSameWhateverItReports() public {
+        uint256 idA = _submit(alice);
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        address wA = registry.claimOf(idA).witness;
+        _report(idA, Verdict.Match);
+        uint256 onMatch = registry.withdrawable(wA);
+
+        uint256 idB = _submit(alice);
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        address wB = registry.claimOf(idB).witness;
+        uint256 before = registry.withdrawable(wB);
+        _report(idB, Verdict.Mismatch);
+        uint256 onMismatch = registry.withdrawable(wB) - before;
+
+        assertEq(onMatch, onMismatch, "witness payout must not depend on the verdict");
     }
 
     /// @dev The exclusion must follow from the record alone — no admin tx in between.
@@ -88,7 +111,8 @@ contract LifecycleTest is Base {
         vrf.fulfill(1, 1);
         _report(id, Verdict.Unverifiable);
 
-        assertEq(registry.withdrawable(alice), BOND, "bond returned");
+        // A witness was assigned and did its job, so it is paid regardless.
+        assertEq(registry.withdrawable(alice), BOND, "bond returned, fee paid to the witness");
         assertEq(reader.standingOfName(_node(alice), _dns(alice)), 0, "standing untouched");
         assertTrue(roster.isEligible(alice));
     }
@@ -117,7 +141,8 @@ contract LifecycleTest is Base {
         registry.withdraw();
     }
 
-    /// @dev Escrow solvency: the contract always holds what it owes.
+    /// @dev Escrow solvency: the contract holds what it owes plus what it has
+    ///      forfeited. Forfeited bonds are deliberately owed to nobody.
     function test_invariant_escrowSolvent() public {
         _submit(alice);
         _submit(bob);
@@ -128,6 +153,6 @@ contract LifecycleTest is Base {
 
         uint256 owed = registry.withdrawable(alice) + registry.withdrawable(bob) + registry.withdrawable(carol)
             + registry.withdrawable(mallory);
-        assertEq(address(registry).balance, owed);
+        assertEq(address(registry).balance, owed + registry.forfeited());
     }
 }

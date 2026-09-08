@@ -38,6 +38,11 @@ interface IVRFCoordinator {
 ///         parameter, and nothing here lets a caller name one: the only path to
 ///         `_assign` is the VRF coordinator's callback.
 contract WitnessRoster is IWitnessRoster {
+    /// @dev Agents stake to be eligible. Slashable when shown to have lied, so
+    ///      lying to win one bond is unprofitable, and each sybil identity costs
+    ///      real money rather than a gas fee (ADR 0007).
+    uint256 public constant REGISTRATION_STAKE = 0.05 ether;
+
     int256 public constant MIN_STANDING = 0;
     uint64 public constant FLAG_COOLDOWN = 24 hours;
     /// @dev Bounded so the VRF callback can never run out of gas walking a large roster.
@@ -48,6 +53,7 @@ contract WitnessRoster is IWitnessRoster {
         bytes dnsName; // DNS wire format, required by ENSv2 setText
         bool active;
         uint64 registeredAt;
+        uint256 stake; // slashable collateral
     }
 
     IVRFCoordinator public immutable coordinator;
@@ -78,6 +84,8 @@ contract WitnessRoster is IWitnessRoster {
     event WitnessDrawn(uint256 indexed claimId, address indexed witness, uint256 seed);
     event NoEligibleWitness(uint256 indexed claimId);
     event AgentFlagged(address indexed agent, uint64 until);
+    event AgentSlashed(address indexed agent, uint256 amount, uint256 remainingStake);
+    event AgentToppedUp(address indexed agent, uint256 stake);
 
     error NotCoordinator();
     error NotRegistry();
@@ -87,6 +95,8 @@ contract WitnessRoster is IWitnessRoster {
     error NodeTaken();
     error UnknownRequest();
     error NotStandingWriter();
+    error StakeTooSmall();
+    error NothingStaked();
 
     constructor(
         IVRFCoordinator coordinator_,
@@ -110,12 +120,18 @@ contract WitnessRoster is IWitnessRoster {
         wired = true;
     }
 
-    /// @notice Self-registration. One address, one ENS node.
-    function registerAgent(bytes32 ensNode, bytes calldata dnsName) external {
+    /// @notice Self-registration, backed by a slashable stake.
+    function registerAgent(bytes32 ensNode, bytes calldata dnsName) external payable {
+        if (msg.value < REGISTRATION_STAKE) revert StakeTooSmall();
         if (agents[msg.sender].active) revert AlreadyRegistered();
         if (nodeTaken[ensNode]) revert NodeTaken();
-        agents[msg.sender] =
-            Agent({ensNode: ensNode, dnsName: dnsName, active: true, registeredAt: uint64(block.timestamp)});
+        agents[msg.sender] = Agent({
+            ensNode: ensNode,
+            dnsName: dnsName,
+            active: true,
+            registeredAt: uint64(block.timestamp),
+            stake: msg.value
+        });
         nodeTaken[ensNode] = true;
         agentList.push(msg.sender);
         emit AgentRegistered(msg.sender, ensNode);
@@ -142,6 +158,7 @@ contract WitnessRoster is IWitnessRoster {
     function isEligible(address candidate) public view returns (bool) {
         Agent storage a = agents[candidate];
         if (!a.active) return false;
+        if (a.stake < REGISTRATION_STAKE) return false; // under-collateralised
         if (flaggedUntil[candidate] > block.timestamp) return false;
         try standingReader.standingOfName(a.ensNode, a.dnsName) returns (int256 standing) {
             return standing >= MIN_STANDING;
@@ -201,6 +218,34 @@ contract WitnessRoster is IWitnessRoster {
         }
         emit NoEligibleWitness(claimId);
         registry.onAssignmentFailed(claimId);
+    }
+
+    /// @notice Slash an agent shown to have lied. Only the registry's settlement
+    ///         path reaches this; there is no operator route to it.
+    /// @return slashed the amount taken from the agent's stake
+    function slash(address agent, uint256 amount) external returns (uint256 slashed) {
+        if (msg.sender != address(registry)) revert NotRegistry();
+        Agent storage a = agents[agent];
+        slashed = amount > a.stake ? a.stake : amount;
+        a.stake -= slashed;
+        // An agent below the stake floor cannot be drawn until it tops up.
+        if (a.stake < REGISTRATION_STAKE) flaggedUntil[agent] = type(uint64).max;
+        emit AgentSlashed(agent, slashed, a.stake);
+    }
+
+    /// @notice Top up after a slash, restoring eligibility.
+    function topUp() external payable {
+        Agent storage a = agents[msg.sender];
+        if (!a.active) revert NothingStaked();
+        a.stake += msg.value;
+        if (a.stake >= REGISTRATION_STAKE && flaggedUntil[msg.sender] == type(uint64).max) {
+            flaggedUntil[msg.sender] = 0;
+        }
+        emit AgentToppedUp(msg.sender, a.stake);
+    }
+
+    function stakeOf(address agent) external view returns (uint256) {
+        return agents[agent].stake;
     }
 
     /// @notice Cooldown flag applied on a mismatch. Only the standing writer
