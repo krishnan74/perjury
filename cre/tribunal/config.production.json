@@ -1,6 +1,6 @@
 {
   "schedule": "0 */1 * * * *",
-  "evidenceGatewayUrl": "https://postman-echo.com/post",
+  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/5cb76f740480a1341810c905c880d472",
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
   "verdictSinkAddress": "0x2cE00561EcC3dfDaDcf7d201043495376dC435D4",

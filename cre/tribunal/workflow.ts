@@ -18,8 +18,7 @@ export const configSchema = z.object({
 	reportKind: z.enum(['verdict', 'panel']).default('verdict'),
 	/** Claim under adjudication. */
 	claimId: z.string().default('1'),
-	/** Set to make the fixture disagree, for exercising the Mismatch path. */
-	fixtureWitnessValue: z.number().default(1000400),
+
 	verdictSinkAddress: z.string(),
 	chainSelector: z.string(), // CCIP chain selector; string because JSON has no bigint
 })
@@ -40,10 +39,15 @@ type Assertion = {
 	asOfBlock: number
 }
 
+/** Matches what the agents actually publish — see packages/tribunal. */
+type Attestation = {
+	provenance: { deploymentId: string; indexedBlock: number; chainHead: number; queryHash: string }
+	assertion: Assertion
+	digest: string
+}
+
 type SealedSubmission = {
-	assertion: Assertion | null
-	provenanceOk: boolean
-	queryHash: string
+	attestation: Attestation | null
 	methodology: string
 	/** Raw query result. The tribunal recomputes from this rather than trusting
 	 *  the stated assertion — the witness earns only on Mismatch and so is the
@@ -95,19 +99,17 @@ const adjudicate = (
 	witness: SealedSubmission,
 	toleranceBps: number,
 ): { verdict: number; confidence: 'high' | 'low' } => {
-	// 1. Provenance gate — bad data can never reach a Match.
+	// 1. Provenance gate — bad data can never reach a Match. A submission without
+	//    an attestation did not pass the guard, whatever it claims.
 	if (claim.unverifiableReason || witness.unverifiableReason) {
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
-	if (!claim.provenanceOk || !witness.provenanceOk) {
-		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
-	}
-	if (!claim.assertion || !witness.assertion) {
+	if (!claim.attestation || !witness.attestation) {
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
 
-	const a = claim.assertion
-	const b = witness.assertion
+	const a = claim.attestation.assertion
+	const b = witness.attestation.assertion
 
 	// 2. Comparable shape, or there is nothing to compare.
 	if (a.subject !== b.subject || a.metric !== b.metric || a.unit !== b.unit) {
@@ -141,7 +143,7 @@ const adjudicate = (
 
 	// 3. Degeneracy — downgrades confidence, never flips the verdict.
 	const derivative =
-		claim.queryHash === witness.queryHash ||
+		claim.attestation.provenance.queryHash === witness.attestation.provenance.queryHash ||
 		(claim.methodology.length > 0 && claim.methodology === witness.methodology)
 
 	// 4. Consensus.
@@ -155,6 +157,30 @@ const adjudicate = (
 	}
 }
 
+/**
+ * Adjudicate an appeal: judge each seat against the claim independently and take
+ * the majority of those that reached a conclusion. Seats that could not read the
+ * data are excluded rather than counted as dissent, and a tie overturns nothing.
+ */
+const adjudicatePanel = (
+	claim: SealedSubmission,
+	panel: { member: string; submission: SealedSubmission }[],
+	toleranceBps: number,
+): { verdict: number; confidence: 'high' | 'low' } => {
+	let match = 0
+	let mismatch = 0
+	for (const seat of panel) {
+		const r = adjudicate(claim, seat.submission, toleranceBps)
+		if (r.verdict === VERDICT.Match) match++
+		else if (r.verdict === VERDICT.Mismatch) mismatch++
+	}
+	const conclusive = match + mismatch
+	if (conclusive === 0 || conclusive <= panel.length / 2 || match === mismatch) {
+		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
+	}
+	return { verdict: match > mismatch ? VERDICT.Match : VERDICT.Mismatch, confidence: 'high' }
+}
+
 // ─── TEE handler ────────────────────────────────────────────
 // Receives a TeeRuntime. Everything here runs inside the enclave until we
 // explicitly cross back with usingTheDons().
@@ -166,77 +192,33 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// brute-forced back to the sealed evidence.
 	const salt = runtime.getSecret({ id: config.secretId }).result().value
 
-	// Sealed submissions for the claim under adjudication. In production these
-	// arrive as encrypted-blob pointers on the trigger event; under simulation we
-	// exercise the path with a fixture so the confidential round-trip is real.
-	const evidenceRequest = {
-		claimId: config.claimId,
-		claim: {
-			assertion: {
-				subject: 'aave-v3-eth',
-				metric: 'totalBorrowBalanceUSD',
-				comparator: 'gt',
-				value: 1_000_000,
-				unit: 'USD',
-				asOfBlock: 1000,
-			},
-			provenanceOk: true,
-			queryHash: 'claimant-query-hash',
-			methodology: 'claimant: messari lending schema, latest market snapshot',
-			evidence: {
-				lendingProtocols: [{ totalBorrowBalanceUSD: '1000000', totalDepositBalanceUSD: '1' }],
-			},
-		},
-		witness: {
-			assertion: {
-				subject: 'aave-v3-eth',
-				metric: 'totalBorrowBalanceUSD',
-				comparator: 'gt',
-				value: config.fixtureWitnessValue,
-				unit: 'USD',
-				asOfBlock: 1000,
-			},
-			provenanceOk: true,
-			queryHash: 'witness-query-hash',
-			methodology: 'witness: messari lending schema, block-pinned read',
-			evidence: {
-				lendingProtocols: [
-					{ totalBorrowBalanceUSD: String(config.fixtureWitnessValue), totalDepositBalanceUSD: '1' },
-				],
-			},
-		},
-	}
-
-	// Fetch both sealed submissions from INSIDE the enclave. Using the HTTPClient
-	// with a TeeRuntime keeps request and response payloads confidential from node
-	// operators — this is the load-bearing confidentiality in Perjury.
-	// (Do NOT use ConfidentialHTTPClient here; it has no TeeRuntime overload.)
-	// SIMULATION NOTE: the staging endpoint echoes the posted body back, which
-	// lets us exercise the full confidential request/response path end to end.
-	// At T5 this becomes a GET against the sealed-evidence gateway, addressed by
-	// the pointers in the trigger event. Both directions are confidential either
-	// way — that is the property being demonstrated.
+	// Fetch the two agents' sealed submissions from the evidence gateway.
+	//
+	// This is the load-bearing confidentiality: the request and the response both
+	// stay inside the enclave, so node operators never see either party's raw
+	// evidence or methodology. The agents publish independently and never see each
+	// other's work — the bundle is the only place the two meet, and it meets
+	// inside the TEE.
 	const response = new cre.capabilities.HTTPClient()
-		.sendRequest(runtime, {
-			url: config.evidenceGatewayUrl,
-			method: 'POST',
-			body: hexToBase64(toHex(JSON.stringify(evidenceRequest))),
-			multiHeaders: { 'Content-Type': { values: ['application/json'] } },
-		})
+		.sendRequest(runtime, { url: config.evidenceGatewayUrl, method: 'GET' })
 		.result()
 
 	if (!ok(response)) {
 		throw new Error(`Evidence fetch failed with status: ${response.statusCode}`)
 	}
 
-	const echoed = JSON.parse(text(response)) as { data?: unknown; json?: unknown }
-	const bundle = (echoed.json ?? echoed.data ?? echoed) as {
+	const bundle = JSON.parse(text(response)) as {
 		claimId: string
 		claim: SealedSubmission
 		witness: SealedSubmission
+		panel?: { member: string; submission: SealedSubmission }[]
 	}
 
-	const { verdict, confidence } = adjudicate(bundle.claim, bundle.witness, config.toleranceBps)
+	// On an appeal the panel's majority decides, not the original witness.
+	const { verdict, confidence } =
+		config.reportKind === 'panel' && bundle.panel && bundle.panel.length > 0
+			? adjudicatePanel(bundle.claim, bundle.panel, config.toleranceBps)
+			: adjudicate(bundle.claim, bundle.witness, config.toleranceBps)
 
 	// Commitment over both sealed submissions plus the enclave-held salt. Lets
 	// anyone later verify the tribunal judged THESE exact inputs, if a party
