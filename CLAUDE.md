@@ -56,6 +56,8 @@ npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
 
 ## Facts learned the hard way
 
+- **`cre workflow simulate` runs LOCALLY, not in an enclave** (Chainlink, Sep 8). We register a real TEE handler via `cre.handlerInTee`, but simulation does not execute in a TEE. Say "confidential workflow with a TEE handler, executed via the simulator" — never "ran inside an enclave". This matters for the demo video.
+- **Two forwarders.** Simulation uses the mock `0x15fC6ae953E024d975e77382eEeC56A9101f9F88`; production uses `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`. Deploy `VerdictSink` with whichever matches the environment.
 - **CRE reports arrive from a Forwarder, not the workflow owner.** `VerdictSink.CRE_REPORT_WRITER` is immutable, so this was measured, not guessed. Unknown whether the address is stable across runs — this is why the protocol is not deployed yet.
 - **A TEE reveals the workflow binary.** Only *data* is confidential (Vault DON secrets, Confidential HTTP payloads, intermediates). `docs/design.md` §3.4 says what is actually true; do not re-inflate the claim.
 - **ENSv2 `setText` takes a DNS-encoded name**, not a namehash. Reads use namehash.

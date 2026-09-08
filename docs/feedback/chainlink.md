@@ -57,16 +57,17 @@ Minor, but the type error (`string` not assignable to `bigint`) doesn't hint tha
 
 **Suggestion.** A prominent callout at the top of the v2.5 consumer docs: "v2.5 subscription IDs are `uint256`, not `uint64`, and `requestRandomWords` takes a struct. Code written for v2 will compile and fail." Search results still surface v2 examples readily.
 
-## 7. Sepolia VRF v2.5 not fulfilling *(open at time of writing)*
+## 7. A VRF request that cannot be paid for is invisible on-chain
 
-A well-formed request has been pending 30+ minutes:
+**What happened.** Our request sat unfulfilled for over 30 minutes. Everything we could check from on-chain state looked correct: `getSubscription` reported a 10 LINK balance, the consumer was added before the request, and the coordinator had emitted `RandomWordsRequested` with the right keyHash, gas limit and confirmations. We scanned the coordinator's recent logs, saw no fulfilments for any consumer, and concluded the service was down. **We were wrong.**
 
-- coordinator `0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B`, keyHash `0x787d74ca…3677ae` (the only Sepolia lane), 500k callback gas, 3 confirmations, LINK payment
-- subscription funded with 10 LINK, consumer added *before* the request
-- coordinator emitted `RandomWordsRequested` with the correct keyHash, so the request parsed fine
+The VRF web UI showed the real answer immediately: *"You have a pending transaction due to low balance."* Max cost **71.8 LINK** against a 10 LINK balance, projected balance −61.8 LINK, and the request fails after 24 hours if unfunded.
 
-Scanning the coordinator over ~200 blocks, the only logs present are our own request and subscription events — **no fulfilments for any consumer**. That points at the service rather than our integration.
+**Why it matters.** The failure is entirely invisible from on-chain state. `getSubscription` returns a balance that looks healthy in isolation; nothing in the request receipt or the coordinator's events indicates the request can never be paid for. A contract or script has no way to distinguish "waiting for fulfilment" from "will never be fulfilled". We spent well over an hour debugging a correct integration, and drafted a support question asserting a service outage that did not exist.
 
-**Why it matters for hackathons specifically.** Our demo has to show a live assignment on camera. If fulfilment is unavailable or takes tens of minutes, teams must restructure their demos around it — and would rather know early than discover it the night before submission.
+**Suggestions.**
+- Make the shortfall observable on-chain — a view like `pendingRequestCost(subId)` or an event when a request is parked for insufficient balance would let integrators detect this programmatically.
+- Better still, surface it at request time: `requestRandomWords` could revert when the subscription demonstrably cannot cover `maxGasPrice × callbackGasLimit`. Failing loudly at the call site would have saved us the entire investigation.
+- Document the arithmetic prominently. On Sepolia the only gas lane is 500 gwei, so a 500k `callbackGasLimit` reserves ~72 LINK — far more than a testnet faucet dispenses in one go. That relationship between `callbackGasLimit`, the lane's gas price, and the LINK you must hold is the single most useful thing to state on the v2.5 page, and we didn't find it.
 
-**Suggestion.** A note in the docs on expected Sepolia fulfilment latency, or a public status indicator, would let teams plan around it. Separately: `getSubscription` reports `reqCount: 0` while a request is outstanding, which reads as "your request never arrived" when in fact it did — the coordinator had emitted `RandomWordsRequested` for it. Surfacing pending-but-unfulfilled state would have told us immediately that the integration was fine and the service wasn't, instead of us re-verifying every field of a correct request.
+**Related, and worth connecting in the docs.** We had separately asked whether 500k `callbackGasLimit` was reasonable for our callback. The answer we needed wasn't about gas correctness at all — it was that the choice of `callbackGasLimit` directly sets the LINK you must hold. Those two facts live far apart in the documentation.

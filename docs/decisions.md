@@ -11,6 +11,7 @@ Decisions still open are tracked in [`../plan.md`](../plan.md).
 | [0003](#0003-nextjs-dashboard-as-the-demo-surface) | Next.js dashboard as the demo surface | 2026-09-07 | Accepted |
 | [0004](#0004-llm-agents-driving-subgraph-mcp-not-scripted-graphql) | LLM agents driving Subgraph MCP | 2026-09-07 | Accepted |
 | [0005](#0005-living-attribution-log-with-committed-prompts) | Living attribution log + committed prompts | 2026-09-07 | Accepted |
+| [0006](#0006-keep-cre_report_writer-immutable-despite-chainlinks-advice) | Keep CRE_REPORT_WRITER immutable | 2026-09-08 | Accepted |
 
 ---
 
@@ -181,3 +182,51 @@ Attribution reconstructed at the end of a build is guesswork, and reads like gue
 - Adds an attribution pass to every milestone's exit criteria.
 - Establishes an explicit honesty rule: a file is only labeled AI-ASSISTED once the human has actually done the review and can defend the design unaided. Labeling aspirationally would fail the clause it's meant to satisfy, and would collapse in about two questions of conversation.
 - The human's voice is required in specific places (concept framing, limitations). Those are marked as TODO stubs rather than ghost-written — a ghost-written "in my own words" section defeats the purpose of the exercise.
+
+
+---
+
+## 0006. Keep CRE_REPORT_WRITER immutable, despite Chainlink's advice
+
+**Date:** 2026-09-08
+**Status:** Accepted
+**Decided by:** Project lead (human), on a recommendation we declined
+
+### Context
+
+`VerdictSink` accepts reports from exactly one address, set at construction with no setter. That is the mechanical expression of the project's central claim: nobody — not the operators, not the deployer — can change who is allowed to write a verdict.
+
+Asked in the Chainlink channel whether the Forwarder address is stable, we got a clear answer plus a recommendation:
+
+> "The Forwarder contract is stable, and you can find the address here [forwarder directory]. `--broadcast` might use a different mock forwarder from the deployed ones. I recommend you make this variable editable in your contract."
+
+The factual part resolved our blocker. Two forwarders exist on Sepolia, both documented and stable:
+
+| | Address |
+|---|---|
+| Mock (simulation) | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` |
+| Production (deployed workflows) | `0xF8344CFd5c43616a4366C34E3EEE75af79a74482` |
+
+Our probe had measured the mock — correctly, since we were running `simulate --broadcast`.
+
+### Options considered
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Editable address with an owner** (as recommended) | One deployment survives the move from simulation to production. Standard, sensible engineering. | An owner who can repoint the sink can forge any verdict. It reintroduces exactly the trusted party the protocol exists to remove. |
+| **Immutable, redeploy per environment** | The claim "no one can change who writes verdicts" stays literally true and greppable. | One redeploy when moving simulation → production. |
+| **Immutable, accept either forwarder** | No redeploy. | Two addresses can write verdicts, and one of them is a *mock* — strictly worse than either alternative. |
+
+### Decision
+
+**Keep it immutable.** Deploy `VerdictSink` with the forwarder matching how the workflow actually executes: the mock while we are on `simulate --broadcast`, production if deploy access lands.
+
+The recommendation is good general advice and we're declining it for a specific reason. A judge reading our contracts will look for an escape hatch, because we claim there isn't one. A setter — even an owner-only one used honestly — turns "cannot" into "chose not to", and that is the entire difference between this protocol and a scoreboard someone maintains.
+
+Now that both addresses are documented and stable, the cost of immutability is one redeploy of one contract. That is a small price for a claim that survives inspection.
+
+### Consequences
+
+- `VerdictSink` is deployed **last**, after the environment is known. `DeployCore.s.sol` already excludes it for this reason.
+- Moving to production means redeploying `VerdictSink` and calling `wireSink` on the registry and writer — both one-time and currently unset, so no redeploy of the other contracts.
+- `.env.example` documents both addresses so the wrong one can't be picked by accident.

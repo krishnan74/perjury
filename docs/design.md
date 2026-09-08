@@ -67,7 +67,7 @@ Random assignment closes *deliberate* collusion. It does not close carelessness,
 | **The witness** | LLM agent process, same shape, different key/subname | off-chain (`agents/`) |
 | **The witness's eyes** | Subgraph MCP → live Graph Gateway → standardized subgraphs | The Graph Network |
 | **The provenance guard** | `packages/graph-guard` — deployment-ID pinning + freshness gate | off-chain, deterministic |
-| **The tribunal** | CRE Confidential Workflow, `tribunal` TEE handler | Chainlink CRE enclave |
+| **The tribunal** | CRE Confidential Workflow, `tribunal` TEE handler | Chainlink CRE (simulator today; enclave on deploy access) |
 | **The verdict wire** | `VerdictSink.sol` (only CRE report writer accepted) | Sepolia |
 | **The reputation record** | ENSv2 permissioned resolver text record on `<agent>.perjury.eth` | Sepolia (ENSv2 beta) |
 | **The eligibility oracle** | `WitnessRoster` reads standing at assignment time | Sepolia |
@@ -284,6 +284,8 @@ It has **no** function that can call `setAddr`, `setOwner`, transfer the name, w
 - **Trigger:** EVM log trigger on `ClaimRegistry.ReadyForAdjudication(claimId)` — emitted once both the claimant's sealed evidence pointer and the witness's sealed finding pointer are posted.
 - **Structure:** a standard CRE workflow with an explicit confidential handler. The non-confidential part does trigger decoding and the onchain report write; the TEE handler does everything that touches evidence.
 
+> **⚠ Execution status — be precise about this.** We register a real TEE handler with `cre.handlerInTee` and the workflow runs end to end, but **`cre workflow simulate` executes everything locally, not inside an enclave** (confirmed by Chainlink, Sep 8; the simulator itself prints "The simulator is not a real TEE"). Actual enclave execution requires deploy access to the confidential DON, which we do not have. So the accurate claim is: *a confidential workflow with a TEE handler, executed via the official simulator.* Never say the adjudication ran inside an enclave. The Chainlink track accepts "execution via simulation or live deployment with evidence", so this qualifies — but only if we describe it correctly.
+
 #### 3.2 What crosses which boundary
 
 | | Content | Boundary |
@@ -478,7 +480,7 @@ Rule for the whole video: **if it is narrated but not on screen, it does not cou
 | 1.2 | Witness is assigned by VRF, not chosen | VRF request tx **and** fulfilment tx, both linked; assigned address ≠ claimant |
 | 1.3 | Witness derives its finding independently from live Graph data | Agent tool-call stream: `search_subgraphs` → schema read → **its own** GraphQL → result, with the deployment ID and indexed block visible |
 | 1.4 | Provenance/freshness actually checked | Guard output panel showing deployment ID match + block delta under threshold |
-| 1.5 | Tribunal runs confidentially | CRE execution log / TEE handler invocation on screen |
+| 1.5 | Tribunal adjudicates via the confidential workflow | CRE simulator output showing the TEE handler invoked and the verdict returned. **Say "simulated", not "ran in an enclave"** — see the execution-status note in §3.1 |
 | 1.6 | Only a minimal verdict is published | Side-by-side: sealed evidence pointer vs. the on-chain report containing only claimId/verdict/commitment |
 | 1.7 | Verdict = Match, bond returned | Settlement tx; claimant balance restored |
 | 1.8 | **ENS standing visibly rises** | The `perjury.standing` text record on `<claimant>.perjury.eth` before and after, read from chain (ENS app or explorer, not just our UI) |

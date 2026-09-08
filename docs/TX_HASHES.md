@@ -9,10 +9,10 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0x2e36eA21cFf463095dE7E24d7a6F540b9F41a0e3` | deployed | Sep 8 |
-| `WitnessRoster` | `0xebC374Bf77dA3ca15e0A2A35Ec610638A684c867` | deployed + VRF consumer | Sep 8 |
-| `PerjuryStandingWriter` | `0xF2928c22Bb3951E891f76D166EbD1102f4888e9d` | deployed | Sep 8 |
-| `ENSTextStandingReader` | `0x5bBd6E1D6F361F044cF8799F990c05681D3A80c5` | deployed | Sep 8 |
+| `ClaimRegistry` | `0xa16613689Ff8df7779FDA80b90BB865F0C52F874` | deployed | Sep 8 |
+| `WitnessRoster` | `0x84120516A22af6C3557bF80BAbAAd4ff4a86E309` | deployed + VRF consumer, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0xBCe0bcFEE2E5b7506d76D76529b1642980B8eE61` | deployed | Sep 8 |
+| `ENSTextStandingReader` | `0xdE16F3E3c600240bd1bd752d07Af69A2286C7F9E` | deployed | Sep 8 |
 | `VerdictSink` | _deferred_ | waiting on Forwarder-stability answer — `CRE_REPORT_WRITER` is immutable | |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
@@ -32,7 +32,9 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | T1 | Report sender is a Forwarder, not the owner | same tx — `lastSender` on ScratchSink | Sep 8 |
 | T2 | Bond escrowed → verdict → settled | _pending_ | |
 | T3 | Claim submitted, bond escrowed, VRF requested | [`0xcb2de714…82ceb237`](https://sepolia.etherscan.io/tx/0xcb2de714f0d6339e23c6673db792e0907a96e55ca2c2ad82bf2a389882ceb237) | Sep 8 |
-| T3 | VRF fulfilment → witness assigned | **blocked** — request pending 30+ min; coordinator serving no requests | Sep 8 |
+| T3 | **VRF fulfilment → witness assigned ✅** | [`0x1d24be28…af1c89bd`](https://sepolia.etherscan.io/tx/0x1d24be28ecc37abf36fa91ff63c0eb06112df03528162045ae7e3435af1c89bd) — 206,455 gas, spent 0.065 LINK | Sep 8 |
+| T3 | Witness drawn ≠ claimant, verified on-chain | claimant `0xDcbe…eA91`, witness `0xc38f…c4AF` | Sep 8 |
+| T3 | Re-verified at 150k callbackGasLimit, assigned in ~100s | new roster `0x8412…E309` | Sep 8 |
 | T4 | `perjury.eth` registered direct-to-contract | see above | Sep 8 |
 | T5 | Live guarded Graph read (Aave v3, 0 blocks stale) | no tx — Gateway read | Sep 8 |
 | T4 | EAC: agent self-write **reverts** | _pending_ | |

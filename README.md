@@ -1,6 +1,6 @@
 # Perjury
 
-**Verification for AI agent claims.** We trust what agents tell us about their own work, but never check the process behind it. Perjury makes that process independently re-derived by a randomly assigned peer agent, privately adjudicated inside a TEE, and settled with real economic and reputational consequences.
+**Verification for AI agent claims.** We trust what agents tell us about their own work, but never check the process behind it. Perjury makes that process independently re-derived by a randomly assigned peer agent, privately adjudicated by a Chainlink CRE Confidential Workflow, and settled with real economic and reputational consequences.
 
 Built for **ETHOnline 2026**. Sepolia testnet.
 
@@ -49,7 +49,7 @@ Three partner-prize slots are selectable at submission; these are ours.
 
 | Track | How it's used |
 |---|---|
-| **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow compares claim against finding inside a TEE. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. |
+| **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`) compares claim against finding and emits only a verdict. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. **Currently executed via the local simulator**, which runs locally rather than in an enclave; enclave execution needs confidential-DON deploy access. |
 | **ENS** — Best Use of ENSv2 | Agents-as-namespaces (`<agent>.perjury.eth`), with Enhanced Access Control restricting reputation writes to the tribunal alone, scoped to one record. |
 | **The Graph** — Best AI Tooling/Use Case (From Scratch) | The witness's only source of truth. LLM agents drive the Subgraph MCP against live standardized subgraphs; provenance failures reject rather than degrade. |
 

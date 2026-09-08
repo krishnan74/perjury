@@ -17,7 +17,7 @@
 | Task | State |
 |---|---|
 | T0 Unblock | ● wallet funded · VRF sub (10 LINK) · Graph key · CRE CLI + login · Foundry + Bun |
-| T1 CRE tribunal | ● **runs in a TEE handler**, report delivered on-chain, sender measured |
+| T1 CRE tribunal | ● workflow + TEE handler runs via simulator (local, not an enclave), report delivered on-chain, forwarder identified |
 | T2 Contracts | ● 4 contracts, 28 tests · **not deployed** (see blocker below) |
 | T3 Randomness | ◐ roster + fuzz done · live VRF round outstanding |
 | T4 ENSv2 | ◐ `perjury.eth` registered · EAC grants blocked on ENS answers |
@@ -36,7 +36,6 @@
 `VerdictSink.CRE_REPORT_WRITER` is immutable. Reports arrive from a Forwarder (`0x15fC6ae9…9F88`), measured — not the workflow owner. Unknown whether that address is stable across runs or differs on the live DON. Deploying against a run-specific forwarder recreates exactly the bug the probe caught. **Open question with Chainlink.**
 
 ### Blocked on
-0. **Sepolia VRF v2.5 not fulfilling.** Claim 1 submitted with a bond, request accepted by the coordinator with correct keyHash/gas/confirmations, unfulfilled after 30+ minutes. A scan of the coordinator over ~200 blocks shows no fulfilments for *any* consumer — the service, not us. Asked in Discord. **Demo consequence:** if this persists, scenes must be pre-run and the state changes filmed, rather than recorded live in one take.
 1. `ANTHROPIC_API_KEY` → the witness/claimant agents (last piece of T5). **Only item you control.**
 2. ENS answers — questions posted Sep 8, awaiting reply → EAC grants, subnames, `prove-eac.ts` shape
 3. Chainlink Forwarder stability — asked in Discord → protocol deploy, then T3 live VRF
