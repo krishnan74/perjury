@@ -139,31 +139,52 @@ async function main() {
   console.log(`  ${addHash}`);
 
   // ── 6. Agents ────────────────────────────────────────────────────────────
+  //
+  // Reuse keys across deployments and register in parallel. Doing this
+  // sequentially — generate, fund, await receipt, register, await receipt, five
+  // times — took most of a fifteen-minute cascade, which is too slow to rehearse
+  // against. Agents keep their keys and their ETH; only the roster is new, so
+  // funding is usually skipped entirely and the five registrations are
+  // independent transactions from five different accounts.
   step(6, `registering and staking ${agentCount} agents`);
   const roster = core.WitnessRoster! as Address;
   const names = ["operator", "witness-a", "panel-1", "panel-2", "panel-3", "panel-4", "panel-5"];
-  const registered: { name: string; address: Address }[] = [];
+  const needed = STAKE + parseEther("0.003");
 
-  for (let i = 0; i < agentCount; i++) {
-    const label = names[i] ?? `agent-${i}`;
-    const fqdn = `${label}.perjury.eth`;
-    // The operator is agent 0 and already funded; the rest get fresh keys.
-    const pk = i === 0 ? opPk : generatePrivateKey();
-    const acct = privateKeyToAccount(pk);
-    if (i > 0) {
-      const fund = await op.sendTransaction({ to: acct.address, value: STAKE + parseEther("0.004") });
-      await pub.waitForTransactionReceipt({ hash: fund });
-      setEnv({ [`AGENT_${i}_PK`]: pk, [`AGENT_${i}_ADDR`]: acct.address });
-    }
-    const w = createWalletClient({ account: acct, chain, transport });
-    const hash = await w.writeContract({
-      address: roster, abi: ROSTER_ABI, functionName: "registerAgent",
-      args: [namehash(fqdn), dnsEncode(fqdn)], value: STAKE,
-    });
+  const agents = await Promise.all(
+    Array.from({ length: agentCount }, async (_, i) => {
+      const fqdn = `${names[i] ?? `agent-${i}`}.perjury.eth`;
+      if (i === 0) return { i, fqdn, pk: opPk, account };
+      const existing = process.env[`AGENT_${i}_PK`] as Hex | undefined;
+      const pk = existing ?? generatePrivateKey();
+      const acct = privateKeyToAccount(pk);
+      if (!existing) setEnv({ [`AGENT_${i}_PK`]: pk, [`AGENT_${i}_ADDR`]: acct.address });
+      return { i, fqdn, pk, account: acct };
+    }),
+  );
+
+  // Fund only what is short, and send those sequentially — they share the
+  // operator's nonce.
+  for (const a of agents.slice(1)) {
+    const bal = await pub.getBalance({ address: a.account.address });
+    if (bal >= needed) continue;
+    const hash = await op.sendTransaction({ to: a.account.address, value: needed - bal });
     await pub.waitForTransactionReceipt({ hash });
-    registered.push({ name: fqdn, address: acct.address });
-    console.log(`  ${fqdn.padEnd(24)} ${acct.address}`);
+    console.log(`  ${"funded".padEnd(24)} ${a.account.address}`);
   }
+
+  // Registrations are independent accounts, so they can all go at once.
+  await Promise.all(
+    agents.map(async (a) => {
+      const w = createWalletClient({ account: a.account, chain, transport });
+      const hash = await w.writeContract({
+        address: roster, abi: ROSTER_ABI, functionName: "registerAgent",
+        args: [namehash(a.fqdn), dnsEncode(a.fqdn)], value: STAKE,
+      });
+      await pub.waitForTransactionReceipt({ hash });
+      console.log(`  ${a.fqdn.padEnd(24)} ${a.account.address}`);
+    }),
+  );
   setEnv({ WITNESS_A_PK: process.env.AGENT_1_PK ?? "", WITNESS_A_ADDR: process.env.AGENT_1_ADDR ?? "" });
 
   // ── 7. Point the CRE workflow at the new sink ────────────────────────────
