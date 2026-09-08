@@ -39,7 +39,7 @@ reject every verdict, and `CRE_REPORT_WRITER` is immutable.
 | T1 | Report sender is a Forwarder, not the owner | same tx — `lastSender` on ScratchSink | Sep 8 |
 | T2 | Bond escrowed → verdict → settled | _pending_ | |
 | T3 | Claim submitted, bond escrowed, VRF requested | [`0xcb2de714…82ceb237`](https://sepolia.etherscan.io/tx/0xcb2de714f0d6339e23c6673db792e0907a96e55ca2c2ad82bf2a389882ceb237) | Sep 8 |
-| T3 | VRF fulfilment → witness assigned | _pending fulfilment_ | |
+| T3 | VRF fulfilment → witness assigned | **blocked** — request pending 30+ min; coordinator serving no requests | Sep 8 |
 | T4 | `perjury.eth` registered direct-to-contract | see above | Sep 8 |
 | T5 | Live guarded Graph read (Aave v3, 0 blocks stale) | no tx — Gateway read | Sep 8 |
 | T4 | EAC: agent self-write **reverts** | _pending_ | |

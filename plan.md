@@ -45,6 +45,11 @@ runs or differs on the live DON. Deploying against a run-specific forwarder recr
 the probe caught. **Open question with Chainlink.**
 
 ### Blocked on
+0. **Sepolia VRF v2.5 not fulfilling.** Claim 1 submitted with a bond, request accepted by the
+   coordinator with correct keyHash/gas/confirmations, unfulfilled after 30+ minutes. A scan of the
+   coordinator over ~200 blocks shows no fulfilments for *any* consumer — the service, not us. Asked
+   in Discord. **Demo consequence:** if this persists, scenes must be pre-run and the state changes
+   filmed, rather than recorded live in one take.
 1. `ANTHROPIC_API_KEY` → the witness/claimant agents (last piece of T5). **Only item you control.**
 2. ENS answers — questions posted Sep 8, awaiting reply → EAC grants, subnames, `prove-eac.ts` shape
 3. Chainlink Forwarder stability — asked in Discord → protocol deploy, then T3 live VRF
