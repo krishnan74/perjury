@@ -51,7 +51,7 @@ contract PerjuryStandingWriter is IStandingWriter {
         bytes32 node = roster.nodeOf(c.claimant);
         bytes memory dnsName = roster.dnsNameOf(c.claimant);
 
-        int256 oldStanding = _parse(resolver.text(node, STANDING_KEY));
+        int256 oldStanding = _readStanding(node, dnsName);
         int256 newStanding = verdict == Verdict.Match ? oldStanding + MATCH_DELTA : oldStanding + MISMATCH_DELTA;
 
         // ENSv2 setText takes the DNS-encoded name; the EAC resource is derived
@@ -60,6 +60,19 @@ contract PerjuryStandingWriter is IStandingWriter {
         if (verdict == Verdict.Mismatch) roster.onMismatch(c.claimant);
 
         emit StandingUpdated(node, oldStanding, newStanding);
+    }
+
+    /// @dev Reads the current standing through ENSIP-10 resolve(). A direct
+    ///      text() call reverts on the Permissioned Resolver, and a revert here
+    ///      would take the whole verdict down with it.
+    function _readStanding(bytes32 node, bytes memory dnsName) internal view returns (int256) {
+        bytes memory inner = abi.encodeWithSignature("text(bytes32,string)", node, STANDING_KEY);
+        (bool ok, bytes memory ret) =
+            address(resolver).staticcall(abi.encodeWithSelector(ITextResolver.resolve.selector, dnsName, inner));
+        if (!ok || ret.length == 0) return 0;
+        bytes memory encoded = abi.decode(ret, (bytes));
+        if (encoded.length == 0) return 0;
+        return _parse(abi.decode(encoded, (string)));
     }
 
     function _parse(string memory s) internal pure returns (int256) {

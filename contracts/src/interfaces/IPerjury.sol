@@ -65,6 +65,8 @@ interface IStandingWriter {
 ///      setName, link, upgrade, or any role-granting function. Note setText
 ///      takes a DNS-encoded name (ENSv2), while reads use a namehash node.
 interface ITextResolver {
-    function text(bytes32 node, string calldata key) external view returns (string memory);
+    /// @dev ENSIP-10. The ENSv2 Permissioned Resolver serves reads only through
+    ///      this — a direct text(bytes32,string) call reverts.
+    function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory);
     function setText(bytes calldata dnsName, string calldata key, string calldata value) external;
 }
