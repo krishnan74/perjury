@@ -98,6 +98,7 @@ contract ClaimRegistry is IClaimRegistry {
     error NotAParty();
     error AppealBondTooSmall();
     error AlreadyAppealed();
+    error PanelSeatedAlready();
 
     constructor(IWitnessRoster roster_, uint64 challengeWindow_, uint64 responseWindow_) {
         roster = roster_;
@@ -277,6 +278,27 @@ contract ClaimRegistry is IClaimRegistry {
         c.verdict = Verdict.Unverifiable;
         c.status = Status.Adjudicated;
         emit ClaimantTimedOut(claimId, c.claimant);
+        _settle(claimId);
+    }
+
+    /// @notice Abandon an appeal whose panel never seated.
+    ///
+    /// A panel draw can fail without emitting anything — if the VRF callback runs
+    /// out of gas the request is marked fulfilled and nothing happens, leaving the
+    /// appeal open and the bond locked. Observed on Sepolia. Permissionless, and
+    /// the appellant is refunded: it did nothing wrong.
+    function timeoutAppeal(uint256 claimId) external {
+        Claim storage c = _claims[claimId];
+        Appeal storage a = _appeals[claimId];
+        if (c.status != Status.UnderAppeal) revert BadStatus();
+        if (!a.open) revert BadStatus();
+        if (a.panel.length > 0) revert PanelSeatedAlready();
+        if (block.timestamp <= challengeDeadline[claimId] + RESPONSE_WINDOW) revert WindowOpen();
+
+        withdrawable[a.appellant] += a.bond;
+        a.open = false;
+        c.status = Status.Adjudicated;
+        emit AppealAbandoned(claimId);
         _settle(claimId);
     }
 

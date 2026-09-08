@@ -133,6 +133,43 @@ contract AppealTest is Base {
         sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Match), bytes32(0)));
     }
 
+    /// @dev Observed on Sepolia: a panel VRF callback ran out of gas, so the
+    ///      request was marked fulfilled and nothing happened — leaving the appeal
+    ///      open and the bond locked with no event to react to.
+    function test_appealWhosePanelNeverSeatsCanBeAbandoned() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        _report(id, Verdict.Mismatch);
+        vm.deal(alice, alice.balance + 0.02 ether);
+        vm.prank(alice);
+        registry.appeal{value: 0.02 ether}(id);
+        // VRF never calls back.
+
+        vm.warp(block.timestamp + registry.CHALLENGE_WINDOW() + registry.RESPONSE_WINDOW() + 1);
+        uint256 before = registry.withdrawable(alice);
+        vm.prank(address(0xBEEF)); // permissionless
+        registry.timeoutAppeal(id);
+
+        assertEq(uint8(registry.claimOf(id).status), uint8(Status.Settled), "claim settles");
+        assertGt(registry.withdrawable(alice), before, "appellant is refunded: it did nothing wrong");
+    }
+
+    function test_cannotAbandonAnAppealWhosePanelDidSeat() public {
+        (uint256 id,) = _appealed(Verdict.Mismatch);
+        vm.warp(block.timestamp + registry.CHALLENGE_WINDOW() + registry.RESPONSE_WINDOW() + 1);
+        vm.expectRevert(ClaimRegistry.PanelSeatedAlready.selector);
+        registry.timeoutAppeal(id);
+    }
+
+    function test_agentCanRecoverItsStakeAndLosesEligibility() public {
+        uint256 staked = roster.stakeOf(bob);
+        uint256 before = bob.balance;
+        vm.prank(bob);
+        roster.withdrawStake();
+        assertEq(bob.balance, before + staked, "stake returned");
+        assertFalse(roster.isEligible(bob), "agent is no longer drawable");
+    }
+
     function test_cannotAppealTwice() public {
         (uint256 id,) = _appealed(Verdict.Mismatch);
         vm.deal(alice, alice.balance + 0.02 ether);

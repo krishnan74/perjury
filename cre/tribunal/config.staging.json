@@ -3,9 +3,9 @@
   "evidenceGatewayUrl": "https://postman-echo.com/post",
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
-  "verdictSinkAddress": "0x70D9723c3342B16421C8390cEF0a84763f959bB5",
+  "verdictSinkAddress": "0x948e1e541064055115709e67d9a1716f94aaEdB3",
   "chainSelector": "16015286601757825753",
   "reportKind": "verdict",
   "claimId": "1",
-  "fixtureWitnessValue": 1000400
+  "fixtureWitnessValue": 400000
 }

@@ -52,6 +52,22 @@ The tribunal now recomputes from raw evidence, so a witness cannot simply state 
 
 ---
 
+### 6. Found by running it: a panel draw can fail silently *(fixed)*
+
+Filing an appeal on Sepolia produced `PanelRequested`, VRF fulfilled, and then **nothing**. No `PanelDrawn`, no `PanelUnavailable`, no state change — the appeal sat open with the bond locked and no event to react to.
+
+Cause: the panel callback does `PANEL_SIZE` roster walks, each roughly the cost of a single assignment, and we had sized the limit at `callbackGasLimit * 2`. It ran out of gas. VRF marks the request fulfilled regardless, so from on-chain state the failure is invisible — the same class of problem as the unpayable request earlier, and the same lesson: a failure you cannot observe is worse than one that reverts.
+
+Two fixes, because sizing alone would have left the underlying fragility:
+- The limit is now `callbackGasLimit * (PANEL_SIZE + 1)`, derived from the measured per-walk cost.
+- `timeoutAppeal` lets anyone abandon an appeal whose panel never seated, refunding the appellant, which did nothing wrong.
+
+### 7. Stakes could not be recovered *(fixed)*
+
+Agents staked to register but had no way out, so every superseded deployment stranded its stakes permanently. `withdrawStake` deregisters and returns the balance; an agent that leaves is no longer drawable.
+
+---
+
 ## Considered and currently acceptable
 
 - **Sybils.** Still linear in the number of identities, but each now costs a 0.05 ETH stake rather than a gas fee. Economic, not cryptographic — stated openly.

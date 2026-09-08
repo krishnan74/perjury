@@ -101,6 +101,7 @@ contract WitnessRoster is IWitnessRoster {
     event AgentFlagged(address indexed agent, uint64 until);
     event AgentSlashed(address indexed agent, uint256 amount, uint256 remainingStake);
     event AgentToppedUp(address indexed agent, uint256 stake);
+    event AgentWithdrew(address indexed agent, uint256 stake);
     event PanelRequested(uint256 indexed claimId, uint256 indexed requestId);
     event PanelDrawn(uint256 indexed claimId, address[] panel);
     event PanelUnavailable(uint256 indexed claimId, uint256 found);
@@ -115,6 +116,7 @@ contract WitnessRoster is IWitnessRoster {
     error NotStandingWriter();
     error StakeTooSmall();
     error NothingStaked();
+    error TransferFailed();
 
     constructor(
         IVRFCoordinator coordinator_,
@@ -235,7 +237,12 @@ contract WitnessRoster is IWitnessRoster {
                 keyHash: keyHash,
                 subId: subId,
                 requestConfirmations: 3,
-                callbackGasLimit: callbackGasLimit * 2, // three walks, not one
+                // A panel does PANEL_SIZE roster walks, each costing roughly what a
+                // single assignment does, plus the registry callback. Sizing this
+                // at 2x was measured-wrong: the callback ran out of gas, VRF
+                // marked the request fulfilled, and the appeal was left open with
+                // no panel and no event.
+                callbackGasLimit: uint32(callbackGasLimit * (PANEL_SIZE + 1)),
                 numWords: 1,
                 extraArgs: VRFV2PlusClient.argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
             })
@@ -347,6 +354,22 @@ contract WitnessRoster is IWitnessRoster {
 
     function stakeOf(address agent) external view returns (uint256) {
         return agents[agent].stake;
+    }
+
+    /// @notice Leave the roster and recover the remaining stake.
+    /// @dev Deregisters first, so an agent cannot withdraw while still drawable.
+    ///      Without this a stake is locked forever, which also strands funds in
+    ///      any superseded deployment.
+    function withdrawStake() external {
+        Agent storage a = agents[msg.sender];
+        if (!a.active) revert NothingStaked();
+        uint256 amount = a.stake;
+        a.stake = 0;
+        a.active = false;
+        nodeTaken[a.ensNode] = false;
+        emit AgentWithdrew(msg.sender, amount);
+        (bool ok,) = msg.sender.call{value: amount}("");
+        if (!ok) revert TransferFailed();
     }
 
     /// @notice Cooldown flag applied on a mismatch. Only the standing writer
