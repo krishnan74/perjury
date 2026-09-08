@@ -363,9 +363,20 @@ This makes the design simpler and strictly stronger than planned: **there is not
 
 | Account | Role | Resource |
 |---|---|---|
-| `PerjuryStandingWriter` | `ROLE_SET_TEXT` (`1 << 4`) | `keccak256("com.perjury.agent-standing")` |
-| `PerjuryStandingWriter` | `ROLE_SET_TEXT` | `keccak256("com.perjury.agent-flagged-until")` |
+| `PerjuryStandingWriter` | `ROLE_SET_TEXT` (`1 << 4`), per-key | `com.perjury.agent-standing` |
+| `PerjuryStandingWriter` | `ROLE_SET_TEXT`, per-key | `com.perjury.agent-flagged-until` |
 | *agents* | **nothing** | — |
+
+**How the narrowing is done.** Grants at resolver initialisation land on the **root resource**, which
+would let the writer touch every text key on that resolver. The ENS team's prescribed sequence, now
+implemented in `scripts/configure-eac.ts`: hold `ROLE_SET_TEXT_ADMIN` at deployment, issue the
+per-key grants in one multicall via `grantSetterRoles(setter, account)` — where the resolver derives
+the resource from the key argument in an encoded `setText` call — revoke the root grant, and finally
+give up the admin role so the permissions can no longer be changed by anyone, us included.
+
+Verified on-chain: the same account writes `com.perjury.agent-standing` successfully and is refused
+`avatar` with `EACUnauthorizedAccountRoles`. "One field and nothing else" is demonstrable, not
+asserted.
 
 The writer receives no `SET_ADDRESS`, `SET_NAME`, `LINK`, `UPGRADE`, `CAN_NAME`, and **no admin role** (`role << 128`), so it cannot re-grant to anyone. `FORBIDDEN_TRIBUNAL_ROLES` in `packages/ens/src/eac.ts` lists what it must never hold, and a test asserts the grant set never intersects it.
 

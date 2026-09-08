@@ -5,7 +5,7 @@
 // from the SETTER ARGUMENT ALONE — "names play no part in resource computation".
 // So a grant of ROLE_SET_TEXT scoped to one text key authorises that key on that
 // resolver, and nothing else.
-import { keccak256, toBytes } from "viem";
+import { encodeFunctionData, keccak256, toBytes } from "viem";
 import { RECORD_KEYS } from "./deployment.js";
 
 /** Permissioned Resolver roles. Each has an admin counterpart at role << 128n. */
@@ -89,6 +89,24 @@ export const FORBIDDEN_AGENT_REGISTRY_ROLES = [
 ] as const;
 
 /**
+ * Encode the "setter" argument for `grantSetterRoles`.
+ *
+ * The resolver derives the resource from the *argument* in this calldata — only
+ * the selector and the key matter, the name and value are ignored. This is what
+ * narrows a grant from "any text record on this resolver" to one specific key.
+ * Confirmed by the ENS team: initialisation grants land on the root resource
+ * only, so per-key scoping has to be applied after deployment.
+ */
+export function setTextSetter(key: string): `0x${string}` {
+  return encodeFunctionData({
+    abi: PERMISSIONED_RESOLVER_ABI,
+    functionName: "setText",
+    // name and value are placeholders; the resolver reads only the key.
+    args: ["0x00", key, ""],
+  });
+}
+
+/**
  * Root-resource grants use the *RootRoles variants. `grantRoles(resource, ...)`
  * reverts for the root resource — verified on-chain against a factory-deployed
  * Permissioned Resolver.
@@ -142,6 +160,23 @@ export const PERMISSIONED_RESOLVER_ABI = [
     ],
     outputs: [{ type: "string" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "grantSetterRoles",
+    inputs: [
+      { name: "setter", type: "bytes" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "multicall",
+    inputs: [{ name: "data", type: "bytes[]" }],
+    outputs: [{ type: "bytes[]" }],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",

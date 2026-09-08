@@ -13,7 +13,10 @@
 import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
-import { PERMISSIONED_RESOLVER_ABI, ROLE, adminOf, withHackathonResolver } from "@perjury/ens";
+import {
+  PERMISSIONED_RESOLVER_ABI, RECORD_KEYS, ROLE, adminOf, setTextSetter, withHackathonResolver,
+} from "@perjury/ens";
+import { encodeFunctionData } from "viem";
 
 const need = (k: string) => { const v = process.env[k]; if (!v) throw new Error(`${k} unset`); return v; };
 const pkRaw = need("OPERATOR_PRIVATE_KEY");
@@ -39,21 +42,56 @@ async function send(label: string, fn: "grantRootRoles" | "revokeRootRoles", rol
   console.log(`  ${label}\n    ${hash}  ${r.status}`);
 }
 
+/**
+ * Narrow the writer's permission from "any text record" to two specific keys.
+ *
+ * Grants at resolver deployment land on the root resource, so the writer would
+ * otherwise be able to write every text key on the resolver — and the claim we
+ * make is that it can write one field and nothing else. The ENS team's
+ * prescribed sequence: hold SET_TEXT_ADMIN at deployment, grant per-key setter
+ * roles in one multicall, then give the admin role up.
+ */
+async function grantPerKey() {
+  const calls = [RECORD_KEYS.standing, RECORD_KEYS.flaggedUntil].map((key) =>
+    encodeFunctionData({
+      abi: PERMISSIONED_RESOLVER_ABI,
+      functionName: "grantSetterRoles",
+      args: [setTextSetter(key), WRITER],
+    }),
+  );
+  const hash = await wallet.writeContract({
+    address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "multicall", args: [calls],
+  });
+  const r = await pub.waitForTransactionReceipt({ hash });
+  console.log(`  grant per-key SET_TEXT -> writer (${calls.length} keys)\n    ${hash}  ${r.status}`);
+}
+
 async function main() {
   console.log(`\nresolver: ${RESOLVER}`);
   console.log(`writer:   ${WRITER}`);
   console.log(`operator: ${account.address}\n`);
 
-  await send("grant SET_TEXT -> standing writer", "grantRootRoles", ROLE.SET_TEXT, WRITER);
+  // Scoped to exactly the two reputation keys — not the whole resolver.
+  await grantPerKey();
 
-  // The operator keeps SET_TEXT_ADMIN so roles remain administrable, but loses
-  // the ability to write records itself. Reputation stops being something a
-  // human key can touch.
+  // Remove the resolver-wide grant, so the only permission the writer holds is
+  // the per-key one just issued.
+  await send("revoke root SET_TEXT <- writer", "revokeRootRoles", ROLE.SET_TEXT, WRITER);
+
+  // The operator loses the ability to write records itself. Reputation stops
+  // being something a human key can touch.
   await send("revoke SET_TEXT <- operator", "revokeRootRoles", ROLE.SET_TEXT, account.address);
+
+  // Final step, run with --lock once the writer address is settled: the deployer
+  // gives up the admin role, after which nobody can change these permissions —
+  // including us. Irreversible, so it waits until no further redeploy is coming.
+  if (process.argv.includes("--lock")) {
+    await send("revoke SET_TEXT_ADMIN <- operator (irreversible)", "revokeRootRoles", adminOf(ROLE.SET_TEXT), account.address);
+  }
 
   console.log("\nverifying:");
   for (const [label, who, role, expected] of [
-    ["writer holds SET_TEXT", WRITER, ROLE.SET_TEXT, true],
+    ["writer holds root SET_TEXT (must be false — per-key only)", WRITER, ROLE.SET_TEXT, false],
     ["operator holds SET_TEXT", account.address, ROLE.SET_TEXT, false],
     ["writer holds SET_TEXT_ADMIN", WRITER, adminOf(ROLE.SET_TEXT), false],
     ["writer holds SET_ADDRESS", WRITER, ROLE.SET_ADDRESS, false],

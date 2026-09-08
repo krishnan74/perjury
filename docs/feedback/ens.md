@@ -61,14 +61,36 @@ We wrote a contract that reads a text record directly, which is the obvious shap
 
 **Suggestion.** State on the Permissioned Resolver page that reads are served via `resolve()` and that direct `text()` calls revert, with a short contract-to-contract read example. The write path (`setText`, DNS-encoded name) is documented; the read path is the half a contract integrator actually needs first, and the asymmetry between them is genuinely surprising.
 
-## 7. Answered, and worth writing down
+## 7. Per-key scoping works, but is undiscoverable from the docs — and has no obvious inverse
+
+Deployment-time grants land on the root resource, so a writer granted `ROLE_SET_TEXT` at
+initialisation can write *every* text key on that resolver. For us that mattered: the entire claim is
+that our tribunal can write one field and nothing else.
+
+The ENS team supplied the pattern immediately — hold `ROLE_SET_TEXT_ADMIN` at init, then one
+multicall of `grantSetterRoles("setText call with key X", writer)`, then
+`revokeRootRoles(ROLE_SET_TEXT_ADMIN, deployer)`. It works exactly as described, and we verified it
+on-chain: the same account writes `com.perjury.agent-standing` successfully and is refused `avatar`.
+
+Two things would have saved us the round trip:
+
+- **The pattern deserves to be a documented recipe.** "Grant narrowly to a contract, then give up the
+  ability to change it" is likely to be what most people building on EAC actually want, and it is not
+  derivable from the reference pages — `grantSetterRoles` is documented, but not that init grants are
+  root-only, so nothing signals that the extra step is necessary.
+- **We could not find the inverse.** `revokeSetterRoles(setter, account)` reverts, and
+  `revokeRoles(keccak256(key), roleBitmap, account)` reverts as well, so we could not undo a
+  setter-scoped grant issued during testing. A permission that can be added but not removed is a
+  sharp edge worth documenting, if it is intended.
+
+## 8. Answered, and worth writing down
 
 Two questions we couldn't answer from the docs, both answered quickly in the channel:
 
 - **Unauthorized `setText` reverts** with `EACUnauthorizedAccountRoles`. It does not silently no-op. This determines how anyone writes tests and demos against EAC, and belongs in the resolver docs.
 - **A contract can hold EAC roles exactly as an EOA can.** Obvious in hindsight, but the whole write path of any protocol-controlled record depends on it, and it isn't stated.
 
-## 8. The registration app blocked teams, and the channel was the only signal
+## 9. The registration app blocked teams, and the channel was the only signal
 
 We did **not** hit this ourselves — but only because we read the channel first. Multiple teams reported the "Deploy resolver" step failing with `gas limit too high (cap: 16777216, tx: 21000000)` across three separate RPC providers, plus a malformed `initialize` payload. Registration is the very first thing any project does, so absent that warning we would have spent hours there before suspecting the app rather than our own setup.
 
@@ -76,7 +98,7 @@ The team's response was fast and correct — the app is a convenience layer, reg
 
 **Suggestion.** When a known-broken path exists during an event, a banner in the app saying "resolver deploy is currently failing, register directly against the contracts — see docs" would reach every team rather than the ones reading the channel at the right moment. A hardcoded 21M gas limit above what most providers accept is also worth a fix regardless.
 
-## 9. Hackathon deployment domains trip wallet warnings
+## 10. Hackathon deployment domains trip wallet warnings
 
 The deployment is served from `*.workers.dev` and `*.pages.dev`, and MetaMask flagged the app domain as potentially malicious when we went to open it. Very likely a domain-reputation false positive on the shared subdomain rather than anything wrong with the deployment — but it is hard to verify independently, and it made us stop before connecting a wallet.
 
