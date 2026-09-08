@@ -22,8 +22,6 @@ const pk = (pkRaw.startsWith("0x") ? pkRaw : `0x${pkRaw}`) as Hex;
 const RESOLVER = need("PERJURY_RESOLVER_ADDRESS") as Address;
 const WRITER = need("STANDING_WRITER_ADDRESS") as Address;
 
-/** Grants at deployment land on ROOT_RESOURCE, so roles are resolver-wide. */
-const ROOT: Hex = `0x${"00".repeat(32)}`;
 
 const chain = withHackathonResolver(sepolia);
 const transport = http(process.env.SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com");
@@ -31,9 +29,11 @@ const account = privateKeyToAccount(pk);
 const pub = createPublicClient({ chain, transport });
 const wallet = createWalletClient({ account, chain, transport });
 
-async function send(label: string, fn: "grantRoles" | "revokeRoles", role: bigint, who: Address) {
+// Root-resource roles use the *RootRoles variants; grantRoles(resource, ...)
+// reverts for the root resource.
+async function send(label: string, fn: "grantRootRoles" | "revokeRootRoles", role: bigint, who: Address) {
   const hash = await wallet.writeContract({
-    address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: fn, args: [ROOT, role, who],
+    address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: fn, args: [role, who],
   });
   const r = await pub.waitForTransactionReceipt({ hash });
   console.log(`  ${label}\n    ${hash}  ${r.status}`);
@@ -44,12 +44,12 @@ async function main() {
   console.log(`writer:   ${WRITER}`);
   console.log(`operator: ${account.address}\n`);
 
-  await send("grant SET_TEXT -> standing writer", "grantRoles", ROLE.SET_TEXT, WRITER);
+  await send("grant SET_TEXT -> standing writer", "grantRootRoles", ROLE.SET_TEXT, WRITER);
 
   // The operator keeps SET_TEXT_ADMIN so roles remain administrable, but loses
   // the ability to write records itself. Reputation stops being something a
   // human key can touch.
-  await send("revoke SET_TEXT <- operator", "revokeRoles", ROLE.SET_TEXT, account.address);
+  await send("revoke SET_TEXT <- operator", "revokeRootRoles", ROLE.SET_TEXT, account.address);
 
   console.log("\nverifying:");
   for (const [label, who, role, expected] of [
@@ -59,8 +59,8 @@ async function main() {
     ["writer holds SET_ADDRESS", WRITER, ROLE.SET_ADDRESS, false],
   ] as const) {
     const has = await pub.readContract({
-      address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "hasRoles",
-      args: [ROOT, role, who as Address],
+      address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "hasRootRoles",
+      args: [role, who as Address],
     });
     const ok = has === expected;
     console.log(`  ${ok ? "PASS" : "FAIL"}  ${label} = ${has} (want ${expected})`);

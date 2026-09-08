@@ -88,6 +88,13 @@ export const FORBIDDEN_AGENT_REGISTRY_ROLES = [
   { name: "UPGRADE", role: REGISTRY_ROLE.UPGRADE },
 ] as const;
 
+/**
+ * Root-resource grants use the *RootRoles variants. `grantRoles(resource, ...)`
+ * reverts for the root resource — verified on-chain against a factory-deployed
+ * Permissioned Resolver.
+ */
+export const ROOT_RESOURCE = `0x${"00".repeat(32)}` as const;
+
 /** Error selector when a caller lacks the role. Confirmed: setText REVERTS. */
 export const EAC_UNAUTHORIZED_ERROR = "EACUnauthorizedAccountRoles";
 
@@ -134,6 +141,36 @@ export const PERMISSIONED_RESOLVER_ABI = [
       { name: "key", type: "string" },
     ],
     outputs: [{ type: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "grantRootRoles",
+    inputs: [
+      { name: "roleBitmap", type: "uint256" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "revokeRootRoles",
+    inputs: [
+      { name: "roleBitmap", type: "uint256" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "hasRootRoles",
+    inputs: [
+      { name: "roleBitmap", type: "uint256" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
     stateMutability: "view",
   },
   {
