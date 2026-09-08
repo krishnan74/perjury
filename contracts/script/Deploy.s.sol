@@ -15,7 +15,7 @@ contract Deploy is Script {
         // VRF v2.5 Sepolia. Values from the Chainlink docs / your subscription.
         address vrfCoordinator = vm.envAddress("VRF_COORDINATOR");
         bytes32 keyHash = vm.envBytes32("VRF_KEY_HASH");
-        uint64 subId = uint64(vm.envUint("VRF_SUBSCRIPTION_ID"));
+        uint256 subId = vm.envUint("VRF_SUBSCRIPTION_ID");
         uint32 callbackGasLimit = uint32(vm.envOr("VRF_CALLBACK_GAS_LIMIT", uint256(500_000)));
 
         // ENSv2 hackathon deployment — NOT production ENS.

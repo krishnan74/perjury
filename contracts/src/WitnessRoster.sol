@@ -4,8 +4,31 @@ pragma solidity 0.8.26;
 
 import {IClaimRegistry, IWitnessRoster, IStandingReader} from "./interfaces/IPerjury.sol";
 
+/// @dev Chainlink VRF v2.5. Subscription ids are uint256 and the request is a
+///      struct — the v2 positional form does not exist on the v2.5 coordinator.
+library VRFV2PlusClient {
+    bytes4 public constant EXTRA_ARGS_V1_TAG = bytes4(keccak256("VRF ExtraArgsV1"));
+
+    struct ExtraArgsV1 {
+        bool nativePayment;
+    }
+
+    struct RandomWordsRequest {
+        bytes32 keyHash;
+        uint256 subId;
+        uint16 requestConfirmations;
+        uint32 callbackGasLimit;
+        uint32 numWords;
+        bytes extraArgs;
+    }
+
+    function argsToBytes(ExtraArgsV1 memory args) internal pure returns (bytes memory) {
+        return abi.encodePacked(EXTRA_ARGS_V1_TAG, abi.encode(args));
+    }
+}
+
 interface IVRFCoordinator {
-    function requestRandomWords(bytes32 keyHash, uint64 subId, uint16 confirmations, uint32 gasLimit, uint32 numWords)
+    function requestRandomWords(VRFV2PlusClient.RandomWordsRequest calldata req)
         external
         returns (uint256 requestId);
 }
@@ -30,7 +53,7 @@ contract WitnessRoster is IWitnessRoster {
     IVRFCoordinator public immutable coordinator;
     IStandingReader public immutable standingReader;
     bytes32 public immutable keyHash;
-    uint64 public immutable subId;
+    uint256 public immutable subId;
     uint32 public immutable callbackGasLimit;
 
     IClaimRegistry public registry;
@@ -69,7 +92,7 @@ contract WitnessRoster is IWitnessRoster {
         IVRFCoordinator coordinator_,
         IStandingReader standingReader_,
         bytes32 keyHash_,
-        uint64 subId_,
+        uint256 subId_,
         uint32 callbackGasLimit_
     ) {
         coordinator = coordinator_;
@@ -138,7 +161,17 @@ contract WitnessRoster is IWitnessRoster {
 
     function requestWitness(uint256 claimId, address claimant) external returns (uint256 requestId) {
         if (msg.sender != address(registry)) revert NotRegistry();
-        requestId = coordinator.requestRandomWords(keyHash, subId, 3, callbackGasLimit, 1);
+        requestId = coordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: subId,
+                requestConfirmations: 3,
+                callbackGasLimit: callbackGasLimit,
+                numWords: 1,
+                // LINK payment; set nativePayment true to pay in ETH instead.
+                extraArgs: VRFV2PlusClient.argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+            })
+        );
         requests[requestId] = Request({claimId: claimId, claimant: claimant, pending: true});
         emit WitnessRequested(claimId, requestId);
     }

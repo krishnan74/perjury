@@ -10,10 +10,11 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | _pending_ | | |
-| `WitnessRoster` | _pending_ | | |
-| `VerdictSink` | _pending_ | | |
-| `PerjuryStandingWriter` | _pending_ | | |
+| `ClaimRegistry` | `0x2e36eA21cFf463095dE7E24d7a6F540b9F41a0e3` | deployed | Sep 8 |
+| `WitnessRoster` | `0xebC374Bf77dA3ca15e0A2A35Ec610638A684c867` | deployed + VRF consumer | Sep 8 |
+| `PerjuryStandingWriter` | `0xF2928c22Bb3951E891f76D166EbD1102f4888e9d` | deployed | Sep 8 |
+| `ENSTextStandingReader` | `0x5bBd6E1D6F361F044cF8799F990c05681D3A80c5` | deployed | Sep 8 |
+| `VerdictSink` | _deferred_ | waiting on Forwarder-stability answer — `CRE_REPORT_WRITER` is immutable | |
 
 **CRE report writer** (the only address `VerdictSink` accepts):
 `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a
@@ -37,7 +38,8 @@ reject every verdict, and `CRE_REPORT_WRITER` is immutable.
 | T1 | TEE handler → real Sepolia tx | [`0xbd50a73c…6ac4721d`](https://sepolia.etherscan.io/tx/0xbd50a73caf76f55092aa19614def76173a87c81a347f2c719a72a1fa6ac4721d) | Sep 8 |
 | T1 | Report sender is a Forwarder, not the owner | same tx — `lastSender` on ScratchSink | Sep 8 |
 | T2 | Bond escrowed → verdict → settled | _pending_ | |
-| T3 | VRF request + fulfilment; witness assigned | _pending_ | |
+| T3 | Claim submitted, bond escrowed, VRF requested | [`0xcb2de714…82ceb237`](https://sepolia.etherscan.io/tx/0xcb2de714f0d6339e23c6673db792e0907a96e55ca2c2ad82bf2a389882ceb237) | Sep 8 |
+| T3 | VRF fulfilment → witness assigned | _pending fulfilment_ | |
 | T4 | `perjury.eth` registered direct-to-contract | see above | Sep 8 |
 | T5 | Live guarded Graph read (Aave v3, 0 blocks stale) | no tx — Gateway read | Sep 8 |
 | T4 | EAC: agent self-write **reverts** | _pending_ | |

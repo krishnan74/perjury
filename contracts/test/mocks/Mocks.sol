@@ -3,7 +3,7 @@
 pragma solidity 0.8.26;
 
 import {ITextResolver} from "../../src/interfaces/IPerjury.sol";
-import {IVRFCoordinator} from "../../src/WitnessRoster.sol";
+import {IVRFCoordinator, VRFV2PlusClient} from "../../src/WitnessRoster.sol";
 
 /// @dev Stands in for the Chainlink VRF coordinator. Fulfilment is manual so
 ///      tests can drive an exact seed.
@@ -15,7 +15,7 @@ contract MockVRFCoordinator is IVRFCoordinator {
         consumer = c;
     }
 
-    function requestRandomWords(bytes32, uint64, uint16, uint32, uint32) external returns (uint256) {
+    function requestRandomWords(VRFV2PlusClient.RandomWordsRequest calldata) external returns (uint256) {
         return nextRequestId++;
     }
 

@@ -50,6 +50,11 @@ npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
 | Operator | `0xDcbe075a907960951Cd4df379BB21461097eEa91` |
 | `perjury.eth` | registered, ENSv2 hackathon deployment |
 | `ScratchSink` (probe) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` |
+| `ClaimRegistry` | `0x2e36eA21cFf463095dE7E24d7a6F540b9F41a0e3` |
+| `WitnessRoster` | `0xebC374Bf77dA3ca15e0A2A35Ec610638A684c867` (VRF consumer) |
+| `PerjuryStandingWriter` | `0xF2928c22Bb3951E891f76D166EbD1102f4888e9d` |
+| `ENSTextStandingReader` | `0x5bBd6E1D6F361F044cF8799F990c05681D3A80c5` |
+| `VerdictSink` | **not deployed** — waiting on Forwarder answer |
 | CRE report writer | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — a **Forwarder**, measured |
 | VRF subscription | 10 LINK, owner = operator, 0 consumers |
 
@@ -67,6 +72,12 @@ npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
   synchronous. `btoa` does not exist in the WASM runtime — use `hexToBase64(toHex(...))`.
 - **`EVMClient` takes a bigint CCIP chain selector**, not a chain name.
 - MockUSDC has a public `mint(address,uint256)` — no faucet or app needed.
+- **VRF v2.5 uses `uint256` subscription ids and a struct request**, not v2's `uint64` + positional
+  args. Sepolia coordinator `0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B`, keyHash
+  `0x787d74ca…3677ae` (500 gwei, the only lane).
+- **Always deploy with `forge script --slow`.** A parallel broadcast hit an RPC in-flight limit,
+  half the contracts silently didn't deploy, and the one-time `wireRegistry` then locked a roster to
+  a codeless address permanently. `DeployCore.s.sol` now requires `code.length > 0` before wiring.
 
 ## Layout
 
