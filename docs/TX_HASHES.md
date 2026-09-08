@@ -9,10 +9,11 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0xa16613689Ff8df7779FDA80b90BB865F0C52F874` | deployed | Sep 8 |
-| `WitnessRoster` | `0x84120516A22af6C3557bF80BAbAAd4ff4a86E309` | deployed + VRF consumer, callbackGasLimit 150k | Sep 8 |
-| `PerjuryStandingWriter` | `0xBCe0bcFEE2E5b7506d76D76529b1642980B8eE61` | deployed | Sep 8 |
-| `ENSTextStandingReader` | `0xdE16F3E3c600240bd1bd752d07Af69A2286C7F9E` | deployed | Sep 8 |
+| `ClaimRegistry` | `0x938549E816a30d9D3b345D90DAB413f193f24e41` | deployed | Sep 8 |
+| `WitnessRoster` | `0xDeDc3a1Ba4ed5361aa81B4B9b2882b6514eFf160` | deployed, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0x320879d180A30d7DA7A5f27D66F7475953492D3C` | deployed, holds ENS SET_TEXT | Sep 8 |
+| `ENSTextStandingReader` | `0x26490899aAA8aA73e075A6F39e6059c94D9a15cE` | deployed | Sep 8 |
+| `PerjuryResolver` (ENSv2 Permissioned) | `0x033ee97dde610f134a746f986fa60c54588a0a45` | deployed, EAC configured | Sep 8 |
 | `VerdictSink` | _deferred_ | waiting on Forwarder-stability answer — `CRE_REPORT_WRITER` is immutable | |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
@@ -37,7 +38,10 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | T3 | Re-verified at 150k callbackGasLimit, assigned in ~100s | new roster `0x8412…E309` | Sep 8 |
 | T4 | `perjury.eth` registered direct-to-contract | see above | Sep 8 |
 | T5 | Live guarded Graph read (Aave v3, 0 blocks stale) | no tx — Gateway read | Sep 8 |
-| T4 | EAC: agent self-write **reverts** | _pending_ | |
+| T4 | Permissioned Resolver deployed via VerifiableFactory | `0x033ee97dde610f134a746f986fa60c54588a0a45` | Sep 8 |
+| T4 | EAC: grant SET_TEXT → standing writer | [`0xf64174e9…48eb09bf`](https://sepolia.etherscan.io/tx/0xf64174e9da79b11d8aa99dbcb22c800ad3d34b7db9cb702cd2333ca748eb09bf) | Sep 8 |
+| T4 | EAC: **revoke SET_TEXT ← operator** | [`0x99841f50…1dd27635`](https://sepolia.etherscan.io/tx/0x99841f50b55e45a3bb4d59f1c4f9edff7d690649f074cd34e8cf1d511dd27635) | Sep 8 |
+| T4 | EAC: operator write **reverts** ✅ | `EACUnauthorizedAccountRoles(resource, 16, 0xDcbe…eA91)` — the deployer, name owner and role admin still cannot write reputation | Sep 8 |
 | T4 | EAC: operator write **reverts** | _pending_ | |
 | T4 | EAC: tribunal write **succeeds** | _pending_ | |
 
