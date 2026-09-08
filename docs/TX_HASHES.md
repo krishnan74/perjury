@@ -6,15 +6,17 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 
 ## Deployed contracts
 
+Addresses below are the **final** deployment — the one the three demo scenes ran against. Earlier deploys were superseded when `ClaimRegistry` split settlement out of `recordPanelVerdict`; every contract here is immutable, so a change means a redeploy.
+
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0xf0DF23897BFc4b9A9b76ab9f6737cCe3E20Ee2E4` | deployed | Sep 8 |
-| `WitnessRoster` | `0x6c2e1DDEb4dd35990136880eC362AFB46fbd044f` | deployed, callbackGasLimit 150k | Sep 8 |
-| `PerjuryStandingWriter` | `0x13FF77218C76e8DA972DF7bA3B9079dDe300D162` | deployed, holds ENS SET_TEXT | Sep 8 |
-| `ENSTextStandingReader` | `0x1A71eEcdB679632C5a241F2f5466d434e1759FC5` | deployed | Sep 8 |
-| `PerjuryResolver` (ENSv2 Permissioned) | `0xe2f6562f45f69e2849fedc31371195f2247223ad` | deployed, EAC configured | Sep 8 |
-| `VerdictSink` | `0x70D9723c3342B16421C8390cEF0a84763f959bB5` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
+| `ClaimRegistry` | `0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0` | deployed | Sep 8 |
+| `WitnessRoster` | `0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E` | deployed, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0x0573F58500aF260117B5E4782e1b1832c06Afba1` | deployed, holds ENS SET_TEXT | Sep 8 |
+| `ENSTextStandingReader` | `0xe8c5e05c478414f576558a26616D56b4929671a0` | deployed | Sep 8 |
+| `PerjuryResolver` (ENSv2 Permissioned) | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` | deployed, EAC configured | Sep 8 |
+| `VerdictSink` | `0x4E1c9EccdcF3329CB80CD94A0268925D792AF015` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
 
@@ -98,33 +100,48 @@ Bonded claim → VRF-assigned witness → CRE tribunal → verdict on-chain → 
 The operator that deployed every contract, owns `perjury.eth` and holds the role admin still cannot write that record — `EACUnauthorizedAccountRoles`.
 
 ### Scene 1 — true claim, challenged anyway
-| Step | Tx hash |
-|---|---|
-| Claim submitted + bond escrowed | |
-| VRF request | |
-| VRF fulfilment → witness assigned | |
-| Verdict written (`Match`) | |
-| Bond returned | |
-| ENS standing raised | |
 
-### Scene 2 — false claim
-| Step | Tx hash |
+Claim 1 · claimant `operator.perjury.eth` · run Sep 8, 3m46s end to end. The claimant asserted Aave v3 utilization of 40.43%; the drawn witness independently re-derived 40.43% from the live Gateway.
+
+| Step | Tx |
 |---|---|
-| Claim submitted + bond escrowed | |
-| VRF request | |
-| VRF fulfilment → witness assigned | |
-| Verdict written (`Mismatch`) | |
-| Bond forfeited to witness | |
-| ENS standing dropped | |
-| **New claim: flagged agent excluded from assignment** | |
+| Claim submitted + bond escrowed (0.012 ETH = 0.01 bond + 0.002 witness fee) | [`0xf13d3ce4…d6969c70`](https://sepolia.etherscan.io/tx/0xf13d3ce4168cf23115de636e25270d4f177ce68e7eb052cfde6bdc9cd6969c70) |
+| VRF request (same tx) | `WitnessRequested` |
+| VRF fulfilment → witness `panel-3.perjury.eth` assigned | [`0x99c8504d…e2daac2b`](https://sepolia.etherscan.io/tx/0x99c8504d74aabae2e6cc2dad3e51a527ac250df3405cc831992ed5a3e2daac2b) |
+| Verdict written (`Match`) by the CRE Forwarder | [`0x69b05552…8c673a50`](https://sepolia.etherscan.io/tx/0x69b05552ed4f573fcf100a44407fcded922b4d9aa5302f8073c0930b8c673a50) |
+| Settled — bond returned, witness fee paid, ENS standing 1 → 2 | [`0x6e930d96…039f742c`](https://sepolia.etherscan.io/tx/0x6e930d965125f67b165cd85369dea61ad4aaa2af0cab0afaeb28a61c039f742c) |
+
+The witness is paid its fee on **every** verdict, `Match` included — the fee cannot be a reward for finding fault.
+
+### Scene 2 — false claim, appealed, upheld
+
+Claim 2 · claimant `panel-1.perjury.eth` · run Sep 8, 6m46s end to end. The claimant asserted 64.70%; the drawn witness re-derived 40.43%. The claimant then appealed and lost.
+
+| Step | Tx |
+|---|---|
+| Claim submitted + bond escrowed | [`0xf06fa188…8d738f06`](https://sepolia.etherscan.io/tx/0xf06fa18807cd39a5273ba716834e530e669199dbbb1311de5c20a3f88d738f06) |
+| VRF fulfilment → witness `panel-2.perjury.eth` assigned | [`0xa44f1175…5280a35f`](https://sepolia.etherscan.io/tx/0xa44f1175557af6c04415b173cd647b26c109a1a8e13238a8dc0eb9815280a35f) |
+| Verdict written (`Mismatch`) | [`0x08bd04a4…fd363aa3`](https://sepolia.etherscan.io/tx/0x08bd04a4c4e04dd2e0920f7170e6cbf94a201558ff9d38d0ee1e40f6fd363aa3) |
+| Claimant appeals, posts 0.02 ETH appeal bond, second VRF request | [`0xae250d77…04c85a02`](https://sepolia.etherscan.io/tx/0xae250d77928732263ef79654060f3e6c0b6da57016540312fb5ec78604c85a02) |
+| VRF fulfilment → panel of 3 seated, excluding both parties | [`0x5bfbc222…c75956a0`](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0) |
+| Panel upholds `Mismatch` | [`0xd86effaf…bfe6f2e2`](https://sepolia.etherscan.io/tx/0xd86effaf3a706f80df7c91e4e3404ca985a4921d72540ec87ed7d6e9bfe6f2e2) |
+| Settled — bond + appeal bond forfeited, stake 0.01 → 0, ENS standing 0 → −3 | [`0x8e9cd2b3…d43486fe`](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
+
+Panel seats drawn: `operator.perjury.eth`, `panel-3.perjury.eth`, `witness-a.perjury.eth` — neither the claimant nor the original witness. The forfeited 0.03 ETH is payable to **nobody**: paying it to the witness is what would make fabricating disagreement profitable.
+
+**Exclusion, proven in the next block:** the roster snapshot taken immediately after settlement shows `panel-1.perjury.eth` at standing −3 and `eligible: no`, with zero manual steps between the verdict and the exclusion.
 
 ### Scene 3 — collusion throttle
-| Attempt | Claim id | Assigned witness | VRF fulfilment tx |
-|---|---|---|---|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
-| 5 | | | |
 
-Colluding pair paired: _n_ of 5 — the residual 1/n risk, shown rather than described.
+Claims 3–6 · claimant `panel-2.perjury.eth`, accomplice `witness-a.perjury.eth` · run Sep 8. Four claims submitted with no witness parameter — `submitClaim` has no code path to request one.
+
+| Round | Claim | Witness actually drawn | VRF fulfilment tx |
+|---|---|---|---|
+| 1 | 3 | `operator.perjury.eth` | [`0x5ec8a2f9…546de525`](https://sepolia.etherscan.io/tx/0x5ec8a2f9eb36e776cdf548ab680312cb309838652cad4ba4eccd09fe546de525) |
+| 2 | 4 | `panel-3.perjury.eth` | [`0x115013c0…a5021711`](https://sepolia.etherscan.io/tx/0x115013c078c24f20a5a1d3625c5986644bd48a8dded135ade98c1ed5a5021711) |
+| 3 | 5 | `witness-a.perjury.eth` ← **the accomplice** | [`0x7dee833a…b21b1a76`](https://sepolia.etherscan.io/tx/0x7dee833aed69f35d79aa97df0415da285774fe47ef85942585871befb21b1a76) |
+| 4 | 6 | `witness-a.perjury.eth` ← **the accomplice** | [`0x34da6b87…e4162ab5`](https://sepolia.etherscan.io/tx/0x34da6b874112916bbc06ea60e05121c27f1e2270673edb0d71ca14c9e4162ab5) |
+
+Colluding pair paired: **2 of 4**, against an expected 1 in 3 — scene 2 had just slashed `panel-1`, leaving only three eligible witnesses. This is the residual risk shown rather than described: random assignment closes *deliberate* collusion, because the pair cannot arrange to be matched, but it does not drive the pairing rate to zero. Four rounds is far too small a sample to read as a rate; `contracts/test/Assignment.t.sol` fuzzes the distribution properly and asserts the residual risk is real.
+
+**Reproducing this table:** `npx tsx scripts/collect-evidence.ts` rebuilds it from Sepolia logs. The scene scripts print truncated hashes for readability, so the ledger is read back from chain rather than transcribed.
