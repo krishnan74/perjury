@@ -107,6 +107,7 @@ contract AppealTest is Base {
 
         vm.prank(CRE);
         sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Match), bytes32(0)));
+        registry.finalize(id); // settlement is separate, so the report stays cheap
 
         assertEq(uint8(registry.claimOf(id).verdict), uint8(Verdict.Match), "panel verdict stands");
         assertLt(roster.stakeOf(witness), witnessStakeBefore, "contradicted witness is slashed");
@@ -120,10 +121,22 @@ contract AppealTest is Base {
 
         vm.prank(CRE);
         sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Mismatch), bytes32(0)));
+        registry.finalize(id);
 
         assertEq(
             registry.forfeited(), forfeitedBefore + 0.02 ether + BOND, "appeal bond and claim bond forfeited"
         );
+    }
+
+    /// @dev A panel report must stay cheap enough for the Forwarder's gas
+    ///      allowance: it records, it does not settle.
+    function test_panelReportRecordsButDoesNotSettle() public {
+        (uint256 id,) = _appealed(Verdict.Mismatch);
+        vm.prank(CRE);
+        sink.onReport("", abi.encode(uint8(1), id, uint8(Verdict.Mismatch), bytes32(0)));
+        assertEq(uint8(registry.claimOf(id).status), uint8(Status.Adjudicated), "recorded, not settled");
+        registry.finalize(id);
+        assertEq(uint8(registry.claimOf(id).status), uint8(Status.Settled));
     }
 
     function test_panelVerdictFromNonTribunalReverts() public {

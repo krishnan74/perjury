@@ -243,7 +243,12 @@ contract ClaimRegistry is IClaimRegistry {
             forfeited += a.bond;
             emit PanelUpheld(claimId, panelVerdict);
         }
-        _settle(claimId);
+
+        // Deliberately does NOT settle here. A report arrives through a Chainlink
+        // Forwarder, which allots limited gas and swallows a revert in the
+        // receiver — settling inline (an ENS write plus a slash) exceeded it, and
+        // the failure was invisible on-chain. Settlement is a separate,
+        // permissionless finalize(), exactly as it already is for a first verdict.
     }
 
     /// @notice Replace a witness that never produced a finding.
@@ -308,7 +313,10 @@ contract ClaimRegistry is IClaimRegistry {
     function finalize(uint256 claimId) external {
         Claim storage c = _claims[claimId];
         if (c.status != Status.Adjudicated) revert BadStatus();
-        if (block.timestamp <= challengeDeadline[claimId]) revert WindowOpen();
+        // A claim that has been through an appeal does not wait again — the
+        // appeal was the challenge, and escalation is capped at one round.
+        bool appealResolved = _appeals[claimId].appellant != address(0) && !_appeals[claimId].open;
+        if (!appealResolved && block.timestamp <= challengeDeadline[claimId]) revert WindowOpen();
         _settle(claimId);
     }
 

@@ -45,6 +45,8 @@ for (let i = 1; i <= count; i++) {
   });
   const r = await pub.waitForTransactionReceipt({ hash });
   console.log(`  ${name}  ${account.address}  ${r.status}`);
-  appendFileSync(".env", `\nPANEL_${i}_PK=${pk}\nPANEL_${i}_ADDR=${account.address}`);
+  // Trailing newline matters: without it the next append concatenates onto
+  // this line and silently corrupts the following variable.
+  appendFileSync(".env", `PANEL_${i}_PK=${pk}\nPANEL_${i}_ADDR=${account.address}\n`);
 }
 console.log("\npanel agents registered and staked");
