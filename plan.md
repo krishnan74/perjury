@@ -216,6 +216,26 @@ Renders from chain + Graph reads only. Never a place where behavior gets faked f
 
 ---
 
+## T9 — Mechanism hardening *(before the dashboard)*
+
+From [docs/threat-audit.md](docs/threat-audit.md). A loophole-free mechanism matters more than visualisation, so this precedes T6.
+
+**Closed already ([ADR 0007](docs/decisions.md)):**
+- [x] Witness earned the whole bond on Mismatch and staked nothing — dishonest disagreement was its dominant strategy. Now: flat fee regardless of verdict, forfeited bond held by the protocol and payable to nobody.
+- [x] Tribunal judged on stated conclusions. Now recomputes each side's value from its own raw evidence; a conclusion its evidence does not reproduce returns `Unverifiable`.
+- [x] Agents staked nothing. Now 0.05 ETH at registration, slashable, and gating eligibility — which also makes sybil resistance economic rather than rhetorical.
+
+**Open:**
+- [ ] **Appeal layer.** A witness can still fabricate evidence that internally reproduces a false conclusion. Draw a VRF panel, majority stands, slash the contradicted party. *In progress.*
+- [ ] **Timeouts — severe.** No deadline exists anywhere. A witness that does nothing locks the claimant's bond forever, costs itself nothing, and is indistinguishable from being slow. Add response deadlines both ways; slash non-response.
+- [ ] **Eligibility on submit.** `submitClaim` checks `isRegistered`, not `isEligible`, so an agent slashed to zero can keep claiming with no collateral left.
+- [ ] **Reputation reads fail open.** `standingOfName` returns 0 on any failure and `MIN_STANDING` is 0, so an unreadable record reads as eligible and a resolver outage erases negative standing. Distinguish "absent" from "unreadable"; treat unreadable as ineligible.
+- [ ] **Block-skew tolerance.** `adjudicate` ignores `asOfBlock`, so two honest parties reading blocks apart on a volatile metric produce a Mismatch and the claimant is slashed for being truthful. Reject when the block gap is too wide.
+- [ ] **Model diversity** (from Immunity). Require claimant and witness to run different model families, so correlated honest error becomes materially less likely. Converts a disclosed limitation into a partial mitigation. `LlmClient` already abstracts the backend.
+- [ ] **K-of-N corroboration** (from Immunity) — optional. A single witness decides an outcome today; requiring K agreeing findings for high-value claims would remove that.
+
+**Borrowed from finalists:** Immunity uses different model families as judges and bonds both sides; ENShell validates the CRE-only ENS write pattern; KOLlateral is a reminder that where ground truth is objectively observable, an adversarial mechanism may be unnecessary.
+
 ## Cut order (if behind)
 
 Cut from the bottom. Each line states what's lost, so the trade is explicit rather than panicked.
