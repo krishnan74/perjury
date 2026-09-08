@@ -18,9 +18,9 @@
 |---|---|
 | T0 Unblock | ● wallet funded · VRF sub (10 LINK) · Graph key · CRE CLI + login · Foundry + Bun |
 | T1 CRE tribunal | ● workflow + TEE handler runs via simulator (local, not an enclave), report delivered on-chain, forwarder identified |
-| T2 Contracts | ● 4 contracts, 28 tests · **not deployed** (see blocker below) |
+| T2 Contracts | ● all 5 deployed and wired on Sepolia, 32 tests |
 | T3 Randomness | ◐ roster + fuzz done · live VRF round outstanding |
-| T4 ENSv2 | ◐ `perjury.eth` registered · EAC grants blocked on ENS answers |
+| T4 ENSv2 | ● resolver deployed, EAC configured, operator write revoked, **standing written by the tribunal on-chain** |
 | T5 Graph | ◐ live data + guard + MCP client ● · **agent reasoning needs `ANTHROPIC_API_KEY`** |
 | T6 Dashboard | ○ not started |
 | T7 Scenes | ○ not started |

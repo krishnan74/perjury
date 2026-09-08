@@ -9,12 +9,12 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0x938549E816a30d9D3b345D90DAB413f193f24e41` | deployed | Sep 8 |
-| `WitnessRoster` | `0xDeDc3a1Ba4ed5361aa81B4B9b2882b6514eFf160` | deployed, callbackGasLimit 150k | Sep 8 |
-| `PerjuryStandingWriter` | `0x320879d180A30d7DA7A5f27D66F7475953492D3C` | deployed, holds ENS SET_TEXT | Sep 8 |
-| `ENSTextStandingReader` | `0x26490899aAA8aA73e075A6F39e6059c94D9a15cE` | deployed | Sep 8 |
+| `ClaimRegistry` | `0x7AAfc44925879514356a26ACBf8c657cA2B2C83F` | deployed | Sep 8 |
+| `WitnessRoster` | `0x2F9c5f1eD1C977218F8Fbe11173AE4F4779fB15e` | deployed, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0xb4670289BC98a42d7478AF4D7B734687cB37cc8f` | deployed, holds ENS SET_TEXT | Sep 8 |
+| `ENSTextStandingReader` | `0xc9Db57f853aC1A149409B4583d1A983eF13B212e` | deployed | Sep 8 |
 | `PerjuryResolver` (ENSv2 Permissioned) | `0x033ee97dde610f134a746f986fa60c54588a0a45` | deployed, EAC configured | Sep 8 |
-| `VerdictSink` | _deferred_ | waiting on Forwarder-stability answer — `CRE_REPORT_WRITER` is immutable | |
+| `VerdictSink` | `0x3eD4314334e8c96105F6d86033B6D09b0f0eDBaa` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
 
@@ -46,6 +46,21 @@ Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<has
 | T4 | EAC: tribunal write **succeeds** | _pending_ | |
 
 ## Demo scenes
+
+### ✅ Full loop verified end-to-end (Sep 8)
+
+Bonded claim → VRF-assigned witness → CRE tribunal → verdict on-chain → bond settled → ENS standing written.
+
+| Step | Result |
+|---|---|
+| Claim submitted, 0.01 ETH escrowed | [`0xa9f75299…66813a92`](https://sepolia.etherscan.io/tx/0xa9f7529907bc5e6a40c9b21aee03a7468d253e669d2ee6b52bf6cbad66813a92) |
+| VRF assigns witness ≠ claimant | claimant `0xDcbe…eA91` → witness `0xc38f…c4AF` |
+| Tribunal adjudicates (CRE, TEE handler) | `verdict=1 confidence=high` |
+| Verdict delivered via Forwarder | claim status `4` (Settled), verdict `1` (Match) |
+| Bond returned to claimant | `withdrawable = 0.01 ETH` |
+| **ENS standing written by the tribunal** | `com.perjury.agent-standing` 7 → 8 |
+
+The operator that deployed every contract, owns `perjury.eth` and holds the role admin still cannot write that record — `EACUnauthorizedAccountRoles`.
 
 ### Scene 1 — true claim, challenged anyway
 | Step | Tx hash |
