@@ -222,14 +222,21 @@ a { color: inherit; }
 /* ── Redaction ────────────────────────────────────────────────────────────
    Used only for values that genuinely never left the enclave. */
 
+/* An empty element sized by CSS — deliberately NOT hidden text.
+   An earlier version put placeholder strings inside these bars to give them
+   width. They were invisible, but a judge opening devtools on a panel captioned
+   "sealed in the enclave" would have found invented values in the markup. On a
+   project about not overclaiming, that is the wrong thing to ship. The bars now
+   contain nothing at all, and carry an aria-label naming what is withheld. */
 .redacted {
+  display: inline-block;
   background: var(--seal);
-  color: transparent;
-  user-select: none;
+  width: var(--w, 12ch);
+  max-width: 100%;
+  height: 1.05em;
+  vertical-align: -0.18em;
   border-radius: 1px;
-  padding: 0 0.35rem;
 }
-.redacted::selection { background: var(--seal); }
 
 /* ── Stage list (replay + live runner) ────────────────────────────────── */
 

@@ -1,6 +1,7 @@
 import { claimEvents, claimsIndex, eth, short, EXPLORER, REGISTRY, SINK } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
 import { notFound } from "next/navigation";
+import { Redacted } from "../Redacted";
 
 export const revalidate = 30;
 
@@ -84,17 +85,17 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
           </p>
           <dl className="defs">
             <dt>claimant&rsquo;s value</dt>
-            <dd><span className="redacted">00.0000000000%</span></dd>
+            <dd><Redacted ch={14} label="claimant's value" /></dd>
             <dt>witness&rsquo;s value</dt>
-            <dd><span className="redacted">00.0000000000%</span></dd>
+            <dd><Redacted ch={13} label="witness's value" /></dd>
             <dt>claimant&rsquo;s evidence</dt>
-            <dd><span className="redacted">lendingProtocols &#123; totalBorrowBalanceUSD &#125;</span></dd>
+            <dd><Redacted ch={34} label="claimant's evidence" /></dd>
             <dt>witness&rsquo;s evidence</dt>
-            <dd><span className="redacted">lendingProtocols &#123; totalBorrowBalanceUSD &#125;</span></dd>
+            <dd><Redacted ch={31} label="witness's evidence" /></dd>
             <dt>methodologies</dt>
-            <dd><span className="redacted">messari lending schema, latest snapshot</span></dd>
+            <dd><Redacted ch={29} label="methodologies" /></dd>
             <dt>query hashes</dt>
-            <dd><span className="redacted">sha256:0000000000000000</span></dd>
+            <dd><Redacted ch={20} label="query hashes" /></dd>
           </dl>
         </div>
       </div>
