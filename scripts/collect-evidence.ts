@@ -43,12 +43,14 @@ for (const [sig, address] of sigs) {
   const ev = parseAbiItem(`event ${sig}`) as any;
   const logs = await pub.getLogs({ address, event: ev, fromBlock: from, toBlock: head });
   for (const l of logs) {
-    const a = l.args as any;
+    // viem types getLogs by the event arg, but we iterate a heterogeneous list
+    // of event ABIs here, so the arg shape differs per iteration.
+    const a = (l as unknown as { args: Record<string, unknown> }).args;
     const detail = Object.entries(a)
       .filter(([k]) => k !== "claimId")
       .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(" ") : String(v)}`)
       .join(" ");
-    rows.push({ block: l.blockNumber!, claimId: a.claimId !== undefined ? String(a.claimId) : "-", event: ev.name, tx: l.transactionHash!, detail });
+    rows.push({ block: l.blockNumber!, claimId: a.claimId !== undefined ? String(a.claimId) : "-", event: ev.name as string, tx: l.transactionHash!, detail });
   }
 }
 
