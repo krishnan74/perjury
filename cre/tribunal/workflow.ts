@@ -14,6 +14,22 @@ export const configSchema = z.object({
 	evidenceGatewayUrl: z.string(),
 	secretId: z.string(),
 	toleranceBps: z.number(),
+	/**
+	 * Deployment ids the tribunal will accept evidence from.
+	 *
+	 * Provenance was previously enforced only agent-side, which meant a party
+	 * asserted the adequacy of its own evidence and the enclave took its word.
+	 * Re-checking here is defence in depth, and it has to happen HERE rather
+	 * than on-chain: the provenance a party submits includes its queryHash,
+	 * which is a fingerprint of its methodology, and publishing that is exactly
+	 * what this design refuses to do.
+	 *
+	 * Generated from packages/shared/pinned-deployments.json by
+	 * scripts/deploy-all.ts, so the list cannot drift from what the agents read.
+	 */
+	pinnedDeployments: z.array(z.string()).default([]),
+	/** Seconds of index lag tolerated, converted per chain. Mirrors graph-client. */
+	freshnessSeconds: z.number().default(600),
 	/** 'verdict' for an initial adjudication, 'panel' for an appeal. */
 	reportKind: z.enum(['verdict', 'panel']).default('verdict'),
 	/** Claim under adjudication. */
@@ -57,7 +73,13 @@ type Assertion = {
 
 /** Matches what the agents actually publish — see packages/tribunal. */
 type Attestation = {
-	provenance: { deploymentId: string; indexedBlock: number; chainHead: number; queryHash: string }
+	provenance: {
+		deploymentId: string
+		indexedBlock: number
+		chainHead: number
+		queryHash: string
+		hasIndexingErrors?: boolean
+	}
 	assertion: Assertion
 	digest: string
 }
@@ -118,10 +140,39 @@ const withinTolerance = (a: number, b: number, bps: number): boolean => {
 	return (Math.abs(a - b) / scale) * 10_000 <= bps
 }
 
+/**
+ * Re-validate a party's provenance rather than trusting it.
+ *
+ * Every value here was fixed at read time and travels with the submission, so
+ * this is pure arithmetic on sealed input — no live lookups, and therefore
+ * deterministic, which DON consensus over the enclave result requires.
+ */
+const provenanceOk = (
+	att: Attestation,
+	pinnedDeployments: string[],
+	freshnessSeconds: number,
+): boolean => {
+	const p = att.provenance
+	// An allowlist of one is still an allowlist; an EMPTY list means no policy was
+	// supplied, and a tribunal with no policy must not silently accept everything.
+	if (pinnedDeployments.length === 0) return false
+	if (!pinnedDeployments.includes(p.deploymentId)) return false
+	if (p.hasIndexingErrors) return false
+	const allowedLag = Math.ceil(freshnessSeconds / (BLOCK_SECONDS[att.assertion.chain] ?? 12))
+	// Negative lag means the index reports ahead of the head we recorded; that is
+	// a disagreement about the tip, not staleness.
+	if (p.chainHead - p.indexedBlock > allowedLag) return false
+	// The assertion must describe the block the data actually came from.
+	if (att.assertion.asOfBlock !== p.indexedBlock) return false
+	return true
+}
+
 const adjudicate = (
 	claim: SealedSubmission,
 	witness: SealedSubmission,
 	toleranceBps: number,
+	pinnedDeployments: string[],
+	freshnessSeconds: number,
 ): { verdict: number; confidence: 'high' | 'low' } => {
 	// 1. Provenance gate — bad data can never reach a Match. A submission without
 	//    an attestation did not pass the guard, whatever it claims.
@@ -129,6 +180,16 @@ const adjudicate = (
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
 	if (!claim.attestation || !witness.attestation) {
+		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
+	}
+
+	// 1a. Provenance re-checked HERE, not taken on the agents' word. Previously
+	//     the enclave verified only that an attestation existed, so a party could
+	//     assert the adequacy of its own evidence.
+	if (
+		!provenanceOk(claim.attestation, pinnedDeployments, freshnessSeconds) ||
+		!provenanceOk(witness.attestation, pinnedDeployments, freshnessSeconds)
+	) {
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
 
@@ -195,11 +256,13 @@ const adjudicatePanel = (
 	claim: SealedSubmission,
 	panel: { member: string; submission: SealedSubmission }[],
 	toleranceBps: number,
+	pinnedDeployments: string[],
+	freshnessSeconds: number,
 ): { verdict: number; confidence: 'high' | 'low' } => {
 	let match = 0
 	let mismatch = 0
 	for (const seat of panel) {
-		const r = adjudicate(claim, seat.submission, toleranceBps)
+		const r = adjudicate(claim, seat.submission, toleranceBps, pinnedDeployments, freshnessSeconds)
 		if (r.verdict === VERDICT.Match) match++
 		else if (r.verdict === VERDICT.Mismatch) mismatch++
 	}
@@ -246,8 +309,20 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// On an appeal the panel's majority decides, not the original witness.
 	const { verdict, confidence } =
 		config.reportKind === 'panel' && bundle.panel && bundle.panel.length > 0
-			? adjudicatePanel(bundle.claim, bundle.panel, config.toleranceBps)
-			: adjudicate(bundle.claim, bundle.witness, config.toleranceBps)
+			? adjudicatePanel(
+					bundle.claim,
+					bundle.panel,
+					config.toleranceBps,
+					config.pinnedDeployments,
+					config.freshnessSeconds,
+				)
+			: adjudicate(
+					bundle.claim,
+					bundle.witness,
+					config.toleranceBps,
+					config.pinnedDeployments,
+					config.freshnessSeconds,
+				)
 
 	// Commitment over both sealed submissions plus the enclave-held salt. Lets
 	// anyone later verify the tribunal judged THESE exact inputs, if a party

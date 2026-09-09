@@ -101,6 +101,45 @@ export const DEFAULT_TOLERANCE = 0.005; // 0.5%
  */
 export const MAX_SKEW_SECONDS = 300;
 
+/**
+ * Provenance policy the tribunal enforces on submitted evidence.
+ *
+ * Provenance used to be checked only agent-side, which meant each party
+ * asserted the adequacy of its own evidence and the tribunal took its word.
+ * Re-checking it during adjudication is defence in depth, and it belongs in the
+ * enclave rather than on-chain: a party's provenance carries its queryHash,
+ * which fingerprints its methodology, and publishing that is what this design
+ * exists to avoid.
+ *
+ * Every field checked was fixed at read time and travels with the submission,
+ * so this is arithmetic on sealed input — deterministic, as DON consensus over
+ * the enclave result requires.
+ */
+export interface ProvenancePolicy {
+  /** Deployment ids evidence may come from. An empty list accepts nothing. */
+  pinnedDeployments: string[];
+  /** Seconds of index lag tolerated, converted per chain. */
+  freshnessSeconds: number;
+}
+
+/** No policy supplied. Accepts nothing — a tribunal without a policy must not
+ *  silently accept everything, which is how this gap existed in the first place. */
+export const NO_PROVENANCE_POLICY: ProvenancePolicy = { pinnedDeployments: [], freshnessSeconds: 600 };
+
+/** Re-validate one party's provenance instead of trusting its attestation. */
+export function provenanceOk(att: Attestation, policy: ProvenancePolicy): boolean {
+  const p = att.provenance;
+  if (policy.pinnedDeployments.length === 0) return false;
+  if (!policy.pinnedDeployments.includes(p.deploymentId)) return false;
+  if (p.hasIndexingErrors) return false;
+  const allowedLag = Math.ceil(policy.freshnessSeconds / (BLOCK_SECONDS[att.assertion.chain] ?? 12));
+  // Negative lag is a disagreement about the tip, not staleness.
+  if (p.chainHead - p.indexedBlock > allowedLag) return false;
+  // The assertion must describe the block the data actually came from.
+  if (att.assertion.asOfBlock !== p.indexedBlock) return false;
+  return true;
+}
+
 /** Nominal block times. Mirrors CHAINS in @perjury/graph-client. */
 export const BLOCK_SECONDS: Record<string, number> = {
 	ethereum: 12,
@@ -156,6 +195,7 @@ export function adjudicate(
   witness: SealedSubmission,
   salt: string,
   tolerance: number = DEFAULT_TOLERANCE,
+  policy: ProvenancePolicy = NO_PROVENANCE_POLICY,
 ): TribunalReport {
   const evidenceCommitment = sha256(
     canonicalize({ claim, witness, salt }),
@@ -167,6 +207,12 @@ export function adjudicate(
     return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
   }
   if (!claim.attestation || !witness.attestation) {
+    return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
+  }
+  // 1a. Provenance re-checked here rather than taken on the agents' word. The
+  //     gate above only proved an attestation EXISTED; a party could assert the
+  //     adequacy of its own evidence and be believed.
+  if (!provenanceOk(claim.attestation, policy) || !provenanceOk(witness.attestation, policy)) {
     return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
   }
 
@@ -258,12 +304,13 @@ export function adjudicatePanel(
   panel: PanelFinding[],
   salt: string,
   tolerance: number = DEFAULT_TOLERANCE,
+  policy: ProvenancePolicy = NO_PROVENANCE_POLICY,
 ): PanelReport {
   const evidenceCommitment = sha256(canonicalize({ claim, panel, salt }));
   const tally = { match: 0, mismatch: 0, unverifiable: 0 };
 
   for (const seat of panel) {
-    const r = adjudicate(claimId, claim, seat.submission, salt, tolerance);
+    const r = adjudicate(claimId, claim, seat.submission, salt, tolerance, policy);
     if (r.verdict === Verdict.Match) tally.match++;
     else if (r.verdict === Verdict.Mismatch) tally.mismatch++;
     else tally.unverifiable++;

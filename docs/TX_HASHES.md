@@ -11,12 +11,12 @@ Addresses below are the **final** deployment — the one the three demo scenes r
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b` | deployed | Sep 8 |
-| `WitnessRoster` | `0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712` | deployed, callbackGasLimit 150k | Sep 8 |
-| `PerjuryStandingWriter` | `0x19b0992DEee48129dA2321362831b7eB07b261e8` | deployed, holds ENS SET_TEXT | Sep 8 |
-| `ENSTextStandingReader` | `0xB48F3Bcd32755855763a350a35586d40d328b958` | deployed | Sep 8 |
+| `ClaimRegistry` | `0x8CDa96E615E96f97073C19Cc2167E4D242487A88` | deployed | Sep 8 |
+| `WitnessRoster` | `0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252` | deployed, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD` | deployed, holds ENS SET_TEXT | Sep 8 |
+| `ENSTextStandingReader` | `0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55` | deployed | Sep 8 |
 | `PerjuryResolver` (ENSv2 Permissioned) | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` | deployed, EAC configured | Sep 8 |
-| `VerdictSink` | `0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
+| `VerdictSink` | `0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
 

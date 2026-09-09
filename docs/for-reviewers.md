@@ -19,12 +19,14 @@ Read it in this order:
 | TEE handler registered — `cre.handlerInTee(..., [{tee:'nitro', regions:['us-west-2']}])` | [workflow.ts#L272-L281](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L272-L281) |
 | Vault DON secret fetched **inside** the enclave — binds the evidence commitment | [workflow.ts#L189-L193](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L189-L193) |
 | Confidential HTTP — both agents' sealed evidence enters here and never leaves | [workflow.ts#L195-L210](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L195-L210) |
+| Provenance re-validated inside the enclave, not taken on the agents' word |  see `provenanceOk` in the same file |
 | The boundary — what crosses back out via `usingTheDons()`, and what deliberately doesn't | [workflow.ts#L232-L270](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L232-L270) |
 | VRF v2.5 request — struct form, `ExtraArgsV1`, `uint256` subscription id | [WitnessRoster.sol#L210-L230](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/WitnessRoster.sol#L210-L230) |
 | Report receiver — one immutable authorized sender, no setter | [VerdictSink.sol#L30-L60](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/VerdictSink.sol#L30-L60) |
 
 **Three things worth knowing before you judge it:**
 
+- Provenance validation lives **inside** the enclave on purpose: a party's provenance carries its `queryHash`, which fingerprints its methodology, so checking it anywhere public would leak the thing the design exists to protect.
 - Only *data* is confidential, and the code says so where it matters. The adjudication rule is in the workflow binary and is therefore public — deliberately, because a tribunal whose procedure is secret is not a tribunal. Sealed inputs, public rule, public verdict.
 - The report arrives from a **Forwarder**, not the workflow owner. `CRE_REPORT_WRITER` is immutable, so we measured the address with a throwaway probe rather than guessing it into a contract we could not change. [ADR 0006](decisions.md) records that we declined Chainlink's suggestion to add a setter, and why.
 - **Adjudication has never run inside a real enclave.** `cre workflow simulate` executes locally. Captured output and the simulator's own banner saying so: [cre-execution-log.md](cre-execution-log.md).

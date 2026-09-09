@@ -473,7 +473,10 @@ function guard(res, pinned): Attestation {
 
 - Pinned deployment IDs live in `packages/shared/pinned-deployments.json`, committed. A subgraph silently redeploying under the same name is exactly the substitution attack this catches.
 - On any guard failure the finding becomes **`UNVERIFIABLE`**, which propagates to the tribunal and results in **bond returned, no standing change**. It never silently becomes a pass. Stating this is cheap; a unit test asserting `guard()` throws on a stale block and that the resulting verdict is `Unverifiable` (not `Match`) is what actually earns it.
-- Every attestation is included in the enclave input, so the tribunal — not the witness — is the one that decides whether provenance was adequate. The witness can't wave itself through.
+- Every attestation is included in the enclave input, and the tribunal **re-validates it** rather than trusting it. Inside the enclave, each party's provenance is checked against the pinned deployment allowlist, its indexing-error flag, its lag against the freshness window converted for that party's chain, and the requirement that the assertion describes the block its data actually came from. Any failure is `Unverifiable`.
+- **This is a re-check, not a relocation.** `graph-guard` still runs agent-side, because it needs the live chain head at read time and decides whether to produce an attestation at all. The enclave check exists because the earlier gate proved only that an attestation *existed* — so a party could assert the adequacy of its own evidence and be believed.
+- **It belongs in the enclave specifically.** A party's provenance carries its `queryHash`, which fingerprints its methodology. Validating that on-chain would publish exactly what this design refuses to publish, so the check has to happen where the sealed evidence already is.
+- Supplied by config and generated from `pinned-deployments.json`, so the tribunal's allowlist cannot drift from what the agents read. A tribunal with **no** policy accepts nothing rather than everything — asserted by a unit test, because an accept-all default is how provenance came to be self-asserted in the first place.
 
 #### 5.4 Standards leverage — what became easier
 

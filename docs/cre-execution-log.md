@@ -15,6 +15,7 @@ Sensitive material processed inside the handler, before anything crosses back to
 | **Vault DON secret** | `runtime.getSecret({ id: 'COMMITMENT_SALT' })` — released into the attested enclave. It binds the evidence commitment so the published hash cannot be brute-forced back to the sealed evidence. |
 | **Confidential HTTP response** | Both agents' sealed submissions are fetched inside the enclave. The claimant's and witness's raw evidence, methodology and query hashes never leave it. This is the load-bearing confidentiality: the two parties publish independently and never see each other's work — the bundle is the only place they meet, and it meets inside the handler. |
 | **Intermediate values** | Both sides' metric values are **recomputed from raw evidence** inside the handler rather than trusting either party's stated conclusion, then compared within tolerance. Those recomputed values, the degeneracy check and the confidence bucket are all intermediates that stay inside. |
+| **Provenance validation** | Each party's provenance — deployment id, indexing-error flag, index lag, and the block its assertion claims — is **re-validated inside the enclave** against a pinned allowlist, rather than taken on the agents' word. This has to happen here: provenance carries each party's `queryHash`, which fingerprints its methodology, so validating it anywhere public would leak the thing the design exists to protect. |
 
 What deliberately crosses back via `runtime.usingTheDons()`: a report kind, a claim id, a verdict enum, and a `bytes32` commitment. Never evidence, methodology, or values.
 
@@ -30,11 +31,11 @@ Compiling workflow...
 ✓ Workflow compiled
 ✓ Simulation limits enabled
   HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
-  Binary hash: 6f21fdb3526f962f1d844ef649d9b033a8a96452cc81678b3e68f18ffb6c2932
-  Config hash: c51e5c85e493323bb2a8db8e3e7e4eea8996ada9386c74dbbe98f858eabf8a14
-2026-09-09T08:06:14Z [SIMULATION] Simulator Initialized
+  Binary hash: 0b45b64905a122b7f64515a8fec067183c520493926de31b1f4f4ffcfd29a0ef
+  Config hash: 5f2a052c518efdc05ec3b3f9085e9555b414dea7f7100aec02e92a5d5c26c533
+2026-09-09T17:52:05Z [SIMULATION] Simulator Initialized
 
-2026-09-09T08:06:14Z [SIMULATION] Running trigger trigger=cron-trigger@1.0.0
+2026-09-09T17:52:05Z [SIMULATION] Running trigger trigger=cron-trigger@1.0.0
 
 ╭────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Trigger requested TEE Execution your trigger will run in one of the following Tees:                │
@@ -46,13 +47,13 @@ Compiling workflow...
 │                                                                                                    │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-2026-09-09T08:07:00Z [USER LOG] Adjudication complete. verdict=2 confidence=high
+2026-09-09T17:53:07Z [USER LOG] Adjudication complete. verdict=1 confidence=high
 
 ✓ Workflow Simulation Result:
-"verdict=2 confidence=high"
+"verdict=1 confidence=high"
 
-2026-09-09T08:07:00Z [SIMULATION] Execution finished signal received
-2026-09-09T08:07:00Z [SIMULATION] Skipping WorkflowEngineV2
+2026-09-09T17:53:07Z [SIMULATION] Execution finished signal received
+2026-09-09T17:53:07Z [SIMULATION] Skipping WorkflowEngineV2
 
 ╭──────────────────────────────────────────────────────╮
 │ Simulation complete! Ready to deploy your workflow?  │
@@ -61,7 +62,7 @@ Compiling workflow...
 ╰──────────────────────────────────────────────────────╯
 ```
 
-`verdict=2` is `Mismatch` — this run adjudicated claim 2, the false claim from demo scene 2, in panel mode (the appeal). The claimant asserted 64.70% against a live value of 40.43%.
+`verdict=1` is `Match` — both parties' provenance passed the tribunal's own re-validation, and their recomputed values agreed within tolerance.
 
 ## On-chain delivery
 

@@ -1,11 +1,28 @@
 {
   "schedule": "0 */1 * * * *",
-  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/312c4c337b6b2048cd0d586ef7f03555",
+  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/724c235f17fab82f6a7cbcba08480329",
   "secretId": "COMMITMENT_SALT",
   "toleranceBps": 50,
   "verdictSinkAddress": "0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3",
   "chainSelector": "16015286601757825753",
   "reportKind": "verdict",
-  "claimId": "9",
-  "fixtureWitnessValue": 400000
+  "claimId": "11",
+  "fixtureWitnessValue": 400000,
+  "pinnedDeployments": [
+    "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+    "QmdwBHGxokamYsLfMVk6fXfry3Ss9emEiTy6wptd1ecysG",
+    "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
+    "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
+    "QmVpuZKrjhjHx2hCtpGNaW29ZYq4Xt2GyPLpiMDP2YTAHE",
+    "Qme9KY9Nm5YaRsew1CjR5rtwZMgQAG3SzxRmqevtVW7R83",
+    "QmSpf6KX1qpKPkMdQWwRee3uyztNbsNn4NQv3Jaf6AC3z7",
+    "QmQURwBj3C9RRX3Th5MqTGehSSUcfnRgw3r8Sg2XWcjmjB",
+    "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD",
+    "QmXCPG1uRf1YhxYmzdr83kQSEoviL4ja2e5JBB4KezvpE9",
+    "QmRpHzsesvv7VTrKjEuutiZ7xEfDfd6jH4mgSeDDbUDVRN",
+    "QmXMJ2Hnhhoz6bGFNtTBjnf7kAk9CNCQG7r4R5b7fyVjD7",
+    "QmdAoDVjfSByKvTW1HrCDK1eJJKRRZxdj8bcqVqQLCofN4",
+    "QmRkp5iisPLn14S7eZcE69AhWUntS7uFYLEkUw1TzqeuMi"
+  ],
+  "freshnessSeconds": 600
 }

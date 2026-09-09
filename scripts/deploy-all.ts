@@ -24,6 +24,7 @@ import {
   dnsEncode, withHackathonResolver, ENS_HACKATHON_SEPOLIA,
   PERMISSIONED_RESOLVER_ABI, RECORD_KEYS,
 } from "@perjury/ens";
+import { PINNED, FRESHNESS_SECONDS } from "@perjury/graph-client";
 
 const args = process.argv.slice(2);
 const freshResolver = args.includes("--resolver");
@@ -215,13 +216,23 @@ async function main() {
 
   // ── 7. Point the CRE workflow at the new sink ────────────────────────────
   step(7, "pointing the CRE workflow at the new sink");
+  // The tribunal re-checks provenance rather than trusting the agents, so it
+  // needs the same allowlist the agents read against. Generated from the pinned
+  // set — hand-maintaining a second copy is how the two would drift and start
+  // rejecting honest evidence.
+  const pinnedIds = PINNED.flatMap((e) => [
+    e.deploymentId,
+    ...(e.corroborators ?? []).map((c) => c.deploymentId),
+  ]);
   for (const f of ["cre/tribunal/config.staging.json", "cre/tribunal/config.production.json"]) {
     const cfg = JSON.parse(readFileSync(f, "utf8"));
     cfg.verdictSinkAddress = sink.VerdictSink;
     cfg.reportKind = "verdict";
+    cfg.pinnedDeployments = pinnedIds;
+    cfg.freshnessSeconds = FRESHNESS_SECONDS;
     writeFileSync(f, `${JSON.stringify(cfg, null, 2)}\n`);
   }
-  console.log("  config.staging.json, config.production.json");
+  console.log(`  config.staging.json, config.production.json (${pinnedIds.length} pinned deployments)`);
 
   const eligible = await pub.readContract({
     address: roster, abi: ROSTER_ABI, functionName: "eligibleCountExcluding",

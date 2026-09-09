@@ -19,7 +19,7 @@ Verified on live networks, not mocked:
 | **Bonded claims + settlement** | Deployed on Sepolia (addresses below). Claim 1 submitted, adjudicated `Match`, bond returned, ENS standing 1 → 2 — [settlement tx](https://sepolia.etherscan.io/tx/0x6e930d965125f67b165cd85369dea61ad4aaa2af0cab0afaeb28a61c039f742c) |
 | **Randomly assigned witness** | Live Chainlink VRF v2.5: `submitClaim` takes no witness parameter, so the claimant has no code path to influence assignment. Every scene draws a witness that is not the claimant — [fulfilment tx](https://sepolia.etherscan.io/tx/0x99c8504d74aabae2e6cc2dad3e51a527ac250df3405cc831992ed5a3e2daac2b) |
 | **Independent re-derivation** | Claimant and witness each query live Aave v3 data through the Subgraph MCP and a pinned deployment; true claim → **Match** (40.43% vs 40.43%), fabricated claim → **Mismatch** (64.70% vs 40.43%) |
-| **Provenance enforcement** | Stale index, unpinned deployment, indexing errors or an empty result set all produce `Unverifiable` — never a silent pass |
+| **Provenance enforcement** | Stale index, unpinned deployment, indexing errors or an empty result set all produce `Unverifiable` — never a silent pass. Enforced at read time by the guard **and re-validated inside the enclave**, so a party cannot assert the adequacy of its own evidence |
 | **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); reports delivered on-chain by a Chainlink Forwarder, evidence never published — [execution log](docs/cre-execution-log.md) |
 | **Appeal by random panel** | A losing claimant appealed; a second VRF draw seated three agents excluding both parties, upheld the verdict, and cost the appellant its appeal bond too — [panel seated](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0), [settled](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
 | **Reputation only the tribunal can write** | ENSv2 Enhanced Access Control, scoped to a single record key. The operator that deployed every contract and owns `perjury.eth` gets `EACUnauthorizedAccountRoles` when it tries to write standing |
@@ -27,7 +27,7 @@ Verified on live networks, not mocked:
 | **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
 | **Two query patterns, 13 deployments, 5 chains** | Messari lending *and* DEX schema families across Ethereum, Polygon, Arbitrum, Optimism and Gnosis, read with one selection set per family and one derivation — no per-protocol or per-chain code. `npx tsx scripts/verify-pinned.ts` proves it live |
 | **Corroborated reads** | Where a protocol has two independent deployments, both must agree or the verdict is `Unverifiable`. Two live Morpho Aave V3 indexes disagree by 488 bps at an identical block — `npx tsx scripts/prove-corroboration.ts` |
-| **Test suite** | 60 Foundry tests, 73 TypeScript tests |
+| **Test suite** | 60 Foundry tests, 80 TypeScript tests |
 
 **Not built:** the dashboard. Everything above is verifiable from a block explorer and the terminal scenes.
 
@@ -39,11 +39,11 @@ Every contract is immutable: no owner, no pause, no upgrade proxy, no address se
 
 | Contract | Address |
 |---|---|
-| `ClaimRegistry` | [`0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b`](https://sepolia.etherscan.io/address/0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b) |
-| `WitnessRoster` | [`0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712`](https://sepolia.etherscan.io/address/0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712) |
-| `VerdictSink` | [`0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd`](https://sepolia.etherscan.io/address/0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd) |
-| `PerjuryStandingWriter` | [`0x19b0992DEee48129dA2321362831b7eB07b261e8`](https://sepolia.etherscan.io/address/0x19b0992DEee48129dA2321362831b7eB07b261e8) |
-| `ENSTextStandingReader` | [`0xB48F3Bcd32755855763a350a35586d40d328b958`](https://sepolia.etherscan.io/address/0xB48F3Bcd32755855763a350a35586d40d328b958) |
+| `ClaimRegistry` | [`0x8CDa96E615E96f97073C19Cc2167E4D242487A88`](https://sepolia.etherscan.io/address/0x8CDa96E615E96f97073C19Cc2167E4D242487A88) |
+| `WitnessRoster` | [`0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252`](https://sepolia.etherscan.io/address/0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252) |
+| `VerdictSink` | [`0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3`](https://sepolia.etherscan.io/address/0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3) |
+| `PerjuryStandingWriter` | [`0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD`](https://sepolia.etherscan.io/address/0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD) |
+| `ENSTextStandingReader` | [`0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55`](https://sepolia.etherscan.io/address/0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55) |
 | `PerjuryResolver` (ENSv2 Permissioned) | [`0xcBd795d211Dd40dB392730034B5e68359c9E8534`](https://sepolia.etherscan.io/address/0xcBd795d211Dd40dB392730034B5e68359c9E8534) |
 
 Identity: `perjury.eth` on the ENSv2 hackathon deployment, with five agent subnames.
@@ -56,7 +56,7 @@ Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 cp .env.example .env          # add SEPOLIA_RPC_URL, GRAPH_STUDIO_KEY, keys
 npm install
 forge test                    # 60 contract tests
-npx vitest run                # 73 TypeScript tests
+npx vitest run                # 80 TypeScript tests
 
 # the three demo scenes, live on Sepolia, with terminal visualisation
 npx tsx agents/runner/scene1.ts operator   # true claim  → Match, bond returned

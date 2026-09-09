@@ -24,7 +24,7 @@ export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.cre/bin:$PATH"
 
 ```bash
 forge test                              # 60 Solidity tests
-npx vitest run                          # 73 TS tests
+npx vitest run                          # 80 TS tests
 npx tsc --noEmit -p tsconfig.json       # root typecheck (cre/ is excluded, has its own)
 cd cre/tribunal && npx tsc --noEmit     # workflow typecheck
 
@@ -59,11 +59,11 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 | Operator | `0xDcbe075a907960951Cd4df379BB21461097eEa91` |
 | `perjury.eth` | registered, ENSv2 hackathon deployment |
 | `ScratchSink` (probe) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` |
-| `ClaimRegistry` | `0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b` |
-| `WitnessRoster` | `0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712` (VRF consumer) |
-| `PerjuryStandingWriter` | `0x19b0992DEee48129dA2321362831b7eB07b261e8` |
-| `ENSTextStandingReader` | `0xB48F3Bcd32755855763a350a35586d40d328b958` |
-| `VerdictSink` | `0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd` (mock forwarder) |
+| `ClaimRegistry` | `0x8CDa96E615E96f97073C19Cc2167E4D242487A88` |
+| `WitnessRoster` | `0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252` (VRF consumer) |
+| `PerjuryStandingWriter` | `0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD` |
+| `ENSTextStandingReader` | `0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55` |
+| `VerdictSink` | `0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3` (mock forwarder) |
 | `PerjuryResolver` | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` — EAC configured per-key, operator write revoked |
 | CRE report writer | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — a **Forwarder**, measured |
 | VRF subscription | owner = operator, roster registered as consumer |
@@ -78,6 +78,7 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 - **`cre workflow simulate` runs LOCALLY, not in an enclave** (Chainlink, Sep 8). We register a real TEE handler via `cre.handlerInTee`, but simulation does not execute in a TEE. Say "confidential workflow with a TEE handler, executed via the simulator" — never "ran inside an enclave". This matters for the demo video.
 - **Two forwarders.** Simulation uses the mock `0x15fC6ae953E024d975e77382eEeC56A9101f9F88`; production uses `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`. Deploy `VerdictSink` with whichever matches the environment.
 - **CRE reports arrive from a Forwarder, not the workflow owner.** `VerdictSink.CRE_REPORT_WRITER` is immutable, so this was measured, not guessed. Unknown whether the address is stable across runs — this is why the protocol is not deployed yet.
+- **The tribunal re-validates provenance itself** (`provenanceOk` in both `packages/tribunal` and `cre/tribunal/workflow.ts`). The allowlist comes from config, generated from `pinned-deployments.json` by `deploy-all.ts` — if you pin a new deployment, redeploy or regenerate the config or the tribunal will reject honest evidence from it. A missing policy accepts NOTHING, deliberately.
 - **A TEE reveals the workflow binary.** Only *data* is confidential (Vault DON secrets, Confidential HTTP payloads, intermediates). `docs/design.md` §3.4 says what is actually true; do not re-inflate the claim.
 - **ENSv2 reads go through ENSIP-10 `resolve(bytes dnsName, bytes data)`.** `text(bytes32,string)` and `text(bytes,string)` both REVERT on a factory-deployed Permissioned Resolver. Writes use `setText(bytes dnsName, ...)`. Two contracts shipped a direct `text()` call and reverted on-chain while unit tests passed; the mock now reverts on `text()` to match production.
 - **Root-resource EAC grants use `grantRootRoles` / `revokeRootRoles` / `hasRootRoles`.** `grantRoles(resource, ...)` reverts for the root resource.
