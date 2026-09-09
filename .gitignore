@@ -61,3 +61,4 @@ discord-*.md
 
 # next.js generated types
 app/next-env.d.ts
+app/.env.local

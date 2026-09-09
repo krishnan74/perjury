@@ -17,9 +17,16 @@ export const SINK = process.env.VERDICT_SINK_ADDRESS as Address;
 export const RESOLVER = process.env.PERJURY_RESOLVER_ADDRESS as Address;
 export const WRITER = process.env.STANDING_WRITER_ADDRESS as Address;
 
+/**
+ * Batching matters here. A page render makes dozens of small reads — ten log
+ * queries, a timestamp per block, four calls per agent — and unbatched those are
+ * dozens of round trips. Batching collapses them into a handful of JSON-RPC
+ * payloads and roughly halves the render.
+ */
 export const pub = createPublicClient({
   chain: sepolia,
-  transport: http(process.env.SEPOLIA_RPC_URL),
+  transport: http(process.env.SEPOLIA_RPC_URL, { batch: { wait: 12 } }),
+  batch: { multicall: { wait: 12 } },
 });
 
 /** Mirrors the on-chain enums so a number never reaches a template. */
@@ -125,7 +132,7 @@ export interface ClaimEvent {
  * slower, and it means the page can only show what actually happened on chain —
  * which for a project about verifiable claims is the right constraint to accept.
  */
-export async function claimEvents(lookback = 4000n): Promise<ClaimEvent[]> {
+export async function claimEvents(lookback = 2500n): Promise<ClaimEvent[]> {
   const head = await pub.getBlockNumber();
   const fromBlock = head > lookback ? head - lookback : 0n;
 
@@ -174,4 +181,61 @@ export function ago(ts: number): string {
   if (d < 3600) return `${Math.floor(d / 60)}m ago`;
   if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
   return `${Math.floor(d / 86400)}d ago`;
+}
+
+export interface Summary {
+  claimsSubmitted: number;
+  claimsAdjudicated: number;
+  /** Claims where the drawn witness was the claimant. Structurally impossible. */
+  selfWitnessed: number;
+  /** Wei of forfeited bond that reached a witness. Witnesses get a flat fee only. */
+  bondToWitness: bigint;
+  witnessFeesPaid: bigint;
+  witnessFee: bigint;
+  forfeited: bigint;
+  agentsEligible: number;
+  agentsTotal: number;
+}
+
+/**
+ * The figures the landing page asserts.
+ *
+ * Deliberately not a volume dashboard. Perjury's interesting numbers are the
+ * zeros — a claimant has never witnessed its own claim, and no forfeited bond
+ * has ever reached a witness — so each is COUNTED from chain rather than
+ * asserted in prose. A zero that was computed is evidence; a zero in a sentence
+ * is a promise.
+ */
+export async function protocolSummary(events: ClaimEvent[], eligible: number, total: number): Promise<Summary> {
+  const submitted = events.filter((e) => e.name === "ClaimSubmitted");
+  const verdicts = events.filter((e) => e.name === "VerdictRecorded");
+  const assigned = events.filter((e) => e.name === "WitnessAssigned");
+  const paid = events.filter((e) => e.name === "WitnessPaid");
+
+  const claimantOf = new Map(submitted.map((e) => [e.claimId, String(e.args.claimant).toLowerCase()]));
+  const selfWitnessed = assigned.filter(
+    (e) => claimantOf.get(e.claimId) === String(e.args.witness).toLowerCase(),
+  ).length;
+
+  const [witnessFee, forfeited] = await Promise.all([
+    pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "WITNESS_FEE" }),
+    pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "forfeited" }),
+  ]);
+
+  const witnessFeesPaid = paid.reduce((acc, e) => acc + BigInt(String(e.args.fee ?? 0n)), 0n);
+  // Anything a witness received beyond the flat fee would be bond value. There is
+  // no code path that does this; the figure is computed rather than trusted.
+  const bondToWitness = witnessFeesPaid - witnessFee * BigInt(paid.length);
+
+  return {
+    claimsSubmitted: submitted.length,
+    claimsAdjudicated: verdicts.length,
+    selfWitnessed,
+    bondToWitness: bondToWitness > 0n ? bondToWitness : 0n,
+    witnessFeesPaid,
+    witnessFee,
+    forfeited,
+    agentsEligible: eligible,
+    agentsTotal: total,
+  };
 }

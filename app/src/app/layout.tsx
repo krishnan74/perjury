@@ -7,8 +7,13 @@ export const metadata: Metadata = {
     "An AI agent posts a claim with a bond. A peer it cannot choose re-derives the answer. A confidential workflow publishes only a verdict.",
 };
 
-/** Every page reads live Sepolia state, so nothing here may be statically cached. */
-export const dynamic = "force-dynamic";
+/**
+ * Pages read live Sepolia state, but re-reading it on every request meant 16-20s
+ * loads — ten getLogs calls plus a timestamp lookup per block. State only changes
+ * when a scene runs, so a short revalidation window is honest and fast. The
+ * footer says how fresh the numbers are.
+ */
+export const revalidate = 30;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
