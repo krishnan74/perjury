@@ -218,6 +218,7 @@ Built on the `dashboard` branch and merged to `main` at `d55e0c8`. The branch is
 - [ ] ENS standing bars that visibly move on verdict — standing is shown per agent, but not animated on settlement.
 - [ ] Agent tool-call stream (the witness's MCP reasoning, on camera) — cut.
 - [ ] Live triggering from the browser — deliberately deferred; read-only and replay were enough for the video.
+- [ ] **Replay, rebuilt as two lanes and a sealed middle** — the current version is accurate but renders the mechanism as a bullet list. Full spec: [docs/replay-plan.md](docs/replay-plan.md).
 
 Renders from chain + Graph reads only. Never a place where behavior gets faked for the camera.
 

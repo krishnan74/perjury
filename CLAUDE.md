@@ -103,7 +103,7 @@ packages/      shared · graph-guard · graph-client · mcp-client · tribunal �
 agents/        claimant · witness · runner (duel + the three scenes)
 app/           Next.js 15 site — landing/pitch deck, claims, roster, replay
 scripts/       deploy-all · register-name · prove-eac · prove-name-binding · prove-corroboration · verify-pinned · collect-evidence
-docs/          design.md · decisions.md · ai-usage.md · build-log.md · threat-audit.md · for-reviewers.md · TX_HASHES.md
+docs/          design.md · decisions.md · ai-usage.md · build-log.md · threat-audit.md · for-reviewers.md · replay-plan.md · TX_HASHES.md
 ```
 
 Gitignored working docs (local only): `docs/tracks.md`, `docs/sponsor-questions.md`, `docs/ens-discord-message.md`, `docs/chainlink-discord-message.md`, `docs/cre-access-form.md`, `docs/ethglobal-submission.md`, `docs/pitch-and-qa.md`, `docs/feedback-session-1.md`, `discord-*.md`.
@@ -125,7 +125,7 @@ Redeploying is a **cascade** — each contract holds the next immutably, so chan
 | `/roster` | Who may be drawn and why the excluded agent isn't — read through the same ENS reader the VRF callback uses, never a cache. |
 | `/replay` | A settled claim played back from its own transactions. Real hashes, real gaps; the elapsed counter always shows true elapsed time even when playback is sped up. |
 
-Read-only. Live triggering from the browser was deliberately deferred. Every route is `revalidate = 30` ISR against Sepolia and the Gateway — deployment needs the same env the runners use. **Not deployed yet**, and the copy tells judges the site is live, so deploy before submitting.
+Read-only. Live triggering from the browser was deliberately deferred. **`/replay` is the next piece of UI work** — it is honest but renders the mechanism as a bullet list; the rebuild is specced in `docs/replay-plan.md` and is buildable from chain data alone up to Tier B. Every route is `revalidate = 30` ISR against Sepolia and the Gateway — deployment needs the same env the runners use. **Not deployed yet**, and the copy tells judges the site is live, so deploy before submitting.
 
 UI notes worth not relearning: reveal animations are gated on `@media (scripting: enabled)`, never a JS-injected class on `<html>` — that caused a hydration mismatch. `.wrap` uses `padding-block` so `.section` cannot reset the horizontal gutter. Chrome headless enforces a ~500px minimum layout viewport, so "390px" screenshots are lying to you.
 
