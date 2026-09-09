@@ -1,5 +1,5 @@
 {
-  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches, so we pin the immutable deployment hash and reject anything else. Verified live against the Gateway on 2026-09-08.",
+  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches, so we pin the immutable deployment hash and reject anything else. Every entry serves the Messari standardized lending schema, so ONE query pattern and ONE recompute function cover all of them \u2014 adding a protocol is a data change, never a code change. Verified live against the Gateway by scripts/verify-pinned.ts.",
   "chain": "ethereum-mainnet",
   "deployments": [
     {
@@ -8,7 +8,11 @@
       "subgraphId": "JCNWRypm7FYwV8fx5HhzZPSFaMxgkPuw4TnR3Gpi81zk",
       "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
       "protocolName": "Aave v3",
-      "metrics": ["totalValueLockedUSD", "totalBorrowBalanceUSD", "totalDepositBalanceUSD"]
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ]
     },
     {
       "subject": "aave-v2-ethereum",
@@ -16,7 +20,36 @@
       "subgraphId": "C2zniPn45RnLDGzVeGZCx2Sw3GXrbc9gL4ZfL8B8Em2j",
       "deploymentId": "QmdwBHGxokamYsLfMVk6fXfry3Ss9emEiTy6wptd1ecysG",
       "protocolName": "Aave v2",
-      "metrics": ["totalValueLockedUSD", "totalBorrowBalanceUSD", "totalDepositBalanceUSD"]
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ]
+    },
+    {
+      "subject": "compound-v3-ethereum",
+      "schema": "messari-lending",
+      "subgraphId": "AwoxEZbiWLvv6e3QdvdMZw4WDURdGbvPfHmZRc8Dpfz9",
+      "deploymentId": "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
+      "protocolName": "Compound III",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ]
+    },
+    {
+      "subject": "spark-ethereum",
+      "schema": "messari-lending",
+      "subgraphId": "GbKdmBe4ycCYCQLQSjqGg6UHYoYfbyJyq5WrG35pv1si",
+      "deploymentId": "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
+      "protocolName": "Spark Lend",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ]
     }
-  ]
+  ],
+  "verifiedOn": "2026-09-09"
 }

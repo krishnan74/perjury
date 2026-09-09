@@ -2,6 +2,13 @@
 //
 //   npx tsx agents/runner/duel.ts honest   — a true claim, expect Match
 //   npx tsx agents/runner/duel.ts false    — a fabricated claim, expect Mismatch
+//   npx tsx agents/runner/duel.ts honest compound-v3-ethereum
+//
+// The optional second argument is any pinned subject. Nothing below is
+// protocol-specific and neither are the agents: they resolve the subject to a
+// pinned deployment and read the Messari standardized lending schema, so
+// verifying a protocol the code has never seen is an argument, not a patch.
+// `npx tsx scripts/verify-pinned.ts` lists what is available.
 //
 // The two agents run in the same process here for convenience. In the demo they
 // are separate processes with separate keys — see docs/design.md §5.2. What is
@@ -12,12 +19,16 @@ import { witness } from "@perjury/witness";
 import { adjudicate, type SealedSubmission } from "@perjury/tribunal";
 import { ClaudeCodeClient } from "@perjury/llm";
 import { Verdict } from "@perjury/shared";
+import { pinnedFor } from "@perjury/graph-client";
 
 const mode = process.argv[2] === "false" ? "false" : "honest";
+const subject = process.argv[3] ?? "aave-v3-ethereum";
 const llm = new ClaudeCodeClient();
 
+console.log(`SUBJECT: ${subject}  ${pinnedFor(subject).protocolName} · messari-lending\n`);
+
 const claim = await draftClaim(
-  "aave-v3-ethereum",
+  subject,
   "utilization ratio (total borrowed / total deposited)",
   mode === "false" ? { mode: "false", overstateBy: 0.6 } : { mode: "honest" },
   llm,
