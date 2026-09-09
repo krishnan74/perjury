@@ -8,7 +8,7 @@
 // It can also be told to lie. Scene 2 of the demo needs a claim that is false in
 // a way a witness will actually catch, and fabricating that honestly means
 // deriving the true value first and then stating something else.
-import { query, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
+import { queryCorroborated, deriveMetric, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import { digestOf, type Attestation, type Comparator, type TypedAssertion } from "@perjury/shared";
@@ -97,7 +97,14 @@ export async function draftClaim(
 
   try {
     const p = await plan(llm, pinned, metric);
-    const { data, provenance } = await query<Record<string, unknown>>(subject, p.selection);
+    // Corroborated like the witness's read: the claimant is held to the same
+    // data standard it will be judged against, so a contested reading is caught
+    // before a bond is ever posted rather than after.
+    const { data, provenance } = await queryCorroborated<Record<string, unknown>>(
+      subject,
+      p.selection,
+      (d) => deriveMetric(d, metric),
+    );
     const trueValue = await deriveValue(llm, p, data);
 
     const fabricated = honesty.mode === "false";

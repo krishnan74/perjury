@@ -8,7 +8,7 @@
 // result onto a typed assertion. It does not get to decide whether the data was
 // trustworthy — graph-guard makes that call deterministically, because an agent
 // cannot be relied on to report honestly about its own data.
-import { query, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
+import { queryCorroborated, deriveMetric, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import type { Attestation, TypedAssertion, Comparator } from "@perjury/shared";
@@ -121,14 +121,24 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
   try {
     const plan = await planQuery(llm, claim, pinned);
 
-    // graph-client runs the guard: pinned deployment, freshness, indexing errors.
-    const { data, provenance } = await query<Record<string, unknown>>(claim.subject, plan.selection);
+    // graph-client runs the guard: pinned deployment, freshness, indexing errors,
+    // and — where a second deployment independently indexes this protocol —
+    // agreement between them. Divergence throws, and the catch below turns it
+    // into UNVERIFIABLE: if the indexers themselves disagree about what the chain
+    // says, the fact is contested and no claimant may be convicted on it.
+    const { data, provenance } = await queryCorroborated<Record<string, unknown>>(
+      claim.subject,
+      plan.selection,
+      (d) => deriveMetric(d, claim.metric),
+    );
 
     const assertion = await deriveAssertion(llm, claim, plan, data, provenance.indexedBlock);
 
     return {
       attestation: { provenance, assertion, digest: digestOf(provenance, assertion) },
-      methodology: `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}`,
+      methodology:
+        `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}` +
+        ` [${provenance.corroboration?.sources ?? 1} independent deployment(s)]`,
       evidence: data,
     };
   } catch (e) {

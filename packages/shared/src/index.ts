@@ -21,6 +21,27 @@ export interface TypedAssertion {
   asOfBlock: number;
 }
 
+/**
+ * How many independently-indexed deployments produced the same value.
+ *
+ * A deployment id is a content hash of the mapping code, so two deployments of
+ * the same protocol are two independent derivations of the same chain state.
+ * Reading only one means claimant and witness re-derive the *query* but share
+ * the *derivation* — a mapping bug produces two honest agents confidently
+ * agreeing on a wrong number. This records whether that risk was actually
+ * retired for a given read, or merely not measurable.
+ */
+export interface Corroboration {
+  /** Independent deployments read. 1 means no plurality exists for this subject. */
+  sources: number;
+  /** Every deployment id consulted, primary first. */
+  deploymentIds: string[];
+  /** Largest pairwise divergence, in basis points. 0 when single-source. */
+  maxDivergenceBps: number;
+  /** True only when two or more sources agreed. Never true for a single source. */
+  corroborated: boolean;
+}
+
 /** Evidence that a Graph read was live, pinned, and fresh. */
 export interface Provenance {
   deploymentId: string;
@@ -29,6 +50,8 @@ export interface Provenance {
   queriedAt: number;
   queryHash: string;
   hasIndexingErrors: boolean;
+  /** Absent on reads taken before corroboration existed; see Corroboration. */
+  corroboration?: Corroboration;
 }
 
 export interface Attestation {
@@ -44,7 +67,10 @@ export type UnverifiableReason =
   | "stale-index"
   | "indexing-errors"
   | "missing-meta"
-  | "no-data";
+  | "no-data"
+  /** Independent deployments of the same protocol disagreed. The data layer is
+   *  contested, so no party can be convicted on it. */
+  | "corroboration-divergence";
 
 export class UnverifiableError extends Error {
   constructor(

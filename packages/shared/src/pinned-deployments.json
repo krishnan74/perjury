@@ -1,5 +1,5 @@
 {
-  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches, so we pin the immutable deployment hash and reject anything else. Every entry serves the Messari standardized lending schema, so ONE query pattern and ONE recompute function cover all of them \u2014 adding a protocol is a data change, never a code change. Verified live against the Gateway by scripts/verify-pinned.ts.",
+  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches, so we pin the immutable deployment hash and reject anything else. Every entry serves the Messari standardized lending schema, so ONE query pattern and ONE recompute function cover all of them \u2014 adding a protocol is a data change, never a code change. `corroborators` lists OTHER deployments independently indexing the same protocol: a deployment id is a content hash of the mapping code, so agreement across them is agreement between independent derivations rather than one source repeated. Most protocols have no second indexer yet, and those reads are recorded as single-source rather than rejected. Verified live by scripts/verify-pinned.ts.",
   "chain": "ethereum-mainnet",
   "deployments": [
     {
@@ -12,7 +12,8 @@
         "totalValueLockedUSD",
         "totalBorrowBalanceUSD",
         "totalDepositBalanceUSD"
-      ]
+      ],
+      "corroborators": []
     },
     {
       "subject": "aave-v2-ethereum",
@@ -24,7 +25,8 @@
         "totalValueLockedUSD",
         "totalBorrowBalanceUSD",
         "totalDepositBalanceUSD"
-      ]
+      ],
+      "corroborators": []
     },
     {
       "subject": "compound-v3-ethereum",
@@ -36,7 +38,8 @@
         "totalValueLockedUSD",
         "totalBorrowBalanceUSD",
         "totalDepositBalanceUSD"
-      ]
+      ],
+      "corroborators": []
     },
     {
       "subject": "spark-ethereum",
@@ -48,6 +51,26 @@
         "totalValueLockedUSD",
         "totalBorrowBalanceUSD",
         "totalDepositBalanceUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "morpho-aave-v3-ethereum",
+      "schema": "messari-lending",
+      "subgraphId": "FKe6ANnWmGPE6hajGLoTgPrVF2jYPHiRu2Jwcg9ZmG9A",
+      "deploymentId": "QmVpuZKrjhjHx2hCtpGNaW29ZYq4Xt2GyPLpiMDP2YTAHE",
+      "protocolName": "Morpho Aave V3",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ],
+      "corroborators": [
+        {
+          "subgraphId": "EE7m9KzByJep5hU9znbjREWgvdooKd1JWrUQJXLn6hh1",
+          "deploymentId": "Qme9KY9Nm5YaRsew1CjR5rtwZMgQAG3SzxRmqevtVW7R83",
+          "note": "Independently published index of the same protocol. Observed diverging ~490 bps from the primary at an identical block on 2026-09-09 \u2014 the case this mechanism exists to catch."
+        }
       ]
     }
   ],
