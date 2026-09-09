@@ -1,5 +1,34 @@
 import type { Metadata } from "next";
+import { Instrument_Serif, IBM_Plex_Mono, Inter_Tight } from "next/font/google";
 import "./globals.css";
+
+/**
+ * Type is the design here, so none of it is a system font.
+ *
+ * Instrument Serif carries the display: it has the sharp, slightly editorial
+ * cut of a printed judgement, which is what this project produces. IBM Plex
+ * Mono is the evidence voice — every figure on this site came off a chain, and
+ * it should look like something you could check. Inter Tight sets running prose
+ * only, where neither of the other two would be comfortable.
+ */
+const display = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-display",
+  display: "swap",
+});
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap",
+});
+const sans = Inter_Tight({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Perjury — verification for AI agent claims",
@@ -17,7 +46,7 @@ export const revalidate = 30;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${display.variable} ${mono.variable} ${sans.variable}`}>
       <body>
         <nav className="nav">
           <a className="brand" href="/">Perjury</a>
