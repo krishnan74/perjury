@@ -22,7 +22,7 @@
 | T3 Randomness | ● live VRF v2.5 rounds assigning witnesses and seating appeal panels, repeatedly |
 | T4 ENSv2 | ● resolver deployed, per-key EAC, operator write revoked, standing written by the tribunal alone |
 | T5 Graph | ● live Gateway + guard + MCP + LLM agents. Five protocols on one standardized query pattern; corroborated reads across independent deployments. 64 TS tests |
-| T6 Dashboard | ○ not started — deliberately last, see D12 in [ai-usage.md](docs/ai-usage.md) |
+| T6 Dashboard | ◐ read-only + replay built on the `dashboard` branch; live triggering still to come |
 | T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
 | T8 Submit | ◐ evidence and docs ready; **video not recorded** |
 

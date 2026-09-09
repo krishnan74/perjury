@@ -29,7 +29,7 @@ Verified on live networks, not mocked:
 | **Corroborated reads** | Where a protocol has two independent deployments, both must agree or the verdict is `Unverifiable`. Two live Morpho Aave V3 indexes disagree by 488 bps at an identical block — `npx tsx scripts/prove-corroboration.ts` |
 | **Test suite** | 60 Foundry tests, 80 TypeScript tests |
 
-**Not built:** the dashboard. Everything above is verifiable from a block explorer and the terminal scenes.
+**Dashboard:** a read-only site over the live protocol — roster with ENS standing, every claim, and a per-claim page setting what the tribunal published beside what it sealed. Plus a replay that steps a settled claim through its own transactions. `cd app && npm run dev`.
 
 **Honest scope note:** `cre workflow simulate` executes locally, not inside an enclave. We register a real TEE handler and the workflow runs end to end, but enclave execution requires confidential-DON deploy access, which we have requested. We do not claim adjudication has run inside a TEE.
 
