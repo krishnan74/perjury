@@ -50,7 +50,7 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="cols">
-        <div>
+        <div className="col-published">
           <p className="eyebrow">Published on chain</p>
           <p className="note" style={{ marginBottom: "1.2rem" }}>
             The entire report. Four fields, delivered by a Chainlink Forwarder to a sink that accepts
@@ -77,7 +77,7 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
           of these values appear in any transaction, and the commitment above is
           the only trace they leave.
         */}
-        <div>
+        <div className="col-sealed">
           <p className="eyebrow">Sealed in the enclave</p>
           <p className="note" style={{ marginBottom: "1.2rem" }}>
             None of this reached the chain. Publishing it would hand the next claimant a rubric — if

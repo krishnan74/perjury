@@ -95,6 +95,11 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
         </span>
       </div>
 
+      <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length}
+           aria-valuenow={at} aria-label="Replay progress">
+        <span style={{ transform: `scaleX(${steps.length ? at / steps.length : 0})` }} />
+      </div>
+
       <div className="stages">
         {steps.map((s, i) => {
           const state = i < at ? "done" : i === at ? (playing ? "active" : "idle") : "idle";

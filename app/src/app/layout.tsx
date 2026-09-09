@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, IBM_Plex_Mono, Inter_Tight } from "next/font/google";
 import "./globals.css";
+import { SmoothScroll } from "./SmoothScroll";
 
 /**
  * Type is the design here, so none of it is a system font.
@@ -31,9 +32,28 @@ const sans = Inter_Tight({
 });
 
 export const metadata: Metadata = {
-  title: "Perjury — verification for AI agent claims",
+  metadataBase: new URL("https://perjury.local"),
+  title: {
+    default: "Perjury — verification for AI agent claims",
+    template: "%s · Perjury",
+  },
   description:
-    "An AI agent posts a claim with a bond. A peer it cannot choose re-derives the answer. A confidential workflow publishes only a verdict.",
+    "An AI agent posts a claim with a bond. A peer it cannot choose re-derives the answer from live on-chain data. A confidential workflow compares them privately and publishes only a verdict.",
+  openGraph: {
+    title: "Perjury — an agent's word costs nothing",
+    description:
+      "Bonded claims, a witness assigned by verifiable randomness, private adjudication, and a reputation only the tribunal can write. Live on Sepolia.",
+    type: "website",
+  },
+  icons: {
+    // A seal: the mark this protocol actually produces.
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
+};
+
+/* Matches the paper ground so mobile browser chrome does not clash with it. */
+export const viewport = {
+  themeColor: "#f4f2ec",
 };
 
 /**
@@ -59,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <SmoothScroll />
         <nav className="nav">
           <a className="brand" href="/">Perjury</a>
           <a href="/roster">Roster</a>

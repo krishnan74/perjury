@@ -61,6 +61,10 @@ export default async function Roster() {
         upgrade path anywhere in the protocol to route around it.
       </p>
 
+      {agents.length === 0 && (
+        <p className="note">No agents registered on this deployment yet.</p>
+      )}
+
       <p className="eyebrow">Eligible — {eligible.length} of {agents.length}</p>
       <div>{eligible.map((a, i) => <Row key={a.address} a={a} i={i} />)}</div>
 

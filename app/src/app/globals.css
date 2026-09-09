@@ -56,6 +56,8 @@
 html, body {
   margin: 0;
   padding: 0;
+  overflow-x: clip;
+  max-width: 100%;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
@@ -120,11 +122,11 @@ a { color: inherit; }
 .eyebrow::before { content: "// "; }
 
 .lede {
+  max-width: min(var(--measure), 100%);
   text-wrap: pretty;
   font-size: clamp(1rem, 1.6vw, 1.15rem);
   line-height: 1.6;
   color: var(--ink-2);
-  max-width: var(--measure);
 }
 
 .mono { font-family: var(--mono); }
@@ -134,7 +136,10 @@ a { color: inherit; }
 /* ── Layout ───────────────────────────────────────────────────────────── */
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
-.section { padding: clamp(3rem, 8vw, 6rem) 0; border-top: 1px solid var(--rule); }
+/* padding-block, NOT the shorthand. `padding: <v> 0` here reset the horizontal
+   gutter that .wrap sets, so every section ran edge-to-edge. On desktop the
+   auto margins disguised it; on a phone the text touched the screen edge. */
+.section { padding-block: clamp(3rem, 8vw, 6rem); border-top: 1px solid var(--rule); }
 .section:first-of-type { border-top: 0; }
 
 /* ── Nav ──────────────────────────────────────────────────────────────── */
@@ -291,9 +296,33 @@ a { color: inherit; }
   font-size: 0.82rem;
 }
 .stage:last-child { border-bottom: 0; }
-.stage[data-state="idle"] { color: var(--muted); opacity: 0.55; }
-.stage[data-state="active"] { background: #fff; }
+/* At rest every row is idle, and at 0.55 the whole list read as disabled rather
+   than pending. Idle is now legible; done is marked in ink and accent so the
+   progression is obvious at a glance on camera. */
+.stage[data-state="idle"] { color: var(--muted); }
+.stage[data-state="idle"] .dot { opacity: 0.45; }
+.stage[data-state="active"] {
+  background: #fff;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 .stage[data-state="done"] { color: var(--ink); }
+.stage[data-state="done"] .dot { color: var(--accent); }
+.stage .dot { transition: color 0.3s var(--quart), opacity 0.3s var(--quart); }
+
+/* Progress across the whole replay, so "how far in" is readable without
+   counting rows. */
+.progress {
+  height: 2px;
+  background: var(--rule);
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 0.5s var(--expo);
+}
 .stage .dot { font-size: 0.9rem; }
 .stage .when { color: var(--muted); font-size: 0.74rem; }
 
@@ -374,7 +403,7 @@ footer.foot {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: clamp(3rem, 9vh, 7rem) 0 2rem;
+  padding-block: clamp(3rem, 9vh, 7rem) 2rem;
   position: relative;
 }
 
@@ -412,7 +441,7 @@ body > * { position: relative; z-index: 1; }
 /* On an unusually tall viewport a 100vh hero becomes an empty field with a
    headline stranded in it. Cap it rather than let the fold dictate the layout. */
 @media (min-height: 1200px) {
-  .hero { min-height: auto; padding: 6rem 0 4rem; }
+  .hero { min-height: auto; padding-block: 6rem 4rem; }
   .hero .scrollcue { margin-top: 3rem; }
 }
 
@@ -435,7 +464,7 @@ body > * { position: relative; z-index: 1; }
   font-size: clamp(0.86rem, 1.25vw, 1rem);
   line-height: 1.85;
   color: var(--ink-2);
-  max-width: 58ch;
+  max-width: min(58ch, 100%);
 }
 
 .scrollcue {
@@ -778,6 +807,9 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   .stamp { animation: none; opacity: 1; transform: rotate(-11deg); }
 }
+@media (prefers-reduced-motion: reduce) and (max-width: 720px) {
+  .stamp { transform: translateX(-50%) rotate(-6deg); }
+}
 
 .record-wrap { position: relative; }
 
@@ -810,3 +842,60 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }
 }
+
+
+/* ══ Narrow screens ═══════════════════════════════════════════════════════
+   Checked at 390px. The rules below fix things that only break once the
+   columns collapse — a stamp hanging off the edge, a two-column record with no
+   room for two columns, and display numerals large enough to swamp a heading. */
+
+@media (max-width: 720px) {
+  /* The stamp hangs off the record's right edge by design; on a phone that is
+     22px of horizontal overflow, so it tucks inside instead. */
+  .stamp {
+    right: auto;
+    left: 50%;
+    bottom: -1.1rem;
+    font-size: 0.72rem;
+    padding: 0.42rem 0.85rem 0.36rem;
+    animation-name: strike-sm;
+  }
+  @keyframes strike-sm {
+    0%   { opacity: 0; transform: translateX(-50%) rotate(-6deg) scale(1.35); }
+    70%  { opacity: 1; transform: translateX(-50%) rotate(-6deg) scale(0.95); }
+    100% { opacity: 1; transform: translateX(-50%) rotate(-6deg) scale(1); }
+  }
+  .record-wrap { padding-bottom: 1.4rem; }
+
+  /* A 8.5rem label column leaves nothing for the value at this width. */
+  .record-row { grid-template-columns: 1fr; gap: 0.3rem; padding: 0.7rem 0.9rem; }
+  .record-row .v { font-size: 0.78rem; }
+
+  .chapter-num { font-size: clamp(5rem, 26vw, 8rem); opacity: 0.05; top: 0.6rem; }
+
+  .assertion { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .assertion:last-child { border-bottom: 0; }
+  .assertion .k { min-height: 0; }
+
+  .defs { grid-template-columns: 1fr; }
+  .cell { min-height: 0; padding: 1.25rem 1.15rem 1.4rem; }
+  .cell-head { margin-bottom: 1.1rem; }
+
+  .stage { grid-template-columns: 1.2rem 1fr; row-gap: 0.35rem; }
+  .stage .when { grid-column: 2; }
+
+  .ledger-row { grid-template-columns: 1fr auto; gap: 0.75rem; font-size: 0.78rem; }
+
+  .nav { gap: 0.9rem 1.1rem; font-size: 0.74rem; }
+  .actions { gap: 0.5rem; }
+  .btn { font-size: 0.74rem; padding: 0.55rem 0.8rem; }
+}
+
+/* Long, unbreakable strings — hashes and addresses — must never widen a row. */
+.mono, .defs dd, .stage, .row .meta { overflow-wrap: anywhere; }
+
+
+/* Claim detail: the published column and the sealed column are opposites, so
+   they are set as opposites — one on paper, one under a rule of accent. */
+.col-published { border-top: 2px solid var(--ink); padding-top: 1.2rem; }
+.col-sealed { border-top: 2px solid var(--accent); padding-top: 1.2rem; }

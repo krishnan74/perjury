@@ -18,6 +18,13 @@ export default async function Claims() {
         more usefully, to what it did not.
       </p>
 
+      {rows.length === 0 && (
+        <p className="note" style={{ marginTop: "2.4rem" }}>
+          No claims in the block range this page reads. The registry is live either way — check it
+          directly on Etherscan.
+        </p>
+      )}
+
       <div style={{ marginTop: "2.4rem" }}>
         {rows.map((r) => (
           <a className="row" key={r.id} href={`/claims/${r.id}`}>
