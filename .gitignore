@@ -37,7 +37,8 @@ lcov.info
 .idea/
 
 # foundry libs (vendored via forge install --no-git)
-lib/
+# Root-anchored: an unanchored `lib/` also swallowed app/src/lib.
+/lib/
 
 # node
 node_modules/
@@ -57,3 +58,6 @@ docs/mentorship-post.md
 docs/submission-form.md
 docs/chainlink-discord-message.md
 discord-*.md
+
+# next.js generated types
+app/next-env.d.ts
