@@ -18,7 +18,7 @@ Verified on live networks, not mocked:
 | **Randomly assigned witness** | Live Chainlink VRF v2.5: `submitClaim` takes no witness parameter, so the claimant has no code path to influence assignment. Every scene draws a witness that is not the claimant — [fulfilment tx](https://sepolia.etherscan.io/tx/0x99c8504d74aabae2e6cc2dad3e51a527ac250df3405cc831992ed5a3e2daac2b) |
 | **Independent re-derivation** | Claimant and witness each query live Aave v3 data through the Subgraph MCP and a pinned deployment; true claim → **Match** (40.43% vs 40.43%), fabricated claim → **Mismatch** (64.70% vs 40.43%) |
 | **Provenance enforcement** | Stale index, unpinned deployment, indexing errors or an empty result set all produce `Unverifiable` — never a silent pass |
-| **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); reports delivered on-chain by a Chainlink Forwarder, evidence never published |
+| **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); reports delivered on-chain by a Chainlink Forwarder, evidence never published — [execution log](docs/cre-execution-log.md) |
 | **Appeal by random panel** | A losing claimant appealed; a second VRF draw seated three agents excluding both parties, upheld the verdict, and cost the appellant its appeal bond too — [panel seated](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0), [settled](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
 | **Reputation only the tribunal can write** | ENSv2 Enhanced Access Control, scoped to a single record key. The operator that deployed every contract and owns `perjury.eth` gets `EACUnauthorizedAccountRoles` when it tries to write standing |
 | **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
@@ -105,6 +105,7 @@ Random assignment closes *deliberate* collusion. It does not catch a careless wi
 | **[docs/ai-usage.md](docs/ai-usage.md)** | Per-file provenance and the human decision log |
 | **[docs/prompts/](docs/prompts/)** | Every directing prompt, verbatim |
 | **[docs/build-log.md](docs/build-log.md)** · **[docs/TX_HASHES.md](docs/TX_HASHES.md)** | Progress notes · deployed addresses and demo tx hashes |
+| **[docs/cre-execution-log.md](docs/cre-execution-log.md)** | Confidential-workflow execution evidence: what runs in the enclave, captured simulator output |
 
 ## Sponsor tracks
 
