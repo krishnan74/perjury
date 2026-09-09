@@ -131,7 +131,9 @@ Running log of decision points. Each entry records the options that were on the 
 
 | D23 | 2026-09-09 | **`WitnessRoster.sol` line-by-line review** | Relabel without reviewing / review, then relabel | **Reviewed, then relabelled.** The human read the three functions the anti-collusion claim rests on — `isEligible`, `_assign`, `_assignPanel` — and the `⚠ NOT YET HUMAN-LED` label was lifted only afterwards. The review's concrete output is the `MAX_WALK = 32` roster bound: below 33 agents the walk covers the whole ring, above it a draw can report no eligible witness while eligible agents exist further round. It fails closed and the demo roster is five, so it is documented as a known bound rather than fixed. |
 
-*(Append D24+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
+| D24 | 2026-09-10 | **Mentor review — which points to act on** | Adopt all five / triage | **Adopted three, deferred one, rejected one premise.** A mentor raised five points. Block pinning and the missing economics were real gaps and are now closed. Randomness and sybil resistance were already answered (VRF, no witness parameter, stake plus issuance-gated names) and needed only stating. ERC-8004 is sound strategy but was underestimated as "a small add" — immutable contracts mean an adapter, so it is deferred behind the video. **The rejected part:** the claim that a deterministic, cheaply-recomputable claim undermines the design. Recomputability was never the bottleneck, obligation is — the same reason audits exist for arithmetic anyone could check. The prescription (state the band explicitly) was right and is now §0.3b; the premise behind it was not, and accepting it would have made the project apologise for its clearest demo. |
+
+*(Append D25+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
 
 ### 0.5 Where attribution lives
 

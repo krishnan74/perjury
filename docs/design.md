@@ -47,6 +47,55 @@ Three constraints generate the entire architecture. Each rules out an obvious si
 
 The third is the load-bearing insight. Most agent-reputation designs fail here quietly: they build an elaborate scoring mechanism, then let the scored party — or a project multisig — write the score.
 
+### 0.3b Which claims this works for
+
+A mentor asked the sharpest question anyone has put to this project: if a claim is deterministic from chain data then anyone can recompute it, and if it is fuzzy then two agents disagreeing proves nothing — so where exactly is this airtight?
+
+**The premise that cheap verification removes the need is wrong, and it is worth saying why.** Recomputability was never the bottleneck. *Obligation* is. A tax return is arithmetic anyone can check, and audits still exist, because the party who would benefit from checking is not present when the return is filed and cannot check every filing at scale. The same holds here: whoever relies on an agent's claim is usually not there at claim time, and nobody re-derives anything unprompted. Perjury conscripts a checker and attaches a consequence.
+
+So a cheaply-verifiable claim is the **best** case for this design, not a weakness — the verdict is unambiguous, and the whole argument reduces to who checked and whether they could have been chosen.
+
+**The band where this is airtight:**
+
+| | |
+|---|---|
+| **Objectively re-derivable** | Two honest parties reading the same source at the same block must reach the same answer. Anything that depends on judgement is out. |
+| **Nobody is obliged to re-derive it** | If the relying party is present, capable and motivated, they should just check it themselves and skip all of this. |
+| **Being wrong is costly** | The consequence has to be worth more than the bond, or there is nothing to deter. |
+
+**Where it stops working, in both directions:**
+
+- **Too trivial.** A claim the reader can verify in a second, at the moment they read it, does not need a bonded tribunal. Perjury is for claims relied on by someone who is not present.
+- **Too fuzzy.** If two honest agents can legitimately disagree, disagreement carries no information. The tribunal returns `Unverifiable` — which is correct, and also means the mechanism has no teeth there. It cannot adjudicate matters of judgement and does not try.
+- **Not about the agent's reasoning.** Nothing here inspects an agent's internal process. It checks whether a stated, re-derivable fact holds.
+
+The demo sits deliberately inside the band: a Messari-schema lending metric is objectively re-derivable, nobody re-derives it unprompted, and a false reading would move real money.
+
+### 0.3c Who pays for verification, and when lying stops paying
+
+The second thing a mentor pushed on: if verification costs more than the bond, does lying become profitable at scale?
+
+**Who pays: the claimant, up front.** `submitClaim` requires `MIN_BOND + WITNESS_FEE`, so the fee for whoever gets drawn is escrowed at submission before any work happens. The protocol never subsidises verification and never has to raise revenue to fund it.
+
+| | Value | Paid by | Goes to |
+|---|---|---|---|
+| Bond | 0.01 ETH | claimant | returned on Match · **forfeited to nobody** on Mismatch |
+| Witness fee | 0.002 ETH | claimant, escrowed at submission | the drawn witness, **on every verdict** |
+| Appeal bond | 0.02 ETH | appellant | forfeited if the panel upholds |
+| Registration stake | 0.01 ETH | agent, once | slashed on a proven false claim |
+
+Two of those rows are load-bearing. The witness earns the same fee whether it finds a Match or a Mismatch, so the fee is never a reward for finding fault. And the forfeited bond goes to **nobody** — paying it to the witness is exactly what would make manufacturing disagreement profitable.
+
+**When lying stops paying.** The condition is not "verification cost versus bond" — those are different sides of the market. Verification cost determines whether anyone will *supply* verification; whether lying pays is:
+
+```
+gain from the lie   <   P(checked) × (bond + stake + value of lost eligibility)
+```
+
+Because the penalty compounds — bond, then stake, then the ability to earn fees from anyone else's claims — a low sampling rate is sufficient. At a bond worth ~20× the gain, roughly a 1-in-20 chance of being checked is already break-even. That is the same shape as tax audits, which discipline behaviour at well under 1% coverage.
+
+**Where this is honestly thin.** Our verification cost is LLM inference (~$0.025 per derivation), Graph queries, and settlement gas. At Sepolia prices the 0.002 ETH fee covers it comfortably; **at mainnet gas it would not**. There is also no fee market — the fee is a constant, not a bid — and the bond does not scale with the value of the claim, which it would have to in production. Sizing bond and fee to claim value is the obvious next design step and is not built.
+
 ### 0.4 What this does not solve
 
 Random assignment closes *deliberate* collusion. It does not close carelessness, correlated honest error, or sybils. This is treated as a first-class part of the design rather than a footnote — see [§6](#6-the-honest-limitation-demonstrated-not-disclaimed), which the demo must *show* rather than narrate.
@@ -507,6 +556,20 @@ duel.ts false  curve-arbitrum         → Mismatch   DEX, L2
 That is the honest shape of the standardization win: the *schema* generalised for free, and the *chain-relative assumptions* did not. It would have been free too if `_meta` carried the indexed block's timestamp, which is now filed as feedback.
 
 Why this matters beyond convenience: the tribunal compares two independently-produced assertions, which is only meaningful if both parties can describe a finding in the *same terms* without having agreed on a schema beforehand. A standardized schema is what supplies that shared vocabulary. Without it, claimant and witness would each need a protocol-specific adapter, and every new protocol would mean new code inside the verification path — code that is itself unverified. **Standardization is not a convenience here; it is what keeps the trusted surface constant as coverage grows.**
+
+#### 5.4b Pinned reads — removing drift instead of tolerating it
+
+Chain state moves between a claim and its verification. VRF takes about a minute to draw a witness, so the two parties were reading whatever was latest at their own moment and comparing across a gap.
+
+That never convicted anyone: readings too far apart return `Unverifiable`, not `Mismatch`, so an honest claimant was never punished for time passing. But it did mean honest claims could simply **fail to resolve**, which is a real cost we had not been counting.
+
+A claim now carries the block the claimant read, and the witness — and any appeal panel seated minutes later — reads at that same block. The Graph serves historical queries per entity, so the block argument is injected into the composed document by `composeDocument` rather than left to the agent's own query: an LLM wrote that selection, and a guarantee should not depend on the thing being verified remembering to include it.
+
+`graph-guard` then checks the **served** block equals the requested one. The Gateway can answer from the latest block if it cannot serve the request, so verifying what came back is what makes the pin binding rather than advisory.
+
+The staleness window is deliberately **not** applied to a pinned read. The pin is the freshness contract — both parties agreed to read one historical block, and measuring its distance from the current head would reject the arrangement it exists to support. What stops an agent smuggling ancient data past a counterparty is that the counterparty reads the same block and the claim states it.
+
+Verified live: claimant and witness both at block 25941992, Match; and a fabricated claim at block 25941998, Mismatch.
 
 #### 5.5 Corroborated reads — why The Graph specifically, and not any data source
 

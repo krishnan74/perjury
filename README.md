@@ -101,6 +101,12 @@ Three constraints drive the whole design, and each rules out a simpler approach:
 
 See [docs/design.md](docs/design.md) for the full mechanism.
 
+## What it works for
+
+Objectively re-derivable claims that **nobody is obliged to re-derive**, where being wrong is costly. Recomputability was never the bottleneck — obligation is. Whoever relies on an agent's claim is usually not present when it is made, and nobody checks anything unprompted.
+
+Too trivial to be worth a tribunal, and you should just check it yourself. Too fuzzy for two honest agents to be expected to agree, and disagreement carries no information — we return `Unverifiable`, which is correct and also toothless. [design.md §0.3b](docs/design.md) draws the boundary properly.
+
 ## What it doesn't solve
 
 Random assignment closes *deliberate* collusion. It does not catch a careless witness. Two independently-honest agents reaching the same wrong conclusion is partly addressed — where a protocol has a second independent index, both must agree or the verdict is `Unverifiable` — but only one of our five pinned protocols has one, so elsewhere the reading is stamped `single-source` and the limitation stands. The demo is required to **show** this limitation, not narrate it — see [docs/design.md §6](docs/design.md#6-the-honest-limitation-demonstrated-not-disclaimed).
