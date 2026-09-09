@@ -20,7 +20,10 @@ import { createPublicClient, createWalletClient, http, parseEther, type Address,
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { namehash } from "viem/ens";
 import { sepolia } from "viem/chains";
-import { dnsEncode, withHackathonResolver, ENS_HACKATHON_SEPOLIA } from "@perjury/ens";
+import {
+  dnsEncode, withHackathonResolver, ENS_HACKATHON_SEPOLIA,
+  PERMISSIONED_RESOLVER_ABI, RECORD_KEYS,
+} from "@perjury/ens";
 
 const args = process.argv.slice(2);
 const freshResolver = args.includes("--resolver");
@@ -81,9 +84,14 @@ async function main() {
   // ── 1. ENS resolver ──────────────────────────────────────────────────────
   if (freshResolver) {
     step(1, "deploying a fresh Permissioned Resolver");
-    // Grants at init land on the root resource, so we take SET_TEXT_ADMIN here and
-    // narrow to per-key grants afterwards. See docs/design.md §4.2.
-    const ADMIN = (1n << 4n) | ((1n << 4n) << 128n);
+    // Grants at init land on the root resource, so we take the admin roles here
+    // and narrow to per-key grants afterwards. See docs/design.md §4.2.
+    //
+    // SET_TEXT plus its admin only. SET_ADDRESS is deliberately NOT taken: the
+    // Permissioned Resolver implementation carries no addr()/setAddr() at all
+    // (verified against deployed bytecode), so the role would grant nothing.
+    const SET_TEXT = 1n << 4n;
+    const ADMIN = SET_TEXT | (SET_TEXT << 128n);
     const initData = execFileSync(`${process.env.HOME}/.foundry/bin/cast`,
       ["calldata", "initialize((address,uint256)[],bytes[])", `[(${account.address},${ADMIN})]`, "[]"],
       { encoding: "utf8" }).trim() as Hex;
@@ -171,6 +179,24 @@ async function main() {
     const hash = await op.sendTransaction({ to: a.account.address, value: needed - bal });
     await pub.waitForTransactionReceipt({ hash });
     console.log(`  ${"funded".padEnd(24)} ${a.account.address}`);
+  }
+
+  // Issue each name to its agent BEFORE that agent registers. registerAgent
+  // refuses a name whose binding record does not name the caller, and an
+  // unreadable binding is a refusal rather than a pass — so this step is not
+  // optional, it is what makes registration possible at all.
+  //
+  // Written by the operator, which controls perjury.eth. The tribunal is never
+  // granted this key: the contract that lowers an agent's standing must not also
+  // be able to decide whose standing it is.
+  const resolverAddr = process.env.PERJURY_RESOLVER_ADDRESS as Address;
+  for (const a of agents) {
+    const hash = await op.writeContract({
+      address: resolverAddr, abi: PERMISSIONED_RESOLVER_ABI, functionName: "setText",
+      args: [dnsEncode(a.fqdn), RECORD_KEYS.binding, a.account.address.toLowerCase()],
+    });
+    await pub.waitForTransactionReceipt({ hash });
+    console.log(`  ${"issued".padEnd(24)} ${a.fqdn} -> ${a.account.address}`);
   }
 
   // Registrations are independent accounts, so they can all go at once.

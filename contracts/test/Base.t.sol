@@ -74,11 +74,15 @@ contract Base is Test {
         return abi.encodePacked("dns:", a);
     }
 
+    /// @dev The name must forward-resolve to the agent BEFORE it registers —
+    ///      registration proves control of the name, so binding afterwards is
+    ///      too late. Mirrors production, where an agent owns its subname first.
     function _register(address a) internal {
         vm.deal(a, a.balance + STAKE);
+        resolver.bind(_dns(a), _node(a));
+        resolver.setBinding(_dns(a), a);
         vm.prank(a);
         roster.registerAgent{value: STAKE}(_node(a), _dns(a));
-        resolver.bind(_dns(a), _node(a));
     }
 
     function _submit(address claimant) internal returns (uint256 claimId) {

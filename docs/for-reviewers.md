@@ -42,6 +42,8 @@ Read it in this order:
 | Per-key EAC scoping — `grantSetterRoles`, then revoke root, then revoke the operator | [configure-eac.ts#L50-L92](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/scripts/configure-eac.ts#L50-L92) |
 | Reputation gates eligibility with no cache and no cron — an unreadable record is ineligible | [WitnessRoster.sol#L194-L204](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/WitnessRoster.sol#L194-L204) |
 
+**Two keys, two writers** — the part worth reading closely. `com.perjury.agent-standing` is writable only by the tribunal; `com.perjury.agent-address`, which says whose reputation a record is, is writable only by the namespace operator and explicitly **not** by the tribunal. If one contract held both, a slashed identity could be moved onto a clean name. `npx tsx scripts/prove-name-binding.ts` shows registration refusing a name the caller was not issued — two reverts and one success, on-chain.
+
 **The single thing to check, if you check one thing:** the operator that deployed every contract, owns `perjury.eth`, and held the role admin **cannot write the standing record**. It reverts with `EACUnauthorizedAccountRoles`. The restriction is a permission, not a policy — there is no owner, pause, proxy or address setter anywhere in the protocol to route around it.
 
 The write is scoped to a single key (`com.perjury.agent-standing`). The same contract attempting to write `avatar` on the same name is refused.

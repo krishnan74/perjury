@@ -52,18 +52,33 @@ async function send(label: string, fn: "grantRootRoles" | "revokeRootRoles", rol
  * roles in one multicall, then give the admin role up.
  */
 async function grantPerKey() {
-  const calls = [RECORD_KEYS.standing, RECORD_KEYS.flaggedUntil].map((key) =>
+  // Two writers, deliberately different.
+  //
+  //   standing + flagged-until  -> the tribunal, and only the tribunal
+  //   agent-address (issuance)  -> the namespace operator, never the tribunal
+  //
+  // Separating them is what makes reputation non-repudiable: the contract that
+  // lowers an agent's standing cannot also reassign whose standing it is, so a
+  // slashed identity cannot be moved onto a clean name.
+  const calls = [
+    ...[RECORD_KEYS.standing, RECORD_KEYS.flaggedUntil].map((key) =>
+      encodeFunctionData({
+        abi: PERMISSIONED_RESOLVER_ABI,
+        functionName: "grantSetterRoles",
+        args: [setTextSetter(key), WRITER],
+      }),
+    ),
     encodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
       functionName: "grantSetterRoles",
-      args: [setTextSetter(key), WRITER],
+      args: [setTextSetter(RECORD_KEYS.binding), account.address],
     }),
-  );
+  ];
   const hash = await wallet.writeContract({
     address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "multicall", args: [calls],
   });
   const r = await pub.waitForTransactionReceipt({ hash });
-  console.log(`  grant per-key SET_TEXT -> writer (${calls.length} keys)\n    ${hash}  ${r.status}`);
+  console.log(`  grant per-key SET_TEXT: 2 keys -> writer, issuance key -> operator\n    ${hash}  ${r.status}`);
 }
 
 async function main() {
@@ -95,6 +110,8 @@ async function main() {
     ["operator holds SET_TEXT", account.address, ROLE.SET_TEXT, false],
     ["writer holds SET_TEXT_ADMIN", WRITER, adminOf(ROLE.SET_TEXT), false],
     ["writer holds SET_ADDRESS", WRITER, ROLE.SET_ADDRESS, false],
+    // The tribunal must never be able to say whose standing a record is.
+    ["writer holds root SET_TEXT (would reach the issuance key)", WRITER, ROLE.SET_TEXT, false],
   ] as const) {
     const has = await pub.readContract({
       address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "hasRootRoles",

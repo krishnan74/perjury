@@ -112,6 +112,10 @@ contract WitnessRoster is IWitnessRoster {
     error AlreadyWired();
     error AlreadyRegistered();
     error NodeTaken();
+    /// @dev The name's addr record could not be read at all.
+    error NameNotResolvable();
+    /// @dev The name resolves, but to somebody else.
+    error NameNotControlled(address resolved, address caller);
     error UnknownRequest();
     error NotStandingWriter();
     error StakeTooSmall();
@@ -143,10 +147,25 @@ contract WitnessRoster is IWitnessRoster {
     }
 
     /// @notice Self-registration, backed by a slashable stake.
+    /// @notice Stake and bind an ENS name to this address.
+    /// @dev The name must have been issued to the caller, per its ENS binding
+    ///      record. Without that check any address could bind reputation to a
+    ///      name it was never given: since standing is written to the ENS record
+    ///      and the record gates eligibility, an attacker could attach its own
+    ///      misbehaviour to someone else's name, or squat names to deny them
+    ///      registration. `nodeTaken` only stops a SECOND claim on a name, never
+    ///      the first.
+    ///
+    ///      An unreadable binding is a refusal, not a pass — consistent with
+    ///      every other ENS read in this protocol.
     function registerAgent(bytes32 ensNode, bytes calldata dnsName) external payable {
         if (msg.value < REGISTRATION_STAKE) revert StakeTooSmall();
         if (agents[msg.sender].active) revert AlreadyRegistered();
         if (nodeTaken[ensNode]) revert NodeTaken();
+
+        (address bound, bool readable) = standingReader.boundAddressChecked(ensNode, dnsName);
+        if (!readable) revert NameNotResolvable();
+        if (bound != msg.sender) revert NameNotControlled(bound, msg.sender);
         agents[msg.sender] = Agent({
             ensNode: ensNode,
             dnsName: dnsName,

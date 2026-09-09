@@ -23,14 +23,15 @@ export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.cre/bin:$PATH"
 ## Commands
 
 ```bash
-forge test                              # 55 Solidity tests
-npx vitest run                          # 64 TS tests
+forge test                              # 60 Solidity tests
+npx vitest run                          # 73 TS tests
 npx tsc --noEmit -p tsconfig.json       # root typecheck (cre/ is excluded, has its own)
 cd cre/tribunal && npx tsc --noEmit     # workflow typecheck
 
 cd cre && cre workflow simulate tribunal --target staging-settings [--broadcast]
 npx tsx scripts/register-name.ts <label>    # ENS commit-reveal registration
 npx tsx scripts/prove-eac.ts                # EAC proof
+npx tsx scripts/prove-name-binding.ts       # registration refuses a name you were not issued
 npx tsx scripts/deploy-all.ts               # whole deployment cascade, one command
 npx tsx scripts/collect-evidence.ts         # rebuild docs/TX_HASHES.md from chain
 npx tsx scripts/verify-pinned.ts            # one query pattern vs all pinned deployments — RUN BEFORE RECORDING
@@ -58,15 +59,17 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 | Operator | `0xDcbe075a907960951Cd4df379BB21461097eEa91` |
 | `perjury.eth` | registered, ENSv2 hackathon deployment |
 | `ScratchSink` (probe) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` |
-| `ClaimRegistry` | `0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0` |
-| `WitnessRoster` | `0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E` (VRF consumer) |
-| `PerjuryStandingWriter` | `0x0573F58500aF260117B5E4782e1b1832c06Afba1` |
-| `ENSTextStandingReader` | `0xe8c5e05c478414f576558a26616D56b4929671a0` |
-| `VerdictSink` | `0x4E1c9EccdcF3329CB80CD94A0268925D792AF015` (mock forwarder) |
+| `ClaimRegistry` | `0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b` |
+| `WitnessRoster` | `0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712` (VRF consumer) |
+| `PerjuryStandingWriter` | `0x19b0992DEee48129dA2321362831b7eB07b261e8` |
+| `ENSTextStandingReader` | `0xB48F3Bcd32755855763a350a35586d40d328b958` |
+| `VerdictSink` | `0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd` (mock forwarder) |
 | `PerjuryResolver` | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` — EAC configured per-key, operator write revoked |
 | CRE report writer | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — a **Forwarder**, measured |
 | VRF subscription | owner = operator, roster registered as consumer |
 | Agents | 5 subnames of `perjury.eth`, all registered and staked |
+
+**Challenge window is 90s, not 30s.** At 30s the appeal in scene 2 raced the window and intermittently reverted `WindowClosed` — the gap between the verdict landing and the appeal being mined is one confirmation. It is a constructor parameter, so changing it means a redeploy.
 
 **Balances:** operator holds the ETH; the four agent wallets each need their own funds to post bonds (`AGENT_1..4_ADDR`). Scene 2's claimant needs 0.01 bond + 0.02 appeal bond of its own — the first run failed on `insufficient funds` because only the operator had been topped up.
 

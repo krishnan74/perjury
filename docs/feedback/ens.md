@@ -110,3 +110,22 @@ The team's response was fast and correct — the app is a convenience layer, reg
 The deployment is served from `*.workers.dev` and `*.pages.dev`, and MetaMask flagged the app domain as potentially malicious when we went to open it. Very likely a domain-reputation false positive on the shared subdomain rather than anything wrong with the deployment — but it is hard to verify independently, and it made us stop before connecting a wallet.
 
 It matters beyond the app: the contract addresses we build against come from a `*.pages.dev` docs preview too, and a team that can't establish the domain is genuinely ENS's has no easy way to confirm those addresses. We ended up verifying them behaviourally on-chain instead — checking each address had code, that the registrar answered `isAvailable`, and that MockUSDC reported the expected symbol and decimals. Serving both from an `ens.domains` subdomain would remove the doubt entirely.
+
+---
+
+## The Permissioned Resolver has no address records at all
+
+We wanted registration to prove that an agent controls the name it binds its reputation to, and the idiomatic answer is forward resolution: read the name's `addr` and require it to equal the caller.
+
+It is not available. The Permissioned Resolver implementation at `0xa9d3814ab151bf6e37a427432795371a8361614e` contains no `addr(bytes32)`, no `addr(bytes32,uint256)`, and no `setAddr` in any form — we scanned the deployed bytecode for every selector shape rather than guess, having already been caught once by assuming `text(bytes32,string)` would work. `setText(bytes,string,string)` is there; nothing address-shaped is.
+
+`ROLE_SET_ADDRESS` exists in the role enum, which is what sent us looking, so the role is defined for a capability the implementation does not have.
+
+**Consequences for us.** We fell back to an issuance text record written by the namespace operator, scoped to its own EAC key. That works and it is arguably the right trust model for a namespace issuing its own subnames — but it proves issuance rather than ownership, which is a weaker statement, and every consumer has to agree on a bespoke key rather than reading a standard record.
+
+**Suggestions.** Either implement `addr`/`setAddr` on the Permissioned Resolver, or state plainly in its documentation that it is text-only and that `ROLE_SET_ADDRESS` is inert. The second costs nothing and would have saved us the detour. More broadly: a documented way to answer "does this name belong to this address" on-chain is the primitive that anything binding reputation or permissions to a name needs first, and right now that question has no standard answer on this deployment.
+
+**A related one-way door.** Roles are supplied to the VerifiableFactory at resolver deployment, and a role not taken then cannot be acquired later. Our first resolver was deployed without `SET_ADDRESS`, so even if the implementation had supported addresses we could never have written one without redeploying and re-pointing every name. Worth a prominent warning next to the deployment snippet: **take every role you might ever need at deployment, because there is no later.**
+
+---
+

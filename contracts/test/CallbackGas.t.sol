@@ -12,9 +12,11 @@ contract CallbackGasTest is Base {
         for (uint256 i; i < agents; ++i) {
             address a = address(uint160(0x1000 + i));
             vm.deal(a, STAKE);
+            // Name must resolve to the agent before it can register.
+            resolver.bind(abi.encodePacked("dns", i), keccak256(abi.encodePacked("extra", i)));
+            resolver.setBinding(abi.encodePacked("dns", i), a);
             vm.prank(a);
             roster.registerAgent{value: STAKE}(keccak256(abi.encodePacked("extra", i)), abi.encodePacked("dns", i));
-            resolver.bind(abi.encodePacked("dns", i), keccak256(abi.encodePacked("extra", i)));
         }
         _submit(alice);
         uint256 reqId = vrf.nextRequestId() - 1;
@@ -40,9 +42,10 @@ contract CallbackGasTest is Base {
         for (uint256 i; i < 20; ++i) {
             address a = address(uint160(0x2000 + i));
             vm.deal(a, STAKE);
+            resolver.bind(abi.encodePacked("bdns", i), keccak256(abi.encodePacked("bad", i)));
+            resolver.setBinding(abi.encodePacked("bdns", i), a);
             vm.prank(a);
             roster.registerAgent{value: STAKE}(keccak256(abi.encodePacked("bad", i)), abi.encodePacked("bdns", i));
-            resolver.bind(abi.encodePacked("bdns", i), keccak256(abi.encodePacked("bad", i)));
             // make them ineligible: negative standing
             vm.prank(address(writer));
             resolver.setText(abi.encodePacked("bdns", i), "com.perjury.agent-standing", "-5");

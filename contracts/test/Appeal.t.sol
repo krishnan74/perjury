@@ -16,11 +16,12 @@ contract AppealTest is Base {
         for (uint256 i; i < 4; ++i) {
             address a = address(uint160(0x5000 + i));
             vm.deal(a, STAKE);
+            resolver.bind(abi.encodePacked("pdns", i), keccak256(abi.encodePacked("panelist", i)));
+            resolver.setBinding(abi.encodePacked("pdns", i), a);
             vm.prank(a);
             roster.registerAgent{value: STAKE}(
                 keccak256(abi.encodePacked("panelist", i)), abi.encodePacked("pdns", i)
             );
-            resolver.bind(abi.encodePacked("pdns", i), keccak256(abi.encodePacked("panelist", i)));
         }
     }
 

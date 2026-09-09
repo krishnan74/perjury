@@ -46,6 +46,24 @@ export const TRIBUNAL_GRANTS = [
 ] as const;
 
 /**
+ * Keys the tribunal must never hold, asserted rather than assumed.
+ *
+ * The issuance binding says which address a name belongs to. If the tribunal
+ * could write it, the contract that lowers an agent's standing could also
+ * reassign whose standing it is — which would let a slashed identity be moved
+ * onto a clean name, or a clean identity onto a slashed one. Separating the two
+ * writers is what makes the reputation non-repudiable.
+ */
+export const TRIBUNAL_FORBIDDEN_KEYS = [
+  { key: RECORD_KEYS.binding, resource: textResource(RECORD_KEYS.binding) },
+] as const;
+
+/** Granted to the namespace operator, which issues subnames. Never to an agent. */
+export const ISSUANCE_GRANTS = [
+  { role: ROLE.SET_TEXT, key: RECORD_KEYS.binding, resource: textResource(RECORD_KEYS.binding) },
+] as const;
+
+/**
  * Registry roles. Distinct from resolver roles — a separate permission world.
  * `register(label, owner, registry, resolver, roleBitmap, expiry)` grants the
  * owner exactly the roles in `roleBitmap`, so withholding is simply omission.

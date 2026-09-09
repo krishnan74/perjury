@@ -44,6 +44,17 @@ export const ENS_HACKATHON_URLS = {
 export const RECORD_KEYS = {
   standing: "com.perjury.agent-standing",
   flaggedUntil: "com.perjury.agent-flagged-until",
+  /**
+   * Which address a subname was issued to. Written by the namespace operator at
+   * issuance and by nobody else — deliberately NOT granted to the tribunal, so
+   * the contract that can lower an agent's standing cannot also decide which
+   * address that standing belongs to.
+   *
+   * It is a text record because the ENSv2 Permissioned Resolver implementation
+   * carries no addr()/setAddr() at all (verified against deployed bytecode), so
+   * forward resolution is unavailable on this deployment.
+   */
+  binding: "com.perjury.agent-address",
 } as const;
 
 /**

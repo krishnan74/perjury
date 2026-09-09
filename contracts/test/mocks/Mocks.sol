@@ -41,13 +41,41 @@ contract MockResolver is ITextResolver {
         resolverDown = d;
     }
 
+    /// @dev Dispatches on the inner selector like a real resolver. Previously
+    ///      this decoded every call as text(bytes32,string), which would have
+    ///      silently mis-decoded an addr(bytes32) read.
     function resolve(bytes calldata dnsName, bytes calldata data) external view returns (bytes memory) {
         require(!resolverDown, "resolver unavailable");
         bytes32 node = nodeFor[keccak256(dnsName)];
-        (, string memory key) = abi.decode(data[4:], (bytes32, string));
-        return abi.encode(_text[node][key]);
+        bytes4 selector = bytes4(data[0:4]);
+
+        if (selector == bytes4(keccak256("text(bytes32,string)"))) {
+            (, string memory key) = abi.decode(data[4:], (bytes32, string));
+            return abi.encode(_text[node][key]);
+        }
+        revert("resolver: unsupported selector");
     }
 
+    /// @dev Models issuance: the namespace operator records which address a
+    ///      subname was given to. Bypasses the ACL because in production this key
+    ///      is written by a different holder than the tribunal's standing key.
+    function setBinding(bytes calldata dnsName, address who) external {
+        _text[nodeFor[keccak256(dnsName)]]["com.perjury.agent-address"] = _hex(who);
+    }
+
+    function _hex(address a) internal pure returns (string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+        bytes memory out = new bytes(42);
+        out[0] = "0";
+        out[1] = "x";
+        uint160 v = uint160(a);
+        for (uint256 i = 0; i < 20; ++i) {
+            uint8 b = uint8(v >> (8 * (19 - i)));
+            out[2 + i * 2] = alphabet[b >> 4];
+            out[3 + i * 2] = alphabet[b & 0x0f];
+        }
+        return string(out);
+    }
     mapping(bytes32 => mapping(string => string)) private _text;
     mapping(address => bool) public canWrite;
     bool public enforceAcl;

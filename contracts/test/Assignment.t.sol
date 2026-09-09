@@ -112,3 +112,82 @@ contract AssignmentTest is Base {
         roster.registerAgent{value: STAKE}(_node(alice), _dns(alice));
     }
 }
+
+/// @notice Registration must prove the caller controls the ENS name it binds.
+/// @dev Without this, any address could bind reputation to a name it does not
+///      own. Standing is written to that record and the record gates
+///      eligibility, so an attacker could attach its own misbehaviour to
+///      someone else's name, or squat names to deny them registration.
+contract RegistrationControlTest is Base {
+    function test_registerRequiresNameToResolveToCaller() public {
+        address victim = address(uint160(0x9010));
+        address mallory = address(uint160(0x9001));
+        vm.deal(mallory, STAKE);
+        // The name is bound and resolves to the victim, not to mallory.
+        resolver.bind(_dns(victim), _node(victim));
+        resolver.setBinding(_dns(victim), victim);
+
+        vm.prank(mallory);
+        vm.expectRevert(
+            abi.encodeWithSignature("NameNotControlled(address,address)", victim, mallory)
+        );
+        roster.registerAgent{value: STAKE}(_node(victim), _dns(victim));
+    }
+
+    function test_registerRejectsUnresolvableName() public {
+        address a = address(uint160(0x9002));
+        vm.deal(a, STAKE);
+        // Bound, but with no addr record — absence is not an answer.
+        resolver.bind(_dns(a), _node(a));
+
+        vm.prank(a);
+        vm.expectRevert(abi.encodeWithSignature("NameNotResolvable()"));
+        roster.registerAgent{value: STAKE}(_node(a), _dns(a));
+    }
+
+    function test_registerFailsClosedWhenResolverIsDown() public {
+        address a = address(uint160(0x9003));
+        vm.deal(a, STAKE);
+        resolver.bind(_dns(a), _node(a));
+        resolver.setBinding(_dns(a), a);
+        resolver.setDown(true);
+
+        vm.prank(a);
+        vm.expectRevert(abi.encodeWithSignature("NameNotResolvable()"));
+        roster.registerAgent{value: STAKE}(_node(a), _dns(a));
+    }
+
+    function test_registerSucceedsWhenNameResolvesToCaller() public {
+        address a = address(uint160(0x9004));
+        vm.deal(a, STAKE);
+        resolver.bind(_dns(a), _node(a));
+        resolver.setBinding(_dns(a), a);
+
+        vm.prank(a);
+        roster.registerAgent{value: STAKE}(_node(a), _dns(a));
+        (bytes32 node,,,, ) = roster.agents(a);
+        assertEq(node, _node(a), "agent bound to its own name");
+    }
+
+    /// @dev Squatting a name you do not control is what this prevents; taking a
+    ///      name nobody has registered but that resolves to you is still fine.
+    function test_squatterCannotDenyRegistrationToTheRealOwner() public {
+        address owner = address(uint160(0x9011));
+        address mallory = address(uint160(0x9005));
+        vm.deal(mallory, STAKE);
+        resolver.bind(_dns(owner), _node(owner));
+        resolver.setBinding(_dns(owner), owner);
+
+        // The squatter is refused, and crucially nodeTaken is NOT set as a
+        // side effect — a failed grab must not lock the name out.
+        vm.prank(mallory);
+        vm.expectRevert();
+        roster.registerAgent{value: STAKE}(_node(owner), _dns(owner));
+
+        vm.deal(owner, STAKE);
+        vm.prank(owner);
+        roster.registerAgent{value: STAKE}(_node(owner), _dns(owner));
+        (bytes32 node,,,,) = roster.agents(owner);
+        assertEq(node, _node(owner), "real owner still able to register");
+    }
+}

@@ -11,12 +11,12 @@ Addresses below are the **final** deployment — the one the three demo scenes r
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
 | `ScratchSink` (probe, throwaway) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` | deployed | Sep 8 |
-| `ClaimRegistry` | `0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0` | deployed | Sep 8 |
-| `WitnessRoster` | `0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E` | deployed, callbackGasLimit 150k | Sep 8 |
-| `PerjuryStandingWriter` | `0x0573F58500aF260117B5E4782e1b1832c06Afba1` | deployed, holds ENS SET_TEXT | Sep 8 |
-| `ENSTextStandingReader` | `0xe8c5e05c478414f576558a26616D56b4929671a0` | deployed | Sep 8 |
+| `ClaimRegistry` | `0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b` | deployed | Sep 8 |
+| `WitnessRoster` | `0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712` | deployed, callbackGasLimit 150k | Sep 8 |
+| `PerjuryStandingWriter` | `0x19b0992DEee48129dA2321362831b7eB07b261e8` | deployed, holds ENS SET_TEXT | Sep 8 |
+| `ENSTextStandingReader` | `0xB48F3Bcd32755855763a350a35586d40d328b958` | deployed | Sep 8 |
 | `PerjuryResolver` (ENSv2 Permissioned) | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` | deployed, EAC configured | Sep 8 |
-| `VerdictSink` | `0x4E1c9EccdcF3329CB80CD94A0268925D792AF015` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
+| `VerdictSink` | `0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd` | deployed, accepts only `0x15fC…9F88` (mock forwarder) | Sep 8 |
 
 **CRE report writer** (the only address `VerdictSink` accepts): `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — ✅ **measured, not guessed.** Reports arrive from a Chainlink **Forwarder contract** (4,579 bytes of code), *not* from the workflow owner EOA (`0xDcbe075a907960951Cd4df379BB21461097eEa91`). Guessing the owner would have made `VerdictSink` reject every verdict, and `CRE_REPORT_WRITER` is immutable. **ENS root:** `perjury.eth` ✅ registered on the ENSv2 hackathon deployment, owned by `0xDcbe075a907960951Cd4df379BB21461097eEa91`. Cost 8.000021 MockUSDC, 1 year.
 
@@ -101,47 +101,60 @@ The operator that deployed every contract, owns `perjury.eth` and holds the role
 
 ### Scene 1 — true claim, challenged anyway
 
-Claim 1 · claimant `operator.perjury.eth` · run Sep 8, 3m46s end to end. The claimant asserted Aave v3 utilization of 40.43%; the drawn witness independently re-derived 40.43% from the live Gateway.
+Claim 9 · claimant `operator.perjury.eth` · run Sep 9, 5m23s. The claimant asserted an Aave v3 utilization figure; the drawn witness independently re-derived it and agreed.
 
 | Step | Tx |
 |---|---|
-| Claim submitted + bond escrowed (0.012 ETH = 0.01 bond + 0.002 witness fee) | [`0xf13d3ce4…d6969c70`](https://sepolia.etherscan.io/tx/0xf13d3ce4168cf23115de636e25270d4f177ce68e7eb052cfde6bdc9cd6969c70) |
-| VRF request (same tx) | `WitnessRequested` |
-| VRF fulfilment → witness `panel-3.perjury.eth` assigned | [`0x99c8504d…e2daac2b`](https://sepolia.etherscan.io/tx/0x99c8504d74aabae2e6cc2dad3e51a527ac250df3405cc831992ed5a3e2daac2b) |
-| Verdict written (`Match`) by the CRE Forwarder | [`0x69b05552…8c673a50`](https://sepolia.etherscan.io/tx/0x69b05552ed4f573fcf100a44407fcded922b4d9aa5302f8073c0930b8c673a50) |
-| Settled — bond returned, witness fee paid, ENS standing 1 → 2 | [`0x6e930d96…039f742c`](https://sepolia.etherscan.io/tx/0x6e930d965125f67b165cd85369dea61ad4aaa2af0cab0afaeb28a61c039f742c) |
+| Claim submitted + bond escrowed (0.012 ETH = 0.01 bond + 0.002 witness fee) | [`0xecaeaa2a…d517860b`](https://sepolia.etherscan.io/tx/0xecaeaa2a00fb2b87b6f0c467ec245db53bd565d3f4a6329ad0a5a326d517860b) |
+| VRF fulfilment → witness assigned | [`0x3fa50fc1…b7f00330`](https://sepolia.etherscan.io/tx/0x3fa50fc142b72e4b996b54c2c4b2e46db383085a6999c97d5b555192b7f00330) |
+| Verdict written (`Match`) by the CRE Forwarder | [`0xc999341b…df85584f`](https://sepolia.etherscan.io/tx/0xc999341bf17b5ea0318431bc80308b3a3d8b3f6c6799aad07cc2166edf85584f) |
+| Settled — bond returned, witness fee paid, ENS standing 3 → 4 | [`0xdb8ef70f…a33157aa`](https://sepolia.etherscan.io/tx/0xdb8ef70f15b9f994cd51a933215718aa9a6388a6443b12c27e16ecf3a33157aa) |
 
 The witness is paid its fee on **every** verdict, `Match` included — the fee cannot be a reward for finding fault.
 
+**Reputation outlived the contracts.** Standing went 3 → 4, not 0 → 1, because it lives in an ENS text record rather than in protocol storage. The contracts were redeployed three times during development and every agent's history survived intact. That is a property of putting reputation in ENS, not a demo artifact.
+
 ### Scene 2 — false claim, appealed, upheld
 
-Claim 2 · claimant `panel-1.perjury.eth` · run Sep 8, 6m46s end to end. The claimant asserted 64.70%; the drawn witness re-derived 40.43%. The claimant then appealed and lost.
+Claim 1 · claimant `panel-1.perjury.eth` · run Sep 9, 6m19s. The claimant asserted a utilization far above reality; the drawn witness re-derived the true figure. The claimant then appealed and lost.
 
 | Step | Tx |
 |---|---|
-| Claim submitted + bond escrowed | [`0xf06fa188…8d738f06`](https://sepolia.etherscan.io/tx/0xf06fa18807cd39a5273ba716834e530e669199dbbb1311de5c20a3f88d738f06) |
-| VRF fulfilment → witness `panel-2.perjury.eth` assigned | [`0xa44f1175…5280a35f`](https://sepolia.etherscan.io/tx/0xa44f1175557af6c04415b173cd647b26c109a1a8e13238a8dc0eb9815280a35f) |
-| Verdict written (`Mismatch`) | [`0x08bd04a4…fd363aa3`](https://sepolia.etherscan.io/tx/0x08bd04a4c4e04dd2e0920f7170e6cbf94a201558ff9d38d0ee1e40f6fd363aa3) |
-| Claimant appeals, posts 0.02 ETH appeal bond, second VRF request | [`0xae250d77…04c85a02`](https://sepolia.etherscan.io/tx/0xae250d77928732263ef79654060f3e6c0b6da57016540312fb5ec78604c85a02) |
-| VRF fulfilment → panel of 3 seated, excluding both parties | [`0x5bfbc222…c75956a0`](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0) |
-| Panel upholds `Mismatch` | [`0xd86effaf…bfe6f2e2`](https://sepolia.etherscan.io/tx/0xd86effaf3a706f80df7c91e4e3404ca985a4921d72540ec87ed7d6e9bfe6f2e2) |
-| Settled — bond + appeal bond forfeited, stake 0.01 → 0, ENS standing 0 → −3 | [`0x8e9cd2b3…d43486fe`](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
+| Claim submitted + bond escrowed | [`0xb69b2da0…44a92bbf`](https://sepolia.etherscan.io/tx/0xb69b2da05e9aeb51c5c7908d882a5ad1396fa92d298103d95b16e5da44a92bbf) |
+| VRF fulfilment → witness assigned | [`0xab55a4a4…46f35dc2`](https://sepolia.etherscan.io/tx/0xab55a4a48ceffe51a5f361de1610fcdeab89971532a57fbae90fe7db46f35dc2) |
+| Verdict written (`Mismatch`) | [`0xab65aff3…a86ec18e`](https://sepolia.etherscan.io/tx/0xab65aff367f38b0a82f9c0035a9d9494ebd0fa128d54f1e258f55c68a86ec18e) |
+| Claimant appeals, posts 0.02 ETH appeal bond, second VRF request | [`0xbc356969…22935269`](https://sepolia.etherscan.io/tx/0xbc356969abe0d1ff5997000260381f649a6364a0e573f2671bc5570e22935269) |
+| VRF fulfilment → panel of 3 seated, excluding both parties | [`0xcb21e9c0…8a5ee9af`](https://sepolia.etherscan.io/tx/0xcb21e9c082cbcef0481e92ec13f50a0b91e860ce689aa550e38809798a5ee9af) |
+| Panel upholds `Mismatch` | [`0xeaeb74b3…f5881029`](https://sepolia.etherscan.io/tx/0xeaeb74b39f5b108e9abc95cf04eed893194b463d0754744342a196aef5881029) |
+| Settled — bond + appeal bond forfeited, stake 0.01 → 0, ENS standing −3 → −6 | [`0x5b47b4de…eac7c53f`](https://sepolia.etherscan.io/tx/0x5b47b4de1a60c39a907c5b105c6decfe9ea79ffae82e8088fa4212fdeac7c53f) |
 
-Panel seats drawn: `operator.perjury.eth`, `panel-3.perjury.eth`, `witness-a.perjury.eth` — neither the claimant nor the original witness. The forfeited 0.03 ETH is payable to **nobody**: paying it to the witness is what would make fabricating disagreement profitable.
+Panel seats drawn: `witness-a`, `panel-2`, `operator` — neither the claimant nor the original witness. The forfeited 0.03 ETH is payable to **nobody**: paying it to the witness is what would make fabricating disagreement profitable.
 
-**Exclusion, proven in the next block:** the roster snapshot taken immediately after settlement shows `panel-1.perjury.eth` at standing −3 and `eligible: no`, with zero manual steps between the verdict and the exclusion.
+**Exclusion, proven in the next block:** the roster snapshot taken immediately after settlement shows `panel-1.perjury.eth` ineligible, with zero manual steps between the verdict and the exclusion.
 
 ### Scene 3 — collusion throttle
 
-Claims 3–6 · claimant `panel-2.perjury.eth`, accomplice `witness-a.perjury.eth` · run Sep 8. Four claims submitted with no witness parameter — `submitClaim` has no code path to request one.
+Claims 5–8 · claimant `panel-2.perjury.eth`, accomplice `witness-a.perjury.eth` · run Sep 9, 5m02s. Four claims submitted with no witness parameter — `submitClaim` has no code path to request one.
 
 | Round | Claim | Witness actually drawn | VRF fulfilment tx |
 |---|---|---|---|
-| 1 | 3 | `operator.perjury.eth` | [`0x5ec8a2f9…546de525`](https://sepolia.etherscan.io/tx/0x5ec8a2f9eb36e776cdf548ab680312cb309838652cad4ba4eccd09fe546de525) |
-| 2 | 4 | `panel-3.perjury.eth` | [`0x115013c0…a5021711`](https://sepolia.etherscan.io/tx/0x115013c078c24f20a5a1d3625c5986644bd48a8dded135ade98c1ed5a5021711) |
-| 3 | 5 | `witness-a.perjury.eth` ← **the accomplice** | [`0x7dee833a…b21b1a76`](https://sepolia.etherscan.io/tx/0x7dee833aed69f35d79aa97df0415da285774fe47ef85942585871befb21b1a76) |
-| 4 | 6 | `witness-a.perjury.eth` ← **the accomplice** | [`0x34da6b87…e4162ab5`](https://sepolia.etherscan.io/tx/0x34da6b874112916bbc06ea60e05121c27f1e2270673edb0d71ca14c9e4162ab5) |
+| 1 | 5 | `operator.perjury.eth` | [`0xf010c37a…29922350`](https://sepolia.etherscan.io/tx/0xf010c37a70cce34d60f9b28b7015f653f3f25d0ed4a6b7dfc87ab25729922350) |
+| 2 | 6 | `operator.perjury.eth` | [`0xeb88bf85…f1e60d37`](https://sepolia.etherscan.io/tx/0xeb88bf8554f280ce8592ebc77603d31fa0a1aeb26669fae2cd16098df1e60d37) |
+| 3 | 7 | `panel-3.perjury.eth` | [`0x15814172…aba90c1c`](https://sepolia.etherscan.io/tx/0x1581417229de7bdcced4da3b11bdc8f0c12f5d39df9a248eb9dfeb84aba90c1c) |
+| 4 | 8 | `panel-3.perjury.eth` | [`0x639d515f…0e45be8e`](https://sepolia.etherscan.io/tx/0x639d515f94c78088199d4b793415d3608b1e4334b4ff56ef65f53eea0e45be8e) |
 
-Colluding pair paired: **2 of 4**, against an expected 1 in 3 — scene 2 had just slashed `panel-1`, leaving only three eligible witnesses. This is the residual risk shown rather than described: random assignment closes *deliberate* collusion, because the pair cannot arrange to be matched, but it does not drive the pairing rate to zero. Four rounds is far too small a sample to read as a rate; `contracts/test/Assignment.t.sol` fuzzes the distribution properly and asserts the residual risk is real.
+Colluding pair paired: **0 of 4**, against an expected 1 in 3 — scene 2 had just slashed `panel-1`, leaving three eligible witnesses. Four rounds is far too small a sample to read as a rate, and an earlier run of the same scene drew the accomplice 2 of 4. Both results are recorded rather than the flattering one being kept: random assignment closes *deliberate* collusion because the pair cannot arrange to be matched, but it does not drive the pairing rate to zero. `contracts/test/Assignment.t.sol` fuzzes the distribution properly and asserts the residual risk is real.
+
+### ENS name binding — two refusals and one success
+
+`npx tsx scripts/prove-name-binding.ts`. Registration requires the name to have been issued to the caller, so reputation cannot be attached to a name you were not given.
+
+| Attempt | Result |
+|---|---|
+| A stranger claims a name issued to someone else | reverts `NameNotControlled` |
+| A stranger claims a name nobody was issued | reverts `NameNotResolvable` |
+| The holder registers the name it was issued | succeeds |
+
+The issuance record is a different EAC key from the standing record, and the tribunal holds no grant on it — so the contract that lowers an agent's standing cannot also decide whose standing it is.
 
 **Reproducing this table:** `npx tsx scripts/collect-evidence.ts` rebuilds it from Sepolia logs. The scene scripts print truncated hashes for readability, so the ledger is read back from chain rather than transcribed.

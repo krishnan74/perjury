@@ -68,6 +68,22 @@ Agents staked to register but had no way out, so every superseded deployment str
 
 ---
 
+### 8. Registration did not prove control of the ENS name *(severe, fixed)*
+
+`registerAgent(ensNode, dnsName)` accepted **any** name. `nodeTaken` stopped a *second* agent claiming a name, but nothing stopped the first one claiming a name it had never been given.
+
+Standing is written to the agent's ENS record, and that record decides whether the agent may witness for anyone else. So an attacker could bind its own misbehaviour to somebody else's name — poisoning a reputation it does not own — or squat names to deny their holders registration entirely.
+
+Found while reading how other projects bind identity to ENS, not by reading our own code, which is worth noting: the audit above was written by looking for attacks on the mechanism and missed an attack on the *identity binding* underneath it.
+
+**Closed.** Registration now reads an issuance record from ENS and refuses unless it names the caller. An unreadable binding is a refusal, not a pass. `scripts/prove-name-binding.ts` demonstrates both refusals and the control on-chain.
+
+**What it does and does not prove.** It proves *issuance* — that whoever controls `perjury.eth` bound this subname to this address — not self-sovereign ownership. For a namespace whose subnames it issues, that is the right trust model. It is also a permission rather than a policy: the issuance key is a different EAC resource from the standing key, and the tribunal holds no grant on it, so the contract that can lower an agent's standing cannot decide whose standing it is.
+
+The honest limit: this was going to be a forward-resolution check against the name's `addr` record, which would have been stronger. The ENSv2 Permissioned Resolver implementation carries no `addr()`/`setAddr()` at all — verified against the deployed bytecode — so forward resolution is unavailable on this deployment and a text record is the substitute.
+
+---
+
 ## Considered and currently acceptable
 
 - **Sybils.** Still linear in the number of identities, but each now costs a 0.05 ETH stake rather than a gas fee. Economic, not cryptographic — stated openly.

@@ -6,6 +6,7 @@ import {
   TRIBUNAL_GRANTS, FORBIDDEN_TRIBUNAL_ROLES, RECORD_KEYS,
   FORBIDDEN_AGENT_REGISTRY_ROLES, EAC_UNAUTHORIZED_ERROR,
   REGISTRY_ROLE, AGENT_SUBNAME_ROLES,
+  TRIBUNAL_FORBIDDEN_KEYS, ISSUANCE_GRANTS,
 } from "@perjury/ens";
 
 describe("EAC role math", () => {
@@ -80,5 +81,30 @@ describe("dnsEncode", () => {
 
   it("rejects an over-long label", () => {
     expect(() => dnsEncode(`${"x".repeat(64)}.eth`)).toThrow(/label too long/);
+  });
+});
+
+// ── Issuance binding is a separate permission from standing ─────────────────
+describe("issuance binding", () => {
+  it("is not among the tribunal's grants", () => {
+    // The contract that can lower standing must not be able to decide whose
+    // standing it is.
+    const granted = TRIBUNAL_GRANTS.map((g) => g.key);
+    expect(granted).not.toContain(RECORD_KEYS.binding);
+  });
+
+  it("is explicitly listed as forbidden to the tribunal", () => {
+    expect(TRIBUNAL_FORBIDDEN_KEYS.map((k) => k.key)).toContain(RECORD_KEYS.binding);
+  });
+
+  it("resolves to a different EAC resource than standing", () => {
+    // Per-key scoping only works if the resources actually differ.
+    expect(textResource(RECORD_KEYS.binding)).not.toEqual(textResource(RECORD_KEYS.standing));
+  });
+
+  it("is granted to issuance, and issuance holds nothing else", () => {
+    expect(ISSUANCE_GRANTS).toHaveLength(1);
+    expect(ISSUANCE_GRANTS[0]!.key).toBe(RECORD_KEYS.binding);
+    expect(ISSUANCE_GRANTS[0]!.role).toBe(ROLE.SET_TEXT);
   });
 });

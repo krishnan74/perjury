@@ -23,10 +23,11 @@ Verified on live networks, not mocked:
 | **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); reports delivered on-chain by a Chainlink Forwarder, evidence never published — [execution log](docs/cre-execution-log.md) |
 | **Appeal by random panel** | A losing claimant appealed; a second VRF draw seated three agents excluding both parties, upheld the verdict, and cost the appellant its appeal bond too — [panel seated](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0), [settled](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
 | **Reputation only the tribunal can write** | ENSv2 Enhanced Access Control, scoped to a single record key. The operator that deployed every contract and owns `perjury.eth` gets `EACUnauthorizedAccountRoles` when it tries to write standing |
+| **Reputation bound to the right identity** | Registration refuses a name the caller was not issued. The issuance record is a *different* EAC key from standing, and the tribunal holds no grant on it — `npx tsx scripts/prove-name-binding.ts` shows two refusals and one success on-chain |
 | **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
 | **Two query patterns, 13 deployments, 5 chains** | Messari lending *and* DEX schema families across Ethereum, Polygon, Arbitrum, Optimism and Gnosis, read with one selection set per family and one derivation — no per-protocol or per-chain code. `npx tsx scripts/verify-pinned.ts` proves it live |
 | **Corroborated reads** | Where a protocol has two independent deployments, both must agree or the verdict is `Unverifiable`. Two live Morpho Aave V3 indexes disagree by 488 bps at an identical block — `npx tsx scripts/prove-corroboration.ts` |
-| **Test suite** | 55 Foundry tests, 64 TypeScript tests |
+| **Test suite** | 60 Foundry tests, 73 TypeScript tests |
 
 **Not built:** the dashboard. Everything above is verifiable from a block explorer and the terminal scenes.
 
@@ -38,11 +39,11 @@ Every contract is immutable: no owner, no pause, no upgrade proxy, no address se
 
 | Contract | Address |
 |---|---|
-| `ClaimRegistry` | [`0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0`](https://sepolia.etherscan.io/address/0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0) |
-| `WitnessRoster` | [`0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E`](https://sepolia.etherscan.io/address/0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E) |
-| `VerdictSink` | [`0x4E1c9EccdcF3329CB80CD94A0268925D792AF015`](https://sepolia.etherscan.io/address/0x4E1c9EccdcF3329CB80CD94A0268925D792AF015) |
-| `PerjuryStandingWriter` | [`0x0573F58500aF260117B5E4782e1b1832c06Afba1`](https://sepolia.etherscan.io/address/0x0573F58500aF260117B5E4782e1b1832c06Afba1) |
-| `ENSTextStandingReader` | [`0xe8c5e05c478414f576558a26616D56b4929671a0`](https://sepolia.etherscan.io/address/0xe8c5e05c478414f576558a26616D56b4929671a0) |
+| `ClaimRegistry` | [`0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b`](https://sepolia.etherscan.io/address/0x9C8A1c6a68517564d76D3Ea88F84EDEe39421F5b) |
+| `WitnessRoster` | [`0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712`](https://sepolia.etherscan.io/address/0xf9B2dB4cC8AD419D20E9B54a33fB5DEc16ea5712) |
+| `VerdictSink` | [`0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd`](https://sepolia.etherscan.io/address/0x68aFcEb7aB079C4c2D61E2F8BE029CF73D387fbd) |
+| `PerjuryStandingWriter` | [`0x19b0992DEee48129dA2321362831b7eB07b261e8`](https://sepolia.etherscan.io/address/0x19b0992DEee48129dA2321362831b7eB07b261e8) |
+| `ENSTextStandingReader` | [`0xB48F3Bcd32755855763a350a35586d40d328b958`](https://sepolia.etherscan.io/address/0xB48F3Bcd32755855763a350a35586d40d328b958) |
 | `PerjuryResolver` (ENSv2 Permissioned) | [`0xcBd795d211Dd40dB392730034B5e68359c9E8534`](https://sepolia.etherscan.io/address/0xcBd795d211Dd40dB392730034B5e68359c9E8534) |
 
 Identity: `perjury.eth` on the ENSv2 hackathon deployment, with five agent subnames.
@@ -54,8 +55,8 @@ Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 ```bash
 cp .env.example .env          # add SEPOLIA_RPC_URL, GRAPH_STUDIO_KEY, keys
 npm install
-forge test                    # 55 contract tests
-npx vitest run                # 64 TypeScript tests
+forge test                    # 60 contract tests
+npx vitest run                # 73 TypeScript tests
 
 # the three demo scenes, live on Sepolia, with terminal visualisation
 npx tsx agents/runner/scene1.ts operator   # true claim  → Match, bond returned
@@ -69,7 +70,8 @@ npx tsx agents/runner/duel.ts false    # expect Mismatch
 # the confidential workflow
 cd cre && cre workflow simulate tribunal --target staging-settings
 
-# the standardized-schema and corroboration proofs
+# the ENS, standardized-schema and corroboration proofs
+npx tsx scripts/prove-name-binding.ts   # registration refuses a name you were not issued
 npx tsx scripts/verify-pinned.ts        # one query pattern, every pinned protocol
 npx tsx scripts/prove-corroboration.ts  # independent deployments must agree
 
@@ -122,7 +124,7 @@ Three partner-prize slots are selectable at submission; these are ours.
 | Track | How it's used |
 |---|---|
 | **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`) compares claim against finding and emits only a verdict. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. **Currently executed via the local simulator**, which runs locally rather than in an enclave; enclave execution needs confidential-DON deploy access. |
-| **ENS** — Best Use of ENSv2 | Agents-as-namespaces (`<agent>.perjury.eth`), with Enhanced Access Control restricting reputation writes to the tribunal alone, scoped to one record. |
+| **ENS** — Best Use of ENSv2 | Agents-as-namespaces (`<agent>.perjury.eth`) with Enhanced Access Control used twice over: reputation writable only by the tribunal, and the identity binding writable only by the namespace operator — so the contract that lowers an agent's standing cannot decide whose standing it is. Registration refuses a name the caller was not issued. |
 | **The Graph** | Two ways, both load-bearing. **AI use case:** the witness is an LLM agent that searches the Subgraph MCP, reads the schema and composes its own GraphQL — the finding it derives decides who loses a bond, so the data does real work rather than being printed. **Standardized products:** 13 deployments across two Messari schema families and five chains, read through one query pattern per family with no protocol- or chain-specific code, so adding a protocol, a chain or a whole schema family is a data change. **Corroborated reads** exploit the property only a content-addressed index has — a deployment id hashes the mapping code, so two deployments are two independent derivations, and the protocol refuses to convict when they disagree. Provenance failures reject rather than degrade. |
 
 ## AI usage

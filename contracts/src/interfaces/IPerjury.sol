@@ -67,6 +67,15 @@ interface IStandingReader {
         external
         view
         returns (int256 standing, bool readable);
+
+    /// @dev The address a name was issued to, used to refuse an agent binding
+    ///      reputation to a name it was not issued. Separate `readable` flag for
+    ///      the same reason as standing: an unreadable or malformed record must
+    ///      not read as address(0) and be mistaken for an answer.
+    function boundAddressChecked(bytes32 node, bytes calldata dnsName)
+        external
+        view
+        returns (address bound, bool readable);
 }
 
 interface IStandingWriter {

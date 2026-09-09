@@ -402,6 +402,29 @@ The writer receives no `SET_ADDRESS`, `SET_NAME`, `LINK`, `UPGRADE`, `CAN_NAME`,
 
 ---
 
+#### 4.6 Name binding — proving an agent was issued the name it registers
+
+Reputation is only meaningful if it is attached to the right identity. `registerAgent` originally accepted any ENS name: `nodeTaken` stopped a *second* agent claiming a name, but nothing stopped the first from claiming one it had never been given. Since standing is written to that record and the record gates eligibility, an attacker could bind its own misbehaviour to someone else's name, or squat names to deny their holders registration.
+
+Registration now reads an **issuance record** and refuses unless it names the caller. An unreadable binding is a refusal, not a pass — the same fail-closed rule as every other ENS read here.
+
+**Two record keys, two different writers.** This is the part that matters, and it is a permission rather than a policy:
+
+| Key | Written by | Never by |
+|---|---|---|
+| `com.perjury.agent-standing` | the tribunal contract, and nothing else | the agent, the operator |
+| `com.perjury.agent-address` | the namespace operator, at issuance | the agent, **the tribunal** |
+
+Withholding the issuance key from the tribunal is deliberate. If the contract that lowers an agent's standing could also rewrite which address that standing belongs to, a slashed identity could be moved onto a clean name — so the two powers are held by different parties, enforced by per-key EAC scoping rather than by convention.
+
+**Why a text record and not forward resolution.** The idiomatic check would be reading the name's `addr` and requiring it to equal the caller. The ENSv2 Permissioned Resolver implementation carries no `addr()`/`setAddr()` in any form — verified by scanning the deployed bytecode, after the earlier `text()` incident taught us not to assume. So an issuance record is the available substitute.
+
+That makes the guarantee weaker, and the docs say so: it proves **issuance**, not self-sovereign ownership. It attests that whoever controls `perjury.eth` bound this subname to this address. For a namespace issuing its own subnames that is the correct trust model, but it is not the same claim as "this agent owns this name" and should not be presented as one.
+
+`npx tsx scripts/prove-name-binding.ts` demonstrates it live: a stranger claiming a name issued to someone else reverts `NameNotControlled`, a stranger claiming an unissued name reverts `NameNotResolvable`, and the rightful holder registers successfully.
+
+---
+
 ## 5. Graph Integration Design
 
 > **Provenance — mixed.** **Human-specified (D1):** that the witness re-derive its finding independently from live standardized on-chain data rather than reviewing the claimant's reasoning; and the reject-never- degrade rule — stale data or a deployment-ID mismatch must produce *unverifiable*, never a silent pass, because provenance is a correctness requirement. Human also directed evaluation of Messari standardized schemas and ERC-8004/Agent0 subgraphs specifically. **AI-proposed:** the `Provenance` type, the freshness-window mechanics, the attestation flow, and the §5.4 leverage demonstration.
