@@ -404,7 +404,7 @@ The writer receives no `SET_ADDRESS`, `SET_NAME`, `LINK`, `UPGRADE`, `CAN_NAME`,
 
 ## 5. Graph Integration Design
 
-> **Provenance — mixed.** **Human-specified (D1):** that the witness re-derive its finding independently from live standardized on-chain data rather than reviewing the claimant's reasoning; and the reject-never- degrade rule — stale data or a deployment-ID mismatch must produce *unverifiable*, never a silent pass, because provenance is a correctness requirement. Human also directed evaluation of Messari standardized schemas and ERC-8004/Agent0 subgraphs specifically. **AI-proposed:** the `Provenance` type, the freshness-window mechanics, the attestation flow, and the §5.4 second-track observation.
+> **Provenance — mixed.** **Human-specified (D1):** that the witness re-derive its finding independently from live standardized on-chain data rather than reviewing the claimant's reasoning; and the reject-never- degrade rule — stale data or a deployment-ID mismatch must produce *unverifiable*, never a silent pass, because provenance is a correctness requirement. Human also directed evaluation of Messari standardized schemas and ERC-8004/Agent0 subgraphs specifically. **AI-proposed:** the `Provenance` type, the freshness-window mechanics, the attestation flow, and the §5.4 leverage demonstration.
 
 #### 5.1 What is queried and why it is load-bearing
 
@@ -452,13 +452,24 @@ function guard(res, pinned): Attestation {
 - On any guard failure the finding becomes **`UNVERIFIABLE`**, which propagates to the tribunal and results in **bond returned, no standing change**. It never silently becomes a pass. Stating this is cheap; a unit test asserting `guard()` throws on a stale block and that the resulting verdict is `Unverifiable` (not `Match`) is what actually earns it.
 - Every attestation is included in the enclave input, so the tribunal — not the witness — is the one that decides whether provenance was adequate. The witness can't wave itself through.
 
-#### 5.4 Opportunistic second Graph track
+#### 5.4 Standards leverage — what became easier
 
-The *Composable/Standardized Graph Products* track ($5,000) wants two+ Graph products composed **or** a standardized schema. We already do both: Subgraph MCP + Gateway + Messari standardized schemas. If the event permits submitting to both Graph tracks, add one README section making the standards leverage explicit and submit to both. **Open question — confirm dual-submission rules ([the build plan](../plan.md)).**
+The Graph track asks submissions to show *what became easier because a shared schema was used*. This is the concrete answer, and it is checkable rather than asserted.
 
----
+Four protocols are pinned — Aave v3, Aave v2, Compound III and Spark Lend — and every one is read with the **same selection set**, reduced by the **same derivation**, judged by the **same tribunal recompute**. There is no per-protocol branch anywhere in the codebase. Grep for a protocol name outside `pinned-deployments.json` and the demo runners and you will not find one: the agents take a `subject`, resolve it to a pinned deployment, and read `lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD }` — fields the Messari schema guarantees are present and mean the same thing everywhere.
 
----
+The consequence is that **adding a protocol is a data change, not a code change.** Compound III and Spark were added by appending two JSON objects. No agent, guard, or tribunal code was touched, and both immediately verified end to end:
+
+```
+npx tsx agents/runner/duel.ts honest compound-v3-ethereum   → Match     (claim 30.96%, witness 30.94%)
+npx tsx agents/runner/duel.ts false  spark-ethereum         → Mismatch  (claim 50.59%, witness 31.61%)
+```
+
+`npx tsx scripts/verify-pinned.ts` runs the single query pattern against all four live and prints the document it used, so the claim is inspectable rather than taken on trust.
+
+Why this matters beyond convenience: the tribunal compares two independently-produced assertions, which is only meaningful if both parties can describe a finding in the *same terms* without having agreed on a schema beforehand. A standardized schema is what supplies that shared vocabulary. Without it, claimant and witness would each need a protocol-specific adapter, and every new protocol would mean new code inside the verification path — code that is itself unverified. **Standardization is not a convenience here; it is what keeps the trusted surface constant as coverage grows.**
+
+The honest limit: all four are lending protocols on one schema, so this demonstrates depth within a standard rather than breadth across standards. Extending to a second standardized schema (DEX or vault) would strengthen it further and is not done.
 
 ## 6. The Honest Limitation — demonstrated, not disclaimed
 

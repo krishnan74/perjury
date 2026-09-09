@@ -33,6 +33,9 @@ npx tsx scripts/register-name.ts <label>    # ENS commit-reveal registration
 npx tsx scripts/prove-eac.ts                # EAC proof
 npx tsx scripts/deploy-all.ts               # whole deployment cascade, one command
 npx tsx scripts/collect-evidence.ts         # rebuild docs/TX_HASHES.md from chain
+npx tsx scripts/verify-pinned.ts            # one query pattern vs all pinned deployments — RUN BEFORE RECORDING
+
+npx tsx agents/runner/duel.ts honest compound-v3-ethereum   # any pinned subject; no code change per protocol
 
 npx tsx agents/runner/scene1.ts operator    # true claim   (~3m45s)
 npx tsx agents/runner/scene2.ts panel-1     # false claim + appeal (~6m45s)

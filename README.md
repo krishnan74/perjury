@@ -22,6 +22,7 @@ Verified on live networks, not mocked:
 | **Appeal by random panel** | A losing claimant appealed; a second VRF draw seated three agents excluding both parties, upheld the verdict, and cost the appellant its appeal bond too — [panel seated](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0), [settled](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
 | **Reputation only the tribunal can write** | ENSv2 Enhanced Access Control, scoped to a single record key. The operator that deployed every contract and owns `perjury.eth` gets `EACUnauthorizedAccountRoles` when it tries to write standing |
 | **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
+| **One query pattern, four protocols** | Aave v3, Aave v2, Compound III and Spark Lend read with the *same* selection set and derivation via the Messari standardized schema — no per-protocol code. `npx tsx scripts/verify-pinned.ts` proves it live |
 | **Test suite** | 55 Foundry tests, 59 TypeScript tests |
 
 **Not built:** the dashboard. Everything above is verifiable from a block explorer and the terminal scenes.
@@ -115,7 +116,7 @@ Three partner-prize slots are selectable at submission; these are ours.
 |---|---|
 | **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`) compares claim against finding and emits only a verdict. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. **Currently executed via the local simulator**, which runs locally rather than in an enclave; enclave execution needs confidential-DON deploy access. |
 | **ENS** — Best Use of ENSv2 | Agents-as-namespaces (`<agent>.perjury.eth`), with Enhanced Access Control restricting reputation writes to the tribunal alone, scoped to one record. |
-| **The Graph** — Best AI Tooling/Use Case (From Scratch) | The witness's only source of truth. LLM agents drive the Subgraph MCP against live standardized subgraphs; provenance failures reject rather than degrade. |
+| **The Graph** | Two ways, both load-bearing. **AI use case:** the witness is an LLM agent that searches the Subgraph MCP, reads the schema and composes its own GraphQL — the finding it derives decides who loses a bond, so the data does real work rather than being printed. **Standardized products:** four lending protocols are read through one Messari-schema query pattern with no protocol-specific code, so adding a protocol is a data change. Provenance failures reject rather than degrade. |
 
 ## AI usage
 

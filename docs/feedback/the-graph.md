@@ -46,6 +46,16 @@ Discovery returns IPFS hashes, and some tools take a deployment ID (`0x…`) whi
 
 **Suggestion.** A short glossary — subgraph ID vs deployment ID vs IPFS hash, which tool takes which, which one `_meta` returns — would remove the ambiguity.
 
+## 6. Search results don't say which standardized schema a subgraph serves
+
+Adding protocols to our pinned set meant finding more Messari-standardized lending subgraphs. `search_subgraphs_by_keyword` returns `displayName`, subgraph id and IPFS hash — but nothing about which schema the subgraph implements. There is no way to ask "which subgraphs serve the Messari lending schema", so we searched by protocol name we already suspected, then queried each candidate with a probe selection to find out whether `lendingProtocols` existed on it. That works, but it is guess-and-check, and it means discovery of standardized subgraphs is driven by already knowing which protocols to look for.
+
+This is the one piece of friction that pushed directly against the standardization story. The value of a shared schema is that you can write one query for many protocols — but finding the set of protocols that answer it is currently manual.
+
+**Suggestion.** Tag subgraphs with the standardized schema they implement and expose it as a filter — `search_subgraphs_by_keyword` returning a `schema` field, or a `list_subgraphs_by_schema("messari-lending")` tool. For AI tooling this matters more than for humans: an agent asked to "compare utilization across lending protocols" currently cannot enumerate the candidate set without being told the protocol names first.
+
+**What worked despite it:** once found, all four subgraphs answered a byte-identical query and returned identical field semantics, with zero indexing lag. The schema delivered exactly what it promises — the gap is discovery, not the standard.
+
 ---
 
 ## What we'd highlight to other teams
