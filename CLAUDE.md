@@ -23,15 +23,23 @@ export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.cre/bin:$PATH"
 ## Commands
 
 ```bash
-forge test                              # 28 Solidity tests
-npx vitest run                          # 35 TS tests
+forge test                              # 55 Solidity tests
+npx vitest run                          # 59 TS tests
 npx tsc --noEmit -p tsconfig.json       # root typecheck (cre/ is excluded, has its own)
 cd cre/tribunal && npx tsc --noEmit     # workflow typecheck
 
 cd cre && cre workflow simulate tribunal --target staging-settings [--broadcast]
 npx tsx scripts/register-name.ts <label>    # ENS commit-reveal registration
-npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
+npx tsx scripts/prove-eac.ts                # EAC proof
+npx tsx scripts/deploy-all.ts               # whole deployment cascade, one command
+npx tsx scripts/collect-evidence.ts         # rebuild docs/TX_HASHES.md from chain
+
+npx tsx agents/runner/scene1.ts operator    # true claim   (~3m45s)
+npx tsx agents/runner/scene2.ts panel-1     # false claim + appeal (~6m45s)
+npx tsx agents/runner/scene3.ts panel-2 4   # collusion throttle (~5m)
 ```
+
+Scenes take a claimant argument because scene 2 slashes its claimant — pass a different agent per run rather than redeploying. Scene 3 takes an optional round count.
 
 ## Environment
 
@@ -46,16 +54,17 @@ npx tsx scripts/prove-eac.ts                # EAC proof — written, never run
 | Operator | `0xDcbe075a907960951Cd4df379BB21461097eEa91` |
 | `perjury.eth` | registered, ENSv2 hackathon deployment |
 | `ScratchSink` (probe) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` |
-| `ClaimRegistry` | `0x2e36eA21cFf463095dE7E24d7a6F540b9F41a0e3` |
-| `WitnessRoster` | `0xebC374Bf77dA3ca15e0A2A35Ec610638A684c867` (VRF consumer) |
-| `PerjuryStandingWriter` | `0xF2928c22Bb3951E891f76D166EbD1102f4888e9d` |
-| `ENSTextStandingReader` | `0x5bBd6E1D6F361F044cF8799F990c05681D3A80c5` |
-| `VerdictSink` | `0xa0EE246F2ADc5206668bB55C2cF6b311219B7ac5` (mock forwarder) |
-| `PerjuryResolver` | `0x033ee97dde610f134a746f986fa60c54588a0a45` — EAC configured, operator write revoked |
-
-⚠ **The deployed registry/roster/writer/sink predate the ENSIP-10 read fix in `PerjuryStandingWriter` and must be redeployed** — see "Next step" below.
+| `ClaimRegistry` | `0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0` |
+| `WitnessRoster` | `0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E` (VRF consumer) |
+| `PerjuryStandingWriter` | `0x0573F58500aF260117B5E4782e1b1832c06Afba1` |
+| `ENSTextStandingReader` | `0xe8c5e05c478414f576558a26616D56b4929671a0` |
+| `VerdictSink` | `0x4E1c9EccdcF3329CB80CD94A0268925D792AF015` (mock forwarder) |
+| `PerjuryResolver` | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` — EAC configured per-key, operator write revoked |
 | CRE report writer | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — a **Forwarder**, measured |
-| VRF subscription | 10 LINK, owner = operator, 0 consumers |
+| VRF subscription | owner = operator, roster registered as consumer |
+| Agents | 5 subnames of `perjury.eth`, all registered and staked |
+
+**Balances:** operator holds the ETH; the four agent wallets each need their own funds to post bonds (`AGENT_1..4_ADDR`). Scene 2's claimant needs 0.01 bond + 0.02 appeal bond of its own — the first run failed on `insufficient funds` because only the operator had been topped up.
 
 ## Facts learned the hard way
 
@@ -83,24 +92,20 @@ scripts/       register-name.ts · prove-eac.ts
 docs/          design.md · decisions.md · ai-usage.md · build-log.md · TX_HASHES.md
 ```
 
-Gitignored working docs (local only): `docs/tracks.md`, `docs/sponsor-questions.md`, `docs/ens-discord-message.md`, `docs/cre-access-form.md`, `discord-*.md`.
+Gitignored working docs (local only): `docs/tracks.md`, `docs/sponsor-questions.md`, `docs/ens-discord-message.md`, `docs/chainlink-discord-message.md`, `docs/cre-access-form.md`, `docs/ethglobal-submission.md`, `docs/pitch-and-qa.md`, `docs/feedback-session-1.md`, `discord-*.md`.
 
-## Next step — redeploy the settlement path
+## Status — the protocol is live
 
-`PerjuryStandingWriter` was fixed to read via `resolve()` after deployment, so the on-chain stack is stale. Because each contract holds the next immutably (or its wiring is one-time), the cascade is:
+The full cascade is deployed and all three demo scenes have run end to end on Sepolia. Proven on-chain: VRF assignment with witness ≠ claimant, settlement in both directions, ENS standing written only by the tribunal, per-key EAC scoping, the complete appeal path (claimant lied → caught → appealed → panel of 3 upheld → lost bond, appeal bond, stake, eligibility, standing −3), and automatic exclusion in the block after settlement. Hashes in [`docs/TX_HASHES.md`](docs/TX_HASHES.md).
 
-1. `DeployCore.s.sol` — redeploys reader, roster, registry, writer. Keep the existing resolver `0x033ee97d…`.
-2. `npx tsx scripts/configure-eac.ts` — grant the NEW writer `SET_TEXT`. The operator still holds `SET_TEXT_ADMIN`, so this works; its own `SET_TEXT` is already revoked.
-3. `DeploySink.s.sol` — deploys `VerdictSink` and wires registry + writer.
-4. Add the new roster as a VRF consumer; register both agents using the real namehashes (`operator.perjury.eth` = `0x83625a4d…`, `witness-a.perjury.eth` = `0xad74ee3e…`) with their DNS-encoded names.
-5. Submit a claim, wait ~2 min for VRF, then `cd cre && cre workflow simulate tribunal --target staging-settings --broadcast`.
+Redeploying is a **cascade** — each contract holds the next immutably, so changing one means redeploying everything downstream and re-registering the agents. `npx tsx scripts/deploy-all.ts` does the whole thing in one command (~4 min). Do not hand-run the steps; a partial deploy once locked a roster to a codeless address permanently.
 
-Verify settlement: claim status becomes `Settled`, `withdrawable` moves to claimant or witness, and the ENS standing record changes.
+## Remaining
 
-## Blocked on
+1. **Demo video** — 4 min, human voice, ≥720p, no TTS, no speed-up. Nothing on-chain is blocking it.
+2. **T6 dashboard** — reads from chain and Graph. The user has said repeatedly this comes last.
+3. **User's line-by-line review of `WitnessRoster.sol`** to relabel it from `⚠ NOT YET HUMAN-LED`. Reserved for them; do not do it for them.
+4. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
+5. **Open gap:** gateway evidence storage is confidential in transport but the store itself is a secret gist, not encrypted at rest. Documented, not hidden.
 
-1. `ANTHROPIC_API_KEY` → the witness/claimant agents, last piece of T5
-2. ENS answers (posted Sep 8) → EAC grants, subnames, `prove-eac.ts` shape
-3. Chainlink Forwarder stability → protocol deploy, then live VRF
-
-Next unblocked work: **T6 dashboard** — no credentials needed, reads from chain and Graph.
+Enclave execution still requires confidential-DON deploy access (requested, not received). The simulator path is the shipping path.

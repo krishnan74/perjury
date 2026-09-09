@@ -4,7 +4,7 @@
 
 Built for **ETHOnline 2026**. Sepolia testnet.
 
-> **Status: working end-to-end off-chain, settling on-chain in progress.** Contracts are deployed on Sepolia, VRF witness assignment is verified live, the CRE confidential workflow adjudicates via the official simulator, and both agents derive findings from live mainnet Graph data — Match and Mismatch both reproduced. See [What works today](#what-works-today).
+> **Status: running end-to-end on Sepolia.** All three demo scenarios have executed on-chain — a true claim settled, a false claim caught and its appeal rejected by a randomly drawn panel, and a collusion attempt structurally throttled. Bonds settle, ENS standing moves, and a slashed agent is excluded from future assignment with no operator in the loop. See [What works today](#what-works-today).
 
 ---
 
@@ -14,25 +14,34 @@ Verified on live networks, not mocked:
 
 | | Evidence |
 |---|---|
-| **Bonded claims + settlement contracts** | Deployed on Sepolia (addresses below), 32 Foundry tests |
-| **Randomly assigned witness** | Live Chainlink VRF v2.5 round: claimant `0xDcbe…eA91`, witness drawn `0xc38f…c4AF` — a different address, on-chain |
-| **Independent re-derivation** | Claimant and witness each query live Aave v3 data through the Subgraph MCP and a pinned deployment; true claim → **Match** (40.45% vs 40.42%), fabricated claim → **Mismatch** (64.74% vs 40.46%) |
-| **Provenance enforcement** | Stale index, unpinned deployment, indexing errors or an empty result set all produce `Unverifiable` — never a silent pass. 16 tests |
-| **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); report delivered on-chain, tx [`0xbd50a73c…`](https://sepolia.etherscan.io/tx/0xbd50a73caf76f55092aa19614def76173a87c81a347f2c719a72a1fa6ac4721d) |
-| **Agent identity** | `perjury.eth` registered on the ENSv2 hackathon deployment, direct-to-contract |
+| **Bonded claims + settlement** | Deployed on Sepolia (addresses below). Claim 1 submitted, adjudicated `Match`, bond returned, ENS standing 1 → 2 — [settlement tx](https://sepolia.etherscan.io/tx/0x6e930d965125f67b165cd85369dea61ad4aaa2af0cab0afaeb28a61c039f742c) |
+| **Randomly assigned witness** | Live Chainlink VRF v2.5: `submitClaim` takes no witness parameter, so the claimant has no code path to influence assignment. Every scene draws a witness that is not the claimant — [fulfilment tx](https://sepolia.etherscan.io/tx/0x99c8504d74aabae2e6cc2dad3e51a527ac250df3405cc831992ed5a3e2daac2b) |
+| **Independent re-derivation** | Claimant and witness each query live Aave v3 data through the Subgraph MCP and a pinned deployment; true claim → **Match** (40.43% vs 40.43%), fabricated claim → **Mismatch** (64.70% vs 40.43%) |
+| **Provenance enforcement** | Stale index, unpinned deployment, indexing errors or an empty result set all produce `Unverifiable` — never a silent pass |
+| **Private adjudication** | CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`); reports delivered on-chain by a Chainlink Forwarder, evidence never published |
+| **Appeal by random panel** | A losing claimant appealed; a second VRF draw seated three agents excluding both parties, upheld the verdict, and cost the appellant its appeal bond too — [panel seated](https://sepolia.etherscan.io/tx/0x5bfbc2223b97c94fcfc70d3b7afcad8650e27516ce9e6598b23a4aa3c75956a0), [settled](https://sepolia.etherscan.io/tx/0x8e9cd2b36a77606105827cb8ad4aee7b81a2218a1e9882d6b0997a01d43486fe) |
+| **Reputation only the tribunal can write** | ENSv2 Enhanced Access Control, scoped to a single record key. The operator that deployed every contract and owns `perjury.eth` gets `EACUnauthorizedAccountRoles` when it tries to write standing |
+| **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
+| **Test suite** | 55 Foundry tests, 59 TypeScript tests |
 
-**In progress:** `VerdictSink` deployment (deliberately last — its authorized-writer address is immutable), ENSv2 Enhanced Access Control grants, and the ENS reputation write closing the loop.
+**Not built:** the dashboard. Everything above is verifiable from a block explorer and the terminal scenes.
 
 **Honest scope note:** `cre workflow simulate` executes locally, not inside an enclave. We register a real TEE handler and the workflow runs end to end, but enclave execution requires confidential-DON deploy access, which we have requested. We do not claim adjudication has run inside a TEE.
 
 ## Deployed on Sepolia
 
+Every contract is immutable: no owner, no pause, no upgrade proxy, no address setters.
+
 | Contract | Address |
 |---|---|
-| `ClaimRegistry` | [`0xa16613689Ff8df7779FDA80b90BB865F0C52F874`](https://sepolia.etherscan.io/address/0xa16613689Ff8df7779FDA80b90BB865F0C52F874) |
-| `WitnessRoster` | [`0x84120516A22af6C3557bF80BAbAAd4ff4a86E309`](https://sepolia.etherscan.io/address/0x84120516A22af6C3557bF80BAbAAd4ff4a86E309) |
-| `PerjuryStandingWriter` | [`0xBCe0bcFEE2E5b7506d76D76529b1642980B8eE61`](https://sepolia.etherscan.io/address/0xBCe0bcFEE2E5b7506d76D76529b1642980B8eE61) |
-| `ENSTextStandingReader` | [`0xdE16F3E3c600240bd1bd752d07Af69A2286C7F9E`](https://sepolia.etherscan.io/address/0xdE16F3E3c600240bd1bd752d07Af69A2286C7F9E) |
+| `ClaimRegistry` | [`0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0`](https://sepolia.etherscan.io/address/0xaa064d7E8557c19c785d0A0Ec6FC5ddaBf8C92f0) |
+| `WitnessRoster` | [`0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E`](https://sepolia.etherscan.io/address/0xe69A78a57aF3461172741D1f6913AFC71f65Ff4E) |
+| `VerdictSink` | [`0x4E1c9EccdcF3329CB80CD94A0268925D792AF015`](https://sepolia.etherscan.io/address/0x4E1c9EccdcF3329CB80CD94A0268925D792AF015) |
+| `PerjuryStandingWriter` | [`0x0573F58500aF260117B5E4782e1b1832c06Afba1`](https://sepolia.etherscan.io/address/0x0573F58500aF260117B5E4782e1b1832c06Afba1) |
+| `ENSTextStandingReader` | [`0xe8c5e05c478414f576558a26616D56b4929671a0`](https://sepolia.etherscan.io/address/0xe8c5e05c478414f576558a26616D56b4929671a0) |
+| `PerjuryResolver` (ENSv2 Permissioned) | [`0xcBd795d211Dd40dB392730034B5e68359c9E8534`](https://sepolia.etherscan.io/address/0xcBd795d211Dd40dB392730034B5e68359c9E8534) |
+
+Identity: `perjury.eth` on the ENSv2 hackathon deployment, with five agent subnames.
 
 Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 
@@ -41,8 +50,13 @@ Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 ```bash
 cp .env.example .env          # add SEPOLIA_RPC_URL, GRAPH_STUDIO_KEY, keys
 npm install
-forge test                    # 32 contract tests
-npx vitest run                # 45 TypeScript tests
+forge test                    # 55 contract tests
+npx vitest run                # 59 TypeScript tests
+
+# the three demo scenes, live on Sepolia, with terminal visualisation
+npx tsx agents/runner/scene1.ts operator   # true claim  → Match, bond returned
+npx tsx agents/runner/scene2.ts panel-1    # false claim → Mismatch, appeal, panel, slash
+npx tsx agents/runner/scene3.ts panel-2 4  # collusion attempt, throttled
 
 # both agents against live mainnet Graph data, through the tribunal
 npx tsx agents/runner/duel.ts honest   # expect Match
@@ -50,7 +64,12 @@ npx tsx agents/runner/duel.ts false    # expect Mismatch
 
 # the confidential workflow
 cd cre && cre workflow simulate tribunal --target staging-settings
+
+# rebuild the transaction ledger from chain
+npx tsx scripts/collect-evidence.ts
 ```
+
+The scenes take 3–7 minutes each: VRF fulfilment is ~60s, and settlement waits out a real challenge window.
 
 ## How it works
 
