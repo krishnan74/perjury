@@ -42,7 +42,10 @@ export interface SealedSubmission {
  */
 export function recompute(evidence: unknown, metric: string): number | null {
   if (evidence === null || typeof evidence !== "object") return null;
-  const rows = (evidence as Record<string, unknown>)["lendingProtocols"];
+  // The entity differs per standardized schema family; the recomputation does
+  // not. One function covers lending and DEX protocols on every chain.
+  const payload = evidence as Record<string, unknown>;
+  const rows = payload["lendingProtocols"] ?? payload["dexAmmProtocols"];
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const row = rows[0] as Record<string, string>;
 
@@ -59,6 +62,12 @@ export function recompute(evidence: unknown, metric: string): number | null {
     const deposited = num("totalDepositBalanceUSD");
     if (borrowed === null || deposited === null || deposited === 0) return null;
     return (borrowed / deposited) * 100;
+  }
+  if (/turnover/i.test(metric)) {
+    const volume = num("cumulativeVolumeUSD");
+    const tvl = num("totalValueLockedUSD");
+    if (volume === null || tvl === null || tvl === 0) return null;
+    return volume / tvl;
   }
   return num(metric);
 }
@@ -83,6 +92,31 @@ export const DEFAULT_TOLERANCE = 0.005; // 0.5%
  * telling the truth about a different moment. A protocol that punishes honesty
  * under normal operation is worse than one that occasionally misses a lie.
  */
+/**
+ * How far apart two readings may be in TIME before they are not comparable.
+ *
+ * Was a flat 25 blocks, which is only meaningful on one chain: five minutes on
+ * Ethereum, six seconds on Arbitrum. Two honest agents reading an L2 twenty
+ * seconds apart were returning Unverifiable because ~80 blocks had passed.
+ */
+export const MAX_SKEW_SECONDS = 300;
+
+/** Nominal block times. Mirrors CHAINS in @perjury/graph-client. */
+export const BLOCK_SECONDS: Record<string, number> = {
+	ethereum: 12,
+	polygon: 2,
+	arbitrum: 0.25,
+	optimism: 2,
+	gnosis: 5,
+	base: 2,
+};
+
+/** Blocks of skew tolerated on a chain. Unknown chains fall back to Ethereum. */
+export function maxBlockSkewFor(chain: string): number {
+	return Math.ceil(MAX_SKEW_SECONDS / (BLOCK_SECONDS[chain] ?? 12));
+}
+
+/** @deprecated Ethereum-only. Use maxBlockSkewFor(chain). Kept for existing tests. */
 export const MAX_BLOCK_SKEW = 25;
 
 function withinTolerance(a: number, b: number, tolerance: number): boolean {
@@ -146,7 +180,12 @@ export function adjudicate(
 
   // 2a. Readings too far apart are not comparable. Neither party has done
   //     anything wrong; they simply looked at different states of the world.
-  if (Math.abs(a.asOfBlock - b.asOfBlock) > MAX_BLOCK_SKEW) {
+  // Both parties report the chain they read; disagreement about that is itself
+  // grounds to refuse, since the readings are then not of the same thing.
+  if (a.chain !== b.chain) {
+    return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
+  }
+  if (Math.abs(a.asOfBlock - b.asOfBlock) > maxBlockSkewFor(a.chain)) {
     return { ...base, verdict: Verdict.Unverifiable, confidence: "high" };
   }
 

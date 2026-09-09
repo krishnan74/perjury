@@ -8,7 +8,7 @@
 // result onto a typed assertion. It does not get to decide whether the data was
 // trustworthy — graph-guard makes that call deterministically, because an agent
 // cannot be relied on to report honestly about its own data.
-import { queryCorroborated, deriveMetric, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
+import { queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import type { Attestation, TypedAssertion, Comparator } from "@perjury/shared";
@@ -59,9 +59,10 @@ async function planQuery(llm: LlmClient, claim: Claim, pinned: PinnedEntry): Pro
     system: PLAN_SYSTEM,
     temperature: 0,
     prompt: `Subgraph: ${pinned.protocolName} (${pinned.schema} schema).
-Available metrics on the LendingProtocol entity: ${pinned.metrics.join(", ")}.
-Note: lending metrics live on "lendingProtocols", not "protocols".
-This subgraph indexes exactly one protocol, so select lendingProtocols with NO where-filter.
+Available metrics on the protocol entity: ${pinned.metrics.join(", ")}.
+The protocol-level aggregates for this schema live on "${rootEntityFor(pinned.schema)}" — not on "protocols",
+which is the shared interface and does not carry them.
+This subgraph indexes exactly one protocol, so select ${rootEntityFor(pinned.schema)} with NO where-filter.
 Do not guess filter values — a filter that matches nothing yields an empty result and the
 finding will be rejected as unverifiable.
 
@@ -70,7 +71,7 @@ The claim is about the metric "${claim.metric}" measured in ${claim.unit}.
 
 Return JSON:
 {
-  "selection": "<ONLY the root selection set, e.g. lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD }. No outer braces, no query keyword, and do NOT include _meta — it is added automatically.>",
+  "selection": "<ONLY the root selection set, e.g. ${rootEntityFor(pinned.schema)} { ${pinned.metrics.slice(0, 2).join(" ")} }. No outer braces, no query keyword, and do NOT include _meta — it is added automatically.>",
   "claimedValue": <the numeric threshold the claim asserts>,
   "reasoning": "<one sentence on why this query lets you compute ${claim.metric} independently>"
 }`,
@@ -101,6 +102,7 @@ Return JSON: { "value": <the ACTUAL value you derived from the data> }`,
   // Metric identity comes from the claim; only the value is the witness's own.
   return {
     subject: claim.subject,
+    chain: pinnedFor(claim.subject).chain,
     metric: claim.metric,
     comparator: claim.comparator,
     value: Number(out.value),

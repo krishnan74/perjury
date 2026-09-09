@@ -36,6 +36,7 @@ function response(over: Partial<RawGraphResponse> & { meta?: Partial<RawGraphRes
 
 const assertion = (asOfBlock = 1000): TypedAssertion => ({
   subject: "aave-v3-eth-utilization",
+  chain: "ethereum",
   metric: "totalBorrowBalanceUSD",
   comparator: "gt",
   value: 100,

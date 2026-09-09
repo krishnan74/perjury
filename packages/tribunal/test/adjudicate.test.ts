@@ -3,12 +3,13 @@
 import { describe, expect, it } from "vitest";
 import {
   adjudicate, adjudicatePanel, encodeReport, looksDerivative, recompute,
+  maxBlockSkewFor, BLOCK_SECONDS, MAX_SKEW_SECONDS,
   type PanelFinding, type SealedSubmission,
 } from "@perjury/tribunal";
 import { Verdict, type Attestation, type TypedAssertion } from "@perjury/shared";
 
 const assertion = (value: number, over: Partial<TypedAssertion> = {}): TypedAssertion => ({
-  subject: "aave-v3-eth", metric: "totalBorrowBalanceUSD", comparator: "gt",
+  subject: "aave-v3-eth", chain: "ethereum", metric: "totalBorrowBalanceUSD", comparator: "gt",
   value, unit: "USD", asOfBlock: 1000, ...over,
 });
 
@@ -162,7 +163,7 @@ describe("lying witness", () => {
         queriedAt: 1, queryHash: m, hasIndexingErrors: false,
       },
       assertion: {
-        subject: "aave-v3-eth", metric: "utilizationRatio", comparator: "gt",
+        subject: "aave-v3-eth", chain: "ethereum", metric: "utilizationRatio", comparator: "gt",
         value: stated, unit: "percent", asOfBlock: 1000,
       },
       digest: `d-${stated}-${m}`,
@@ -241,7 +242,7 @@ describe("adjudicatePanel", () => {
           queriedAt: 1, queryHash: `q-${member}`, hasIndexingErrors: false,
         },
         assertion: {
-          subject: "aave-v3-eth", metric: "utilizationRatio", comparator: "gt",
+          subject: "aave-v3-eth", chain: "ethereum", metric: "utilizationRatio", comparator: "gt",
           value: stated, unit: "percent", asOfBlock: 1000,
         },
         digest: `d-${member}`,
@@ -327,7 +328,7 @@ describe("block skew", () => {
         queriedAt: 1, queryHash: `q${block}`, hasIndexingErrors: false,
       },
       assertion: {
-        subject: "s", metric: "totalBorrowBalanceUSD", comparator: "gt",
+        subject: "s", chain: "ethereum", metric: "totalBorrowBalanceUSD", comparator: "gt",
         value, unit: "USD", asOfBlock: block,
       },
       digest: `d${block}`,
@@ -349,5 +350,47 @@ describe("block skew", () => {
   it("skew is checked before values, so a wide gap never becomes a Mismatch", () => {
     // Values differ enormously, but the readings are 1000 blocks apart.
     expect(adjudicate(1n, at(1000, 10), at(2000, 900), "salt").verdict).toBe(Verdict.Unverifiable);
+  });
+});
+
+// ── Chain-relative block skew ───────────────────────────────────────────────
+// A flat block count is only meaningful on one chain. These pin the property
+// that made two honest agents reading Arbitrum return Unverifiable.
+describe("block skew is judged in time, not blocks", () => {
+  it("tolerates on a fast chain a gap that would fail on Ethereum", () => {
+    // ~80 blocks is about 20 seconds on Arbitrum and 16 minutes on Ethereum.
+    expect(maxBlockSkewFor("arbitrum")).toBeGreaterThan(80);
+    expect(maxBlockSkewFor("ethereum")).toBeLessThan(80);
+  });
+
+  it("gives every chain the same window in seconds", () => {
+    for (const [chain, secs] of Object.entries(BLOCK_SECONDS)) {
+      expect(maxBlockSkewFor(chain) * secs).toBeGreaterThanOrEqual(MAX_SKEW_SECONDS);
+    }
+  });
+
+  it("falls back to Ethereum's block time for an unknown chain", () => {
+    expect(maxBlockSkewFor("some-new-rollup")).toBe(maxBlockSkewFor("ethereum"));
+  });
+
+  it("accepts an L2 gap that the old flat 25-block rule rejected", () => {
+    const r = adjudicate(
+      1n,
+      sub(att(100, "qh-claim", { chain: "arbitrum", asOfBlock: 1000 })),
+      sub(att(100, "qh-witness", { chain: "arbitrum", asOfBlock: 1080 })),
+      "salt",
+    );
+    expect(r.verdict).toBe(Verdict.Match);
+  });
+
+  it("refuses to compare readings from different chains", () => {
+    // The same metric on two chains is two different facts, not a disagreement.
+    const r = adjudicate(
+      1n,
+      sub(att(100, "qh-claim", { chain: "ethereum" })),
+      sub(att(100, "qh-witness", { chain: "arbitrum" })),
+      "salt",
+    );
+    expect(r.verdict).toBe(Verdict.Unverifiable);
   });
 });

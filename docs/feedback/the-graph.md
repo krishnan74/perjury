@@ -75,6 +75,28 @@ Qme9KY9Nm5YaRsew1CjR5rtwZMgQAG3SzxRmqevtVW7R83   utilization 1.5926%   TVL $26,4
 
 **Suggestions.** Surface plurality as a first-class attribute — "N independent deployments index this protocol" — so a consumer can discover corroboration is possible without probing. And consider it a curation signal worth encouraging: a second index of a major protocol is low-glamour work with real integrity value, and right now nothing in the network makes that value visible. Divergence between deployments is also useful data in its own right; if the network surfaced it, subgraph bugs would be findable by anyone rather than only by teams that happen to query two.
 
+## 8. `_meta` has no timestamp, so freshness windows aren't portable across chains
+
+This is really the sharp edge of item 1, and it only showed up once we pinned deployments on more than one chain.
+
+We enforce a freshness window: reject a read whose indexed block lags the chain head by too much. Expressed in blocks, that window is only meaningful on the chain you tuned it for. Our 50-block window is ten minutes on Ethereum and **twelve seconds** on Arbitrum. A perfectly healthy Uniswap v3 Arbitrum deployment sat 149 blocks behind — a hard fail under our rule, and about 37 seconds in reality.
+
+The same bug bit us a second time, in a different component. Our verifier compares two agents' readings and rejects them if they're more than 25 blocks apart, on the theory that two parties reading different chain states haven't actually disagreed. On Arbitrum, two honest agents reading twenty seconds apart are ~80 blocks apart, so identical values were being rejected. Both fixes required us to hard-code a table of nominal block times per chain, which will silently rot the moment a chain changes its block time.
+
+Neither problem exists if the indexed block carries a timestamp.
+
+**Suggestion.** Expose the indexed block's timestamp in `_meta` — `_meta { block { number timestamp } }`. Freshness then becomes `now - timestamp`, which is portable across every chain with no per-chain configuration and no assumptions about block times. Combined with the chain head from item 1, this makes "is this data fresh enough" a single, chain-agnostic question. For anything doing cross-chain comparison, this is the difference between a rule that works and a table of magic numbers.
+
+## 9. Some standardized deployments carry implausible aggregate values
+
+Not a complaint about the schema — a caution worth surfacing, and it argues for the standard rather than against it.
+
+Reading the DEX schema across deployments, several protocol-level aggregates are clearly wrong. Curve on Ethereum reports a `cumulativeVolumeUSD` implying a turnover of ~5×10^14 against a $4.8B TVL. Some SushiSwap and PancakeSwap deployments report TVLs in the 10^22–10^29 range. `totalValueLockedUSD` on the same entities looks correct, so this appears to be specific fields on specific deployments rather than broken subgraphs wholesale.
+
+We only noticed because we render the numbers. A consumer computing a ratio would silently get nonsense.
+
+**Suggestion.** Some lightweight plausibility signal on standardized deployments — even just flagging protocol-level aggregates that move by implausible orders of magnitude between versions — would catch this class of problem before consumers build on it. It is also the strongest possible argument for cross-deployment corroboration, which is what we ended up building.
+
 ---
 
 ## What we'd highlight to other teams

@@ -25,11 +25,21 @@ const mode = process.argv[2] === "false" ? "false" : "honest";
 const subject = process.argv[3] ?? "aave-v3-ethereum";
 const llm = new ClaudeCodeClient();
 
-console.log(`SUBJECT: ${subject}  ${pinnedFor(subject).protocolName} · messari-lending\n`);
+console.log(`SUBJECT: ${subject}  ${pinnedFor(subject).protocolName} · ${pinnedFor(subject).chain} · ${pinnedFor(subject).schema}\n`);
+
+// The metric follows the schema family, not the protocol. Asking a DEX subgraph
+// for a borrow/deposit ratio correctly fails closed rather than inventing a
+// number, which is right behaviour and a useless demo.
+const METRIC: Record<string, string> = {
+  "messari-lending": "utilization ratio (total borrowed / total deposited)",
+  "messari-dex": "totalValueLockedUSD",
+};
+const entry = pinnedFor(subject);
+const metric = METRIC[entry.schema] ?? METRIC["messari-lending"]!;
 
 const claim = await draftClaim(
   subject,
-  "utilization ratio (total borrowed / total deposited)",
+  metric,
   mode === "false" ? { mode: "false", overstateBy: 0.6 } : { mode: "honest" },
   llm,
 );

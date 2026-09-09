@@ -1,9 +1,9 @@
 {
-  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches, so we pin the immutable deployment hash and reject anything else. Every entry serves the Messari standardized lending schema, so ONE query pattern and ONE recompute function cover all of them \u2014 adding a protocol is a data change, never a code change. `corroborators` lists OTHER deployments independently indexing the same protocol: a deployment id is a content hash of the mapping code, so agreement across them is agreement between independent derivations rather than one source repeated. Most protocols have no second indexer yet, and those reads are recorded as single-source rather than rejected. Verified live by scripts/verify-pinned.ts.",
-  "chain": "ethereum-mainnet",
+  "_comment": "Pinned Graph deployment IDs. A subgraph redeploying under the same name is the substitution attack graph-guard catches, so we pin the immutable deployment hash and reject anything else. Entries span two Messari standardized schema families across six chains, and ONE query pattern plus ONE derivation covers all of them \u2014 adding a protocol, a chain, or a schema family is a data change, not a code change. `corroborators` lists OTHER deployments independently indexing the same protocol: a deployment id is a content hash of the mapping code, so agreement across them is agreement between independent derivations rather than one source repeated. Most protocols have no second indexer yet, and those reads are recorded as single-source rather than rejected. Verified live by scripts/verify-pinned.ts.",
   "deployments": [
     {
       "subject": "aave-v3-ethereum",
+      "chain": "ethereum",
       "schema": "messari-lending",
       "subgraphId": "JCNWRypm7FYwV8fx5HhzZPSFaMxgkPuw4TnR3Gpi81zk",
       "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
@@ -17,6 +17,7 @@
     },
     {
       "subject": "aave-v2-ethereum",
+      "chain": "ethereum",
       "schema": "messari-lending",
       "subgraphId": "C2zniPn45RnLDGzVeGZCx2Sw3GXrbc9gL4ZfL8B8Em2j",
       "deploymentId": "QmdwBHGxokamYsLfMVk6fXfry3Ss9emEiTy6wptd1ecysG",
@@ -30,6 +31,7 @@
     },
     {
       "subject": "compound-v3-ethereum",
+      "chain": "ethereum",
       "schema": "messari-lending",
       "subgraphId": "AwoxEZbiWLvv6e3QdvdMZw4WDURdGbvPfHmZRc8Dpfz9",
       "deploymentId": "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
@@ -43,6 +45,7 @@
     },
     {
       "subject": "spark-ethereum",
+      "chain": "ethereum",
       "schema": "messari-lending",
       "subgraphId": "GbKdmBe4ycCYCQLQSjqGg6UHYoYfbyJyq5WrG35pv1si",
       "deploymentId": "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
@@ -56,6 +59,7 @@
     },
     {
       "subject": "morpho-aave-v3-ethereum",
+      "chain": "ethereum",
       "schema": "messari-lending",
       "subgraphId": "FKe6ANnWmGPE6hajGLoTgPrVF2jYPHiRu2Jwcg9ZmG9A",
       "deploymentId": "QmVpuZKrjhjHx2hCtpGNaW29ZYq4Xt2GyPLpiMDP2YTAHE",
@@ -72,6 +76,114 @@
           "note": "Independently published index of the same protocol. Observed diverging ~490 bps from the primary at an identical block on 2026-09-09 \u2014 the case this mechanism exists to catch."
         }
       ]
+    },
+    {
+      "subject": "compound-v3-polygon",
+      "chain": "polygon",
+      "schema": "messari-lending",
+      "subgraphId": "5wfoWBpfYv59b99wDxJmyFiKBu9brXESeqJAzw8WP5Cz",
+      "deploymentId": "QmSpf6KX1qpKPkMdQWwRee3uyztNbsNn4NQv3Jaf6AC3z7",
+      "protocolName": "Compound III (Polygon)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "compound-v3-arbitrum",
+      "chain": "arbitrum",
+      "schema": "messari-lending",
+      "subgraphId": "5MjRndNWGhqvNX7chUYLQDnvEgc8DaH8eisEkcJt71SR",
+      "deploymentId": "QmQURwBj3C9RRX3Th5MqTGehSSUcfnRgw3r8Sg2XWcjmjB",
+      "protocolName": "Compound III (Arbitrum)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "aave-v3-polygon",
+      "chain": "polygon",
+      "schema": "messari-lending",
+      "subgraphId": "6yuf1C49aWEscgk5n9D1DekeG1BCk5Z9imJYJT3sVmAT",
+      "deploymentId": "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD",
+      "protocolName": "Aave v3 (Polygon)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "spark-gnosis",
+      "chain": "gnosis",
+      "schema": "messari-lending",
+      "subgraphId": "Bw4RH37UbbGEhHo4FaWwT1dn9QJzm1XSZCyK1cbr6ZKM",
+      "deploymentId": "QmXCPG1uRf1YhxYmzdr83kQSEoviL4ja2e5JBB4KezvpE9",
+      "protocolName": "Spark Lend (Gnosis)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "totalBorrowBalanceUSD",
+        "totalDepositBalanceUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "curve-ethereum",
+      "chain": "ethereum",
+      "schema": "messari-dex",
+      "subgraphId": "3fy93eAT56UJsRCEht8iFhfi6wjHWXtZ9dnnbQmvFopF",
+      "deploymentId": "QmRpHzsesvv7VTrKjEuutiZ7xEfDfd6jH4mgSeDDbUDVRN",
+      "protocolName": "Curve Finance",
+      "metrics": [
+        "totalValueLockedUSD",
+        "cumulativeVolumeUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "uniswap-v3-arbitrum",
+      "chain": "arbitrum",
+      "schema": "messari-dex",
+      "subgraphId": "FQ6JYszEKApsBpAmiHesRsd9Ygc6mzmpNRANeVQFYoVX",
+      "deploymentId": "QmXMJ2Hnhhoz6bGFNtTBjnf7kAk9CNCQG7r4R5b7fyVjD7",
+      "protocolName": "Uniswap V3 (Arbitrum)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "cumulativeVolumeUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "uniswap-v3-optimism",
+      "chain": "optimism",
+      "schema": "messari-dex",
+      "subgraphId": "EgnS9YE1avupkvCNj9fHnJxppfEmNNywYJtghqiu2pd9",
+      "deploymentId": "QmdAoDVjfSByKvTW1HrCDK1eJJKRRZxdj8bcqVqQLCofN4",
+      "protocolName": "Uniswap V3 (Optimism)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "cumulativeVolumeUSD"
+      ],
+      "corroborators": []
+    },
+    {
+      "subject": "curve-arbitrum",
+      "chain": "arbitrum",
+      "schema": "messari-dex",
+      "subgraphId": "Gv6NJRut2zrm79ef4QHyKAm41YHqaLF392sM3cz9wywc",
+      "deploymentId": "QmRkp5iisPLn14S7eZcE69AhWUntS7uFYLEkUw1TzqeuMi",
+      "protocolName": "Curve Finance (Arbitrum)",
+      "metrics": [
+        "totalValueLockedUSD",
+        "cumulativeVolumeUSD"
+      ],
+      "corroborators": []
     }
   ],
   "verifiedOn": "2026-09-09"

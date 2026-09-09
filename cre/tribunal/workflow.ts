@@ -30,8 +30,24 @@ type Config = z.infer<typeof configSchema>
 // under test (packages/tribunal/test) — keep the two in sync deliberately.
 const VERDICT = { None: 0, Match: 1, Mismatch: 2, Unverifiable: 3 } as const
 
+/** How far apart two readings may be in time before they are not comparable. */
+const MAX_SKEW_SECONDS = 300
+/** Nominal block times. Mirrors BLOCK_SECONDS in packages/tribunal. */
+const BLOCK_SECONDS: Record<string, number> = {
+	ethereum: 12,
+	polygon: 2,
+	arbitrum: 0.25,
+	optimism: 2,
+	gnosis: 5,
+	base: 2,
+}
+const maxBlockSkewFor = (chain: string): number =>
+	Math.ceil(MAX_SKEW_SECONDS / (BLOCK_SECONDS[chain] ?? 12))
+
 type Assertion = {
 	subject: string
+	/** Chain the reading came from — block skew is judged in time, not blocks. */
+	chain: string
 	metric: string
 	comparator: string
 	value: number
@@ -59,7 +75,9 @@ type SealedSubmission = {
 /** Recompute a metric from raw evidence, ignoring the stated conclusion. */
 const recompute = (evidence: unknown, metric: string): number | null => {
 	if (evidence === null || typeof evidence !== 'object') return null
-	const rows = (evidence as Record<string, unknown>)['lendingProtocols']
+	// Entity differs per standardized schema family; the recomputation does not.
+	const payload = evidence as Record<string, unknown>
+	const rows = payload['lendingProtocols'] ?? payload['dexAmmProtocols']
 	if (!Array.isArray(rows) || rows.length === 0) return null
 	const row = rows[0] as Record<string, string>
 	const num = (k: string): number | null => {
@@ -73,6 +91,12 @@ const recompute = (evidence: unknown, metric: string): number | null => {
 		const d = num('totalDepositBalanceUSD')
 		if (b === null || d === null || d === 0) return null
 		return (b / d) * 100
+	}
+	if (/turnover/i.test(metric)) {
+		const v = num('cumulativeVolumeUSD')
+		const t = num('totalValueLockedUSD')
+		if (v === null || t === null || t === 0) return null
+		return v / t
 	}
 	return num(metric)
 }
@@ -117,8 +141,13 @@ const adjudicate = (
 	}
 
 	// 2a. Readings too far apart are not comparable — two honest parties reading
-	//     different blocks have not disagreed about anything.
-	if (Math.abs(a.asOfBlock - b.asOfBlock) > 25) {
+	//     different blocks have not disagreed about anything. Judged in TIME:
+	//     25 blocks is five minutes on Ethereum and six seconds on Arbitrum, and
+	//     a flat block count made honest L2 readings Unverifiable.
+	if (a.chain !== b.chain) {
+		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
+	}
+	if (Math.abs(a.asOfBlock - b.asOfBlock) > maxBlockSkewFor(a.chain)) {
 		return { verdict: VERDICT.Unverifiable, confidence: 'high' }
 	}
 

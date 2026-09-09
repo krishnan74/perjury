@@ -11,8 +11,38 @@ import { UnverifiableError, type Provenance } from "@perjury/shared";
 import pinned from "@perjury/shared/pinned-deployments.json" with { type: "json" };
 
 const GATEWAY = "https://gateway.thegraph.com/api/subgraphs/id";
-/** Chain head source. The subgraphs index mainnet, so staleness is measured against it. */
-const CHAIN_RPC = "https://ethereum-rpc.publicnode.com";
+
+/**
+ * Freshness expressed in TIME, not blocks.
+ *
+ * A block-count window is only meaningful on one chain. Ethereum's 50-block
+ * window is ten minutes; the same 50 blocks is twelve seconds on Arbitrum, so a
+ * perfectly healthy L2 index reads as stale. Measured live: a Uniswap v3
+ * Arbitrum deployment sat 149 blocks behind — a hard fail under a 50-block rule,
+ * and about 37 seconds in reality.
+ *
+ * So the window is 600 seconds everywhere and converted per chain. On Ethereum
+ * that is exactly the 50 blocks we already used, so mainnet behaviour is
+ * unchanged.
+ */
+export const FRESHNESS_SECONDS = 600;
+
+/** Head source and nominal block time per chain, used to convert the window. */
+export const CHAINS: Record<string, { rpc: string; blockTimeSeconds: number }> = {
+	ethereum: { rpc: "https://ethereum-rpc.publicnode.com", blockTimeSeconds: 12 },
+	polygon: { rpc: "https://polygon-bor-rpc.publicnode.com", blockTimeSeconds: 2 },
+	arbitrum: { rpc: "https://arbitrum-one-rpc.publicnode.com", blockTimeSeconds: 0.25 },
+	optimism: { rpc: "https://optimism-rpc.publicnode.com", blockTimeSeconds: 2 },
+	gnosis: { rpc: "https://gnosis-rpc.publicnode.com", blockTimeSeconds: 5 },
+	base: { rpc: "https://base-rpc.publicnode.com", blockTimeSeconds: 2 },
+};
+
+/** Blocks of lag tolerated on a given chain for the shared time window. */
+export function freshnessBlocksFor(chain: string): number {
+	const c = CHAINS[chain];
+	if (!c) throw new UnverifiableError("deployment-mismatch", `no RPC configured for chain "${chain}"`);
+	return Math.ceil(FRESHNESS_SECONDS / c.blockTimeSeconds);
+}
 
 export interface Corroborator {
   subgraphId: string;
@@ -22,6 +52,9 @@ export interface Corroborator {
 
 export interface PinnedEntry {
   subject: string;
+  /** Chain the subgraph indexes. Determines which head staleness is measured against. */
+  chain: string;
+  /** Standardized schema family — "messari-lending" or "messari-dex". */
   schema: string;
   subgraphId: string;
   deploymentId: string;
@@ -39,9 +72,11 @@ export function pinnedFor(subject: string): PinnedEntry {
   return e;
 }
 
-/** Current mainnet head, used to measure how far the index lags. */
-export async function chainHead(): Promise<number> {
-  const res = await fetch(CHAIN_RPC, {
+/** Current head of a given chain, used to measure how far an index lags. */
+export async function chainHead(chain = "ethereum"): Promise<number> {
+  const rpc = CHAINS[chain]?.rpc;
+  if (!rpc) throw new UnverifiableError("deployment-mismatch", `no RPC configured for chain "${chain}"`);
+  const res = await fetch(rpc, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
@@ -104,9 +139,14 @@ export function deriveMetric(data: unknown, metric: string): number {
   if (data === null || typeof data !== "object") {
     throw new UnverifiableError("no-data", "response was not an object");
   }
-  const rows = (data as Record<string, unknown>).lendingProtocols;
+  const payload = data as Record<string, unknown>;
+
+  // The entity differs per schema family; everything after this point does not.
+  // That is the whole return on a standardized schema — one derivation serves
+  // lending and DEX protocols across every chain, with no per-protocol branch.
+  const rows = (payload.lendingProtocols ?? payload.dexAmmProtocols) as unknown;
   if (!Array.isArray(rows) || rows.length === 0) {
-    throw new UnverifiableError("no-data", "no lendingProtocols rows to derive from");
+    throw new UnverifiableError("no-data", "no protocol rows to derive from");
   }
   const row = rows[0] as Record<string, string>;
   const num = (k: string): number => {
@@ -116,12 +156,25 @@ export function deriveMetric(data: unknown, metric: string): number {
     }
     return n;
   };
+
+  // Ratios are computed from their components rather than read, so a party
+  // cannot assert a ratio its own evidence does not reproduce.
   if (/utilization/i.test(metric)) {
     const deposits = num("totalDepositBalanceUSD");
     if (deposits === 0) throw new UnverifiableError("no-data", "zero deposits — utilization undefined");
     return (num("totalBorrowBalanceUSD") / deposits) * 100;
   }
+  if (/turnover/i.test(metric)) {
+    const tvl = num("totalValueLockedUSD");
+    if (tvl === 0) throw new UnverifiableError("no-data", "zero TVL — turnover undefined");
+    return num("cumulativeVolumeUSD") / tvl;
+  }
   return num(metric);
+}
+
+/** The entity a schema family exposes its protocol-level aggregates on. */
+export function rootEntityFor(schema: string): string {
+  return schema === "messari-dex" ? "dexAmmProtocols" : "lendingProtocols";
 }
 
 /** Execute one guarded read against a specific subgraph/deployment pair. */
@@ -133,6 +186,7 @@ async function readOne(
   variables: Record<string, unknown>,
   apiKey: string,
   head: number,
+  freshnessBlocks: number,
 ): Promise<{ data: Record<string, unknown>; provenance: Provenance }> {
   const res = await fetch(`${GATEWAY}/${subgraphId}`, {
     method: "POST",
@@ -153,7 +207,12 @@ async function readOne(
     variables,
     data: body.data ?? null,
   };
-  const provenance = guard(raw, { subject, deploymentId } satisfies PinnedDeployment);
+  const provenance = guard(
+    raw,
+    { subject, deploymentId } satisfies PinnedDeployment,
+    Date.now(),
+    freshnessBlocks,
+  );
   return { data: body.data as Record<string, unknown>, provenance };
 }
 
@@ -180,10 +239,11 @@ export async function queryCorroborated<T>(
   if (!apiKey) throw new Error("GRAPH_STUDIO_KEY unset — live Gateway access is required");
   const entry = pinnedFor(subject);
   const withMeta = composeDocument(document);
-  const head = await chainHead();
+  const head = await chainHead(entry.chain);
+  const freshness = freshnessBlocksFor(entry.chain);
 
   const primary = await readOne(
-    subject, entry.subgraphId, entry.deploymentId, withMeta, variables, apiKey, head,
+    subject, entry.subgraphId, entry.deploymentId, withMeta, variables, apiKey, head, freshness,
   );
 
   // Read the corroborators in parallel; one that is unreachable or stale must
@@ -191,7 +251,7 @@ export async function queryCorroborated<T>(
   const others = await Promise.all(
     (entry.corroborators ?? []).map(async (c): Promise<CorroboratingRead> => {
       const r = await readOne(
-        subject, c.subgraphId, c.deploymentId, withMeta, variables, apiKey, head,
+        subject, c.subgraphId, c.deploymentId, withMeta, variables, apiKey, head, freshness,
       );
       return { provenance: r.provenance, value: derive(r.data as T) };
     }),
@@ -226,34 +286,21 @@ export async function query<T>(
   // GraphQL error, and an LLM composing the whole document gets this wrong. So
   // callers pass a selection set and we compose the document ourselves.
   const withMeta = composeDocument(document);
+  const head = await chainHead(entry.chain);
 
-  const [res, head] = await Promise.all([
-    fetch(`${GATEWAY}/${entry.subgraphId}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: withMeta, variables }),
-    }),
-    chainHead(),
-  ]);
-
-  const body = (await res.json()) as { data?: Record<string, unknown>; errors?: { message: string }[] };
-  if (body.errors?.length) {
-    throw new UnverifiableError("no-data", `gateway error: ${body.errors[0]?.message}`);
-  }
-  const meta = body.data?._meta as RawGraphResponse["_meta"];
-
-  const raw: RawGraphResponse = {
-    _meta: meta,
-    chainHead: head,
-    queryDocument: withMeta,
+  // Deliberately the same code path as a corroborated read, minus the
+  // corroboration. Duplicating it is how the chain-specific head and freshness
+  // window would get fixed in one place and stay broken in the other.
+  const { data, provenance } = await readOne(
+    subject,
+    entry.subgraphId,
+    entry.deploymentId,
+    withMeta,
     variables,
-    data: body.data ?? null,
-  };
+    apiKey,
+    head,
+    freshnessBlocksFor(entry.chain),
+  );
 
-  const provenance = guard(raw, {
-    subject: entry.subject,
-    deploymentId: entry.deploymentId,
-  } satisfies PinnedDeployment);
-
-  return { data: body.data as T, provenance };
+  return { data: data as T, provenance };
 }

@@ -106,8 +106,8 @@ Redeploying is a **cascade** — each contract holds the next immutably, so chan
 
 ## Remaining
 
-1. **Demo video** — 4 min, human voice, ≥720p, no TTS, no speed-up. Nothing on-chain is blocking it.
-2. **T6 dashboard** — reads from chain and Graph. The user has said repeatedly this comes last.
+1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it.
+2. **T6 dashboard** — reads from chain and Graph. Deprioritised as presentation, but **Usability is one of five explicit judging criteria** and the project currently has no interface at all, so this is worth more than 'last' implies.
 3. **User's line-by-line review of `WitnessRoster.sol`** to relabel it from `⚠ NOT YET HUMAN-LED`. Reserved for them; do not do it for them.
 4. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 5. **Open gap:** gateway evidence storage is confidential in transport but the store itself is a secret gist, not encrypted at rest. Documented, not hidden.

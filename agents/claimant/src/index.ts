@@ -8,7 +8,7 @@
 // It can also be told to lie. Scene 2 of the demo needs a claim that is false in
 // a way a witness will actually catch, and fabricating that honestly means
 // deriving the true value first and then stating something else.
-import { queryCorroborated, deriveMetric, pinnedFor, type PinnedEntry } from "@perjury/graph-client";
+import { queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import { digestOf, type Attestation, type Comparator, type TypedAssertion } from "@perjury/shared";
@@ -46,9 +46,10 @@ async function plan(llm: LlmClient, pinned: PinnedEntry, metric: string): Promis
     system: SYSTEM,
     temperature: 0,
     prompt: `Subgraph: ${pinned.protocolName} (${pinned.schema} schema).
-Available metrics on the LendingProtocol entity: ${pinned.metrics.join(", ")}.
-Lending metrics live on "lendingProtocols", not "protocols". This subgraph indexes exactly one
-protocol, so select with NO where-filter — do not guess filter values.
+Available metrics on the protocol entity: ${pinned.metrics.join(", ")}.
+The protocol-level aggregates for this schema live on "${rootEntityFor(pinned.schema)}" — not on
+"protocols", which is the shared interface and does not carry them. This subgraph indexes exactly
+one protocol, so select ${rootEntityFor(pinned.schema)} with NO where-filter — do not guess filter values.
 
 We want to make a claim about: ${metric}
 
@@ -116,6 +117,7 @@ export async function draftClaim(
 
     const assertion: TypedAssertion = {
       subject,
+      chain: pinned.chain,
       metric: p.metric,
       comparator: p.comparator,
       // The claimant asserts the value it is willing to bond on.
@@ -138,7 +140,7 @@ export async function draftClaim(
       return {
         subject,
         text: `(unverifiable) ${metric}`,
-        assertion: { subject, metric, comparator: "gt", value: 0, unit: "", asOfBlock: 0 },
+        assertion: { subject, chain: pinned.chain, metric, comparator: "gt", value: 0, unit: "", asOfBlock: 0 },
         attestation: null,
         methodology: `claimant: provenance check failed — ${e.message}`,
         evidence: null,

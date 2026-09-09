@@ -456,20 +456,31 @@ function guard(res, pinned): Attestation {
 
 The Graph track asks submissions to show *what became easier because a shared schema was used*. This is the concrete answer, and it is checkable rather than asserted.
 
-Four protocols are pinned — Aave v3, Aave v2, Compound III and Spark Lend — and every one is read with the **same selection set**, reduced by the **same derivation**, judged by the **same tribunal recompute**. There is no per-protocol branch anywhere in the codebase. Grep for a protocol name outside `pinned-deployments.json` and the demo runners and you will not find one: the agents take a `subject`, resolve it to a pinned deployment, and read `lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD }` — fields the Messari schema guarantees are present and mean the same thing everywhere.
+**Thirteen deployments, two standardized schema families, five chains, two query patterns.**
 
-The consequence is that **adding a protocol is a data change, not a code change.** Compound III and Spark were added by appending two JSON objects. No agent, guard, or tribunal code was touched, and both immediately verified end to end:
+| | |
+|---|---|
+| `messari-lending` | Aave v3, Aave v2, Compound III, Spark, Morpho Aave V3 (Ethereum) · Compound III (Polygon, Arbitrum) · Aave v3 (Polygon) · Spark (Gnosis) |
+| `messari-dex` | Curve (Ethereum, Arbitrum) · Uniswap V3 (Arbitrum, Optimism) |
+
+There is exactly **one selection set per schema family** and **one derivation function**, and no per-protocol or per-chain branch anywhere — not in the agents, not in the guard, not in the tribunal's recompute. Grep for a protocol name outside `pinned-deployments.json` and the demo runners and you will not find one.
+
+So **adding a protocol, a chain, or an entire schema family is a data change.** Compound III and Spark were appended as JSON. Extending to four more chains and a second schema family required no new query logic — the agents ask `rootEntityFor(schema)` which entity to select, and the same `deriveMetric` reduces both families.
 
 ```
-npx tsx agents/runner/duel.ts honest compound-v3-ethereum   → Match     (claim 30.96%, witness 30.94%)
-npx tsx agents/runner/duel.ts false  spark-ethereum         → Mismatch  (claim 50.59%, witness 31.61%)
+duel.ts honest compound-v3-arbitrum   → Match      lending, L2
+duel.ts honest curve-ethereum         → Match      DEX, mainnet
+duel.ts honest uniswap-v3-optimism    → Match      DEX, L2
+duel.ts false  curve-arbitrum         → Mismatch   DEX, L2
 ```
 
-`npx tsx scripts/verify-pinned.ts` runs the single query pattern against all four live and prints the document it used, so the claim is inspectable rather than taken on trust.
+`npx tsx scripts/verify-pinned.ts` runs both patterns against all thirteen live and prints the documents it used, so the claim is inspectable rather than taken on trust.
+
+**What multi-chain actually cost, because it was not free.** Two tolerances in this codebase were expressed in *blocks*, and a block count is only meaningful on the chain you tuned it for. Our 50-block freshness window is ten minutes on Ethereum and twelve seconds on Arbitrum; a healthy Uniswap v3 Arbitrum deployment 149 blocks behind was a hard fail and about 37 seconds in reality. The same mistake sat in the tribunal, where a flat 25-block skew limit meant two honest agents reading an L2 twenty seconds apart were ~80 blocks apart and returned `Unverifiable`. Both are now expressed in **seconds** and converted per chain, and assertions carry the chain they were read from so the tribunal can do that conversion — and refuse outright to compare readings from two different chains, which are two facts rather than a disagreement.
+
+That is the honest shape of the standardization win: the *schema* generalised for free, and the *chain-relative assumptions* did not. It would have been free too if `_meta` carried the indexed block's timestamp, which is now filed as feedback.
 
 Why this matters beyond convenience: the tribunal compares two independently-produced assertions, which is only meaningful if both parties can describe a finding in the *same terms* without having agreed on a schema beforehand. A standardized schema is what supplies that shared vocabulary. Without it, claimant and witness would each need a protocol-specific adapter, and every new protocol would mean new code inside the verification path — code that is itself unverified. **Standardization is not a convenience here; it is what keeps the trusted surface constant as coverage grows.**
-
-The honest limit: all four are lending protocols on one schema, so this demonstrates depth within a standard rather than breadth across standards. Extending to a second standardized schema (DEX or vault) would strengthen it further and is not done.
 
 #### 5.5 Corroborated reads — why The Graph specifically, and not any data source
 

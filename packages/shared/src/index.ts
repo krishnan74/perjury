@@ -14,6 +14,12 @@ export type Comparator = "eq" | "gt" | "gte" | "lt" | "lte";
  */
 export interface TypedAssertion {
   subject: string;
+  /**
+   * Chain the reading came from. Carried on the assertion because the tribunal
+   * judges block skew, and a block count means different things per chain —
+   * 25 blocks is five minutes on Ethereum and six seconds on Arbitrum.
+   */
+  chain: string;
   metric: string;
   comparator: Comparator;
   value: number;

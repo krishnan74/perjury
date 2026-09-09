@@ -77,7 +77,21 @@ Operational facts that constrain every task. Violating one of these fails the su
 **Submission rules (from the event details page — read these twice):**
 - **Commit incrementally, starting today.** "Submissions with large single commits or missing histories may be disqualified." One giant end-of-week commit is a disqualification risk, not a style preference. Commit at every task boundary.
 - **Exactly 3 partner prize slots** are selectable at submission. Ours: Chainlink, ENS, The Graph. This resolves the old open question about submitting to two Graph tracks — there is one Graph slot, so pick the track we're strongest in (AI Use Case, From Scratch) and mention the standardized-schema angle in the writeup.
-- **Video: ≤4:00, ≥720p, no AI voiceover, no text-to-speech, no sped-up footage, no music-only narration, not recorded on a phone.** A real human voice must narrate. Violations force a re-submit.
+- **Video: 2:00–4:00** — there is a **minimum**, not just a cap — **≥720p, human voice narrating throughout.** Prohibited: AI voice synthesis, text-to-speech, sped-up footage, text overlays used *instead of* verbal explanation, and recording on a phone. Violations force a re-submit.
+- **Editing is expected, speeding up is not.** The guidance says to show the project in action "with edited-out delays". Our scenes contain ~60s VRF waits and a 30s challenge window — **cut** them, never speed the footage. That distinction is the difference between a compliant video and a disqualified one.
+- **Keep the intro under 20 seconds.** Get to the project fast.
+
+**Judging criteria — five dimensions, scored explicitly:**
+
+| Criterion | The question asked | Honest self-assessment |
+|---|---|---|
+| **Technicality** | How complex is the problem, how sophisticated the solution? | Strong. Adversarial mechanism design across three protocols, immutable contracts, an incentive hole found and closed. |
+| **Originality** | New idea, or creative solve of an existing one? | Strong. Push-based random assignment plus private adjudication is a combination we could not find prior art for. |
+| **Practicality** | How complete and functional? Usable by its audience today? | Strong. Running end to end on Sepolia with real settlement, not a prototype. |
+| **Usability** | How intuitive? Have you made it easy to interact with? | **Weakest by a distance.** There is no interface. Everything is a terminal script, and a single scene takes minutes of real chain time. |
+| **WOW factor** | Does it leave a lasting impression? | Two candidate moments: the operator that owns the name being unable to write reputation, and two independent indexers disagreeing at an identical block. |
+
+Usability being an explicit criterion changes the weight on [T6](#t6--dashboard). It was deprioritised as presentation; it is in fact one fifth of the score.
 - Everything must be built during the event window (Sep 4–16) — the Graph track is the "From Scratch" pool.
 
 **Technical:**
@@ -219,7 +233,7 @@ Renders from chain + Graph reads only. Never a place where behavior gets faked f
 - [x] CRE beta access did not land. Shipping the simulate path, which the Chainlink track explicitly accepts with evidence — [execution log](docs/cre-execution-log.md).
 - [x] Freeze addresses; `README.md` gets deployed addresses + demo tx hashes.
 - [ ] `SKILL.md` (explicit Graph-track ask). **Not done.**
-- [ ] **Record video** — human voice, ≤4:00, ≥720p, no TTS, no speed-up.
+- [ ] **Record video** — human voice, **2:00–4:00**, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Cut the VRF waits; do not speed them.
 - [ ] Human writes the limitations section in their own words ([ai-usage §0.6](docs/ai-usage.md)). **Outstanding** — currently Claude's prose expressing the human's analysis.
 - [x] **Final attribution audit:** `docs/ai-usage.md` §0.3 has no `planned` rows and no aspirational labels; every directing prompt is in `docs/prompts/`.
 - [ ] Submit by 09:00. Three partner prizes: Chainlink, ENS, The Graph.
