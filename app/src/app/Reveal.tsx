@@ -17,17 +17,36 @@ export function Reveal({ children, className = "" }: { children: ReactNode; clas
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    const show = () => el.classList.add("in");
+
+    // Fail open. The reveal is an enhancement, and content must never depend on
+    // it firing — if IntersectionObserver is missing, throws, or simply never
+    // reports (headless capture, some embedded browsers), the section still has
+    // to appear. Without this the page rendered blank below the hero.
+    if (typeof IntersectionObserver === "undefined") {
+      show();
+      return;
+    }
+
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
-          el.classList.add("in");
+          show();
           io.unobserve(el);
         }
       },
       { rootMargin: "0px 0px -12% 0px", threshold: 0.08 },
     );
     io.observe(el);
-    return () => io.disconnect();
+
+    // Backstop: whatever happens, nothing stays hidden for more than a moment.
+    const failOpen = setTimeout(show, 1600);
+
+    return () => {
+      clearTimeout(failOpen);
+      io.disconnect();
+    };
   }, []);
 
   return (

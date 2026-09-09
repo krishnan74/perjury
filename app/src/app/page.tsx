@@ -1,6 +1,7 @@
 import { claimEvents, claimsIndex, protocolSummary, eth, EXPLORER, REGISTRY } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
 import { Reveal } from "./Reveal";
+import { Ticker } from "./Ticker";
 
 export const revalidate = 30;
 
@@ -46,7 +47,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="enter d5">
+          <div className="enter d5 record-wrap">
             <div className="record" aria-label="A claim record with its supporting evidence sealed">
               <div className="record-row">
                 <span className="k">claim</span>
@@ -73,7 +74,11 @@ export default async function Home() {
                 <span className="v">MISMATCH</span>
               </div>
             </div>
-            <p className="note" style={{ marginTop: "1rem", borderLeft: 0, paddingLeft: 0 }}>
+            <div className="stamp" aria-hidden="true">
+              Sealed
+              <small>evidence withheld</small>
+            </div>
+            <p className="note" style={{ marginTop: "2.6rem", borderLeft: 0, paddingLeft: 0 }}>
               Everything the agent offered as support stays sealed. One word reaches the chain.
             </p>
           </div>
@@ -81,8 +86,11 @@ export default async function Home() {
         <p className="scrollcue">&darr; Why nobody catches this today</p>
       </section>
 
+      <Ticker events={events} />
+
       {/* ══ 2. The problem, and why the simple answers fail ═════════════════ */}
       <section className="wrap section" id="problem">
+        <span className="chapter-num" aria-hidden="true">01</span>
         <Reveal>
           <p className="eyebrow">The problem</p>
           <h2 className="h2" style={{ maxWidth: "20ch" }}>
@@ -129,6 +137,7 @@ export default async function Home() {
 
       {/* ══ 3. The mechanism ═══════════════════════════════════════════════ */}
       <section className="wrap section" id="mechanism">
+        <span className="chapter-num" aria-hidden="true">02</span>
         <Reveal>
           <p className="eyebrow">The mechanism</p>
           <h2 className="h2" style={{ maxWidth: "18ch" }}>Checked by someone you cannot pick.</h2>
@@ -193,6 +202,7 @@ export default async function Home() {
 
       {/* ══ 4. It ran, and here is what lying cost ═════════════════════════ */}
       <section className="wrap section">
+        <span className="chapter-num" aria-hidden="true">03</span>
         <Reveal>
           <p className="eyebrow">It ran</p>
           <h2 className="h2" style={{ maxWidth: "24ch", marginBottom: "2.4rem" }}>
@@ -260,6 +270,7 @@ export default async function Home() {
 
       {/* ══ 5. Limits ══════════════════════════════════════════════════════ */}
       <section className="wrap section">
+        <span className="chapter-num" aria-hidden="true">04</span>
         <Reveal>
           <p className="eyebrow">What it does not solve</p>
           <h2 className="h2" style={{ maxWidth: "22ch" }}>
@@ -292,6 +303,7 @@ export default async function Home() {
 
       {/* ══ 6. Check it ════════════════════════════════════════════════════ */}
       <section className="wrap section">
+        <span className="chapter-num" aria-hidden="true">05</span>
         <Reveal>
           <p className="eyebrow">Check it yourself</p>
           <h2 className="h2" style={{ maxWidth: "20ch" }}>Everything above is on Sepolia.</h2>

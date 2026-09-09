@@ -23,10 +23,19 @@
   --muted: #75736a;
   --rule: #dcdad2;
 
-  --match: #1c6b41;
-  --mismatch: #a32b22;
-  --unverifiable: #8a6410;
-  --pending: #4a4890;
+  /* Verdict colours are DATA. They are deliberately desaturated so they read as
+     information rather than branding, which leaves exactly one vivid colour on
+     the page for the eye to follow. */
+  --match: #3f6b4f;
+  --mismatch: #8f4038;
+  --unverifiable: #7d6636;
+  --pending: #55546f;
+
+  /* The accent is stamp vermilion — wet ink on a legal record, which is what a
+     tribunal actually produces. It appears on interaction, on emphasis, and on
+     the seal itself. Nowhere else. */
+  --accent: #d8401c;
+  --accent-ink: #b0300f;
 
   --seal: #14140f;
 
@@ -575,24 +584,29 @@ body > * { position: relative; z-index: 1; }
   to   { opacity: 1; transform: none; }
 }
 
-.enter { opacity: 0; animation: rise 0.9s var(--expo) forwards; }
+.js .enter { opacity: 0; animation: rise 0.9s var(--expo) forwards; }
 .d1 { animation-delay: 0.05s; }
 .d2 { animation-delay: 0.16s; }
 .d3 { animation-delay: 0.27s; }
 .d4 { animation-delay: 0.38s; }
 .d5 { animation-delay: 0.5s; }
 
-/* Scroll reveal — class toggled by IntersectionObserver. */
-.reveal {
+/* Scroll reveal — class toggled by IntersectionObserver.
+   Gated behind `.js` on <html>, set by an inline script before first paint.
+   Without that gate the page shipped every section at opacity 0 and relied on JS
+   to make its own content visible: if the observer never fired, or scripts were
+   blocked, the entire page rendered blank below the hero. Content is visible by
+   default and animation is the enhancement, never the other way round. */
+.js .reveal {
   opacity: 0;
   transform: translate3d(0, 26px, 0);
   transition: opacity 0.85s var(--expo), transform 0.85s var(--expo);
 }
-.reveal.in { opacity: 1; transform: none; }
+.js .reveal.in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .enter { opacity: 1; animation: none; }
-  .reveal { opacity: 1; transform: none; transition: none; }
+  .js .reveal { opacity: 1; transform: none; transition: none; }
 }
 
 /* Branded selection — a redaction, naturally. */
@@ -649,4 +663,150 @@ body > * { position: relative; z-index: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .wipe::after { animation: none; transform: scaleX(1); }
+}
+
+
+/* ══ Paper grain ══════════════════════════════════════════════════════════
+   A flat colour field reads as a screen; a little tooth reads as paper. Sits
+   above the ruled ground, below content, and never intercepts a pointer. */
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.32;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* ══ Accent application ═══════════════════════════════════════════════════ */
+
+.eyebrow::before { color: var(--accent); }
+.caret { background: var(--accent); }
+::selection { background: var(--accent); color: #fff; }
+
+.cell-head .num { color: var(--accent); opacity: 0.85; }
+.assertion .v em { font-style: normal; color: var(--accent); }
+
+/* Links and buttons get a vermilion sweep rather than a colour swap — the
+   underline grows from the left, which reads as a mark being made. */
+.nav a, .row .meta a {
+  position: relative;
+  text-decoration: none;
+}
+.nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 100%;
+  height: 1.5px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.42s var(--expo);
+}
+.nav a:hover { text-decoration: none; color: var(--ink); }
+.nav a:hover::after { transform: scaleX(1); }
+
+.btn { transition: background-color 0.28s var(--quart), color 0.28s var(--quart), border-color 0.28s var(--quart); }
+.btn:hover { opacity: 1; background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ghost:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.ledger-row.total .amt { color: var(--accent); }
+
+/* ══ Chapter numerals ═════════════════════════════════════════════════════
+   Oversized section numbers sitting behind the heading, barely inked. They give
+   the page depth and a sense of chapters without adding anything to read.
+   NOT called `.ghost` — that collided with the `.btn.ghost` variant and blew a
+   button up to 19rem serif. */
+
+.section { position: relative; }
+.chapter-num {
+  position: absolute;
+  top: clamp(1.2rem, 4vw, 3rem);
+  right: 0;
+  font-family: var(--serif);
+  font-size: clamp(7rem, 20vw, 19rem);
+  line-height: 0.72;
+  color: var(--ink);
+  opacity: 0.038;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  letter-spacing: -0.04em;
+}
+.section > * { position: relative; z-index: 1; }
+
+/* ══ The seal ═════════════════════════════════════════════════════════════
+   A stamp, rotated off-grid and struck over the record. This is the one element
+   allowed to break the layout, because that is what a stamp does to a document. */
+
+.stamp {
+  position: absolute;
+  right: -1.4rem;
+  bottom: 4.9rem;
+  transform: rotate(-11deg) scale(0.82);
+  opacity: 0;
+  border: 2.5px solid var(--accent);
+  color: var(--accent);
+  padding: 0.5rem 1rem 0.42rem;
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: clamp(0.82rem, 1.4vw, 1.05rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  animation: strike 0.5s var(--expo) 3.05s forwards;
+  /* Ink never lands perfectly flat. */
+  mix-blend-mode: multiply;
+}
+.stamp small {
+  display: block;
+  font-size: 0.55em;
+  letter-spacing: 0.13em;
+  opacity: 0.8;
+  margin-top: 0.15em;
+  font-weight: 400;
+}
+@keyframes strike {
+  0%   { opacity: 0; transform: rotate(-11deg) scale(1.5); }
+  70%  { opacity: 1; transform: rotate(-11deg) scale(0.94); }
+  100% { opacity: 1; transform: rotate(-11deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stamp { animation: none; opacity: 1; transform: rotate(-11deg); }
+}
+
+.record-wrap { position: relative; }
+
+/* ══ Evidence ticker ══════════════════════════════════════════════════════
+   Real transaction hashes, moving. It is the project's own output used as
+   texture — the strip is literally the receipts, which is a better argument
+   than a decorative graphic would be. */
+
+.ticker {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+  background: var(--paper-2);
+  padding: 0.7rem 0;
+}
+.ticker-track {
+  display: flex;
+  gap: 2.5rem;
+  width: max-content;
+  animation: slide 64s linear infinite;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.ticker-track b { color: var(--accent); font-weight: 500; }
+@keyframes slide { to { transform: translate3d(-50%, 0, 0); } }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
 }
