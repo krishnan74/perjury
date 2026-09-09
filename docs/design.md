@@ -471,6 +471,30 @@ Why this matters beyond convenience: the tribunal compares two independently-pro
 
 The honest limit: all four are lending protocols on one schema, so this demonstrates depth within a standard rather than breadth across standards. Extending to a second standardized schema (DEX or vault) would strengthen it further and is not done.
 
+#### 5.5 Corroborated reads — why The Graph specifically, and not any data source
+
+Everything above could, in principle, be served by some other well-behaved API. This cannot, and it is the part of the Graph integration that the mechanism actually depends on.
+
+**The hole it closes.** Perjury's premise is that a second agent independently re-derives a claim. But when claimant and witness read the *same* deployment, they have re-derived the **query** while sharing the **derivation** — a bug in the subgraph's mapping code produces two honest agents confidently agreeing on a wrong number, and the protocol settles a `Match` on it. That is §6's second limitation, and until now we could only disclose it.
+
+**Why The Graph can close it.** A deployment id is a content hash of the mapping code, not just an endpoint name. Two deployments indexing the same protocol are therefore two *independent derivations* of the same chain state, produced by different code that different people wrote. An RPC cannot offer this — it has exactly one derivation, so "read it twice" buys nothing. Content-addressed indexing is what makes the derivation itself checkable.
+
+**The rule.** Where a protocol has more than one independent deployment, a read is attested only if they agree within `CORROBORATION_BPS`. Divergence throws `corroboration-divergence`, which propagates as `Unverifiable` — bond returned, nobody slashed, no standing change. The protocol deliberately does **not** resolve to a majority or prefer the primary: picking a winner among disagreeing indexers would invent a fact the data layer does not support. Disagreement means the fact is contested, and a contested fact cannot convict anyone.
+
+**One constant is load-bearing.** `CORROBORATION_BPS` must not exceed the tribunal's adjudication tolerance. If it were looser, two sources could differ by more than the margin that decides a verdict while still counting as agreeing — and then which deployment an agent happened to read would decide who loses a bond. A unit test asserts the invariant rather than trusting the two constants to be edited together.
+
+**Observed, not hypothesised.** Two live deployments of Morpho Aave V3, both Messari-schema, read at an identical block:
+
+```
+QmVpuZKrjhjHx2hCtpGNaW29ZYq4Xt2GyPLpiMDP2YTAHE   1.6742%   TVL $25,196
+Qme9KY9Nm5YaRsew1CjR5rtwZMgQAG3SzxRmqevtVW7R83   1.5926%   TVL $26,487
+→ 487.7 bps apart, tolerance 50 → UNVERIFIABLE
+```
+
+Block skew is eliminated as an explanation, and the schema is identical, so the only remaining variable is the mapping code. `npx tsx scripts/prove-corroboration.ts` reproduces it live, and `duel.ts honest morpho-aave-v3-ethereum` shows both agents failing closed end to end.
+
+**The honest limit, and it is a real one.** Of the eighteen Messari-lending subgraphs we found, only Morpho Aave V3 has a second independent index. Aave v3 — our demo subject — has one. So corroboration is *opportunistic*: required where plurality exists, and recorded as `single-source` where it does not. Single-source reads are not rejected, because refusing to verify anything without a second indexer would make the protocol useless rather than rigorous. The weaker guarantee travels with the verdict instead of being quietly dropped. Thin plurality per protocol is the ecosystem gap this design would most like closed, and it is filed as feedback.
+
 ## 6. The Honest Limitation — demonstrated, not disclaimed
 
 > **Provenance — HUMAN (D2).** The limitation itself is the human's own analysis, identified unprompted in the original brief: random assignment closes *deliberate* collusion but does not catch a careless witness, and cannot rule out two independently-honest agents reaching the same wrong conclusion. The human also set the standard that it be *demonstrated on camera rather than disclaimed in text*. AI contributed only the sybil-cost framing and the prose arrangement. **The README version of this section must be written in the human's own words ([§0.6](ai-usage.md)).**
@@ -479,7 +503,7 @@ The honest limit: all four are lending protocols on one schema, so this demonstr
 
 **What it does not close, stated plainly in the README and shown in the video:**
 - A **careless** witness that does minimal work and happens to agree costs the claimant nothing. Our degeneracy check ([§3.3](#3-cre-confidential-workflow-design-the-tribunal) step 4) catches only the crudest version; it is a heuristic, not a solution.
-- Two **independently honest** agents can reach the same wrong conclusion — e.g. both trust the same subgraph, and the subgraph is wrong. Standardized schemas make this *more* likely, not less. The provenance gate limits the blast radius; it does not eliminate it.
+- Two **independently honest** agents can reach the same wrong conclusion. The specific case of *both trusting the same subgraph* is now addressed where the ecosystem permits: corroborated reads ([§5.5](#55-corroborated-reads--why-the-graph-specifically-and-not-any-data-source)) require independently-indexed deployments to agree, and return `Unverifiable` when they do not. This is **not** a general fix. It only binds for protocols with a second independent index — one of five pinned subjects today — and it cannot touch correlated error that lives upstream of indexing, in the chain data or the protocol itself. Elsewhere the reading is stamped `single-source` and the original limitation stands unchanged.
 - **Sybils** raise a claimant's odds of drawing a friendly witness linearly in the number of funded, ENS-named, bondable identities it controls. Bond + registration cost makes this expensive, not impossible.
 
 Scenario 3 ([§7](#7-on-camera-checklist-what-must-be-true-and-shown)) shows the *first* of these bounded by the mechanism itself, on camera — two agents who have agreed to collude, repeatedly failing to be paired.

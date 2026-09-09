@@ -23,7 +23,8 @@ Verified on live networks, not mocked:
 | **Reputation only the tribunal can write** | ENSv2 Enhanced Access Control, scoped to a single record key. The operator that deployed every contract and owns `perjury.eth` gets `EACUnauthorizedAccountRoles` when it tries to write standing |
 | **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
 | **One query pattern, four protocols** | Aave v3, Aave v2, Compound III and Spark Lend read with the *same* selection set and derivation via the Messari standardized schema — no per-protocol code. `npx tsx scripts/verify-pinned.ts` proves it live |
-| **Test suite** | 55 Foundry tests, 59 TypeScript tests |
+| **Corroborated reads** | Where a protocol has two independent deployments, both must agree or the verdict is `Unverifiable`. Two live Morpho Aave V3 indexes disagree by 488 bps at an identical block — `npx tsx scripts/prove-corroboration.ts` |
+| **Test suite** | 55 Foundry tests, 64 TypeScript tests |
 
 **Not built:** the dashboard. Everything above is verifiable from a block explorer and the terminal scenes.
 
@@ -52,7 +53,7 @@ Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 cp .env.example .env          # add SEPOLIA_RPC_URL, GRAPH_STUDIO_KEY, keys
 npm install
 forge test                    # 55 contract tests
-npx vitest run                # 59 TypeScript tests
+npx vitest run                # 64 TypeScript tests
 
 # the three demo scenes, live on Sepolia, with terminal visualisation
 npx tsx agents/runner/scene1.ts operator   # true claim  → Match, bond returned
@@ -65,6 +66,10 @@ npx tsx agents/runner/duel.ts false    # expect Mismatch
 
 # the confidential workflow
 cd cre && cre workflow simulate tribunal --target staging-settings
+
+# the standardized-schema and corroboration proofs
+npx tsx scripts/verify-pinned.ts        # one query pattern, every pinned protocol
+npx tsx scripts/prove-corroboration.ts  # independent deployments must agree
 
 # rebuild the transaction ledger from chain
 npx tsx scripts/collect-evidence.ts
@@ -94,7 +99,7 @@ See [docs/design.md](docs/design.md) for the full mechanism.
 
 ## What it doesn't solve
 
-Random assignment closes *deliberate* collusion. It does not catch a careless witness, and it can't rule out two independently-honest agents reaching the same wrong conclusion. The demo is required to **show** this limitation, not narrate it — see [docs/design.md §6](docs/design.md#6-the-honest-limitation-demonstrated-not-disclaimed).
+Random assignment closes *deliberate* collusion. It does not catch a careless witness. Two independently-honest agents reaching the same wrong conclusion is partly addressed — where a protocol has a second independent index, both must agree or the verdict is `Unverifiable` — but only one of our five pinned protocols has one, so elsewhere the reading is stamped `single-source` and the limitation stands. The demo is required to **show** this limitation, not narrate it — see [docs/design.md §6](docs/design.md#6-the-honest-limitation-demonstrated-not-disclaimed).
 
 ## Documentation
 
@@ -116,7 +121,7 @@ Three partner-prize slots are selectable at submission; these are ours.
 |---|---|
 | **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`) compares claim against finding and emits only a verdict. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. **Currently executed via the local simulator**, which runs locally rather than in an enclave; enclave execution needs confidential-DON deploy access. |
 | **ENS** — Best Use of ENSv2 | Agents-as-namespaces (`<agent>.perjury.eth`), with Enhanced Access Control restricting reputation writes to the tribunal alone, scoped to one record. |
-| **The Graph** | Two ways, both load-bearing. **AI use case:** the witness is an LLM agent that searches the Subgraph MCP, reads the schema and composes its own GraphQL — the finding it derives decides who loses a bond, so the data does real work rather than being printed. **Standardized products:** four lending protocols are read through one Messari-schema query pattern with no protocol-specific code, so adding a protocol is a data change. Provenance failures reject rather than degrade. |
+| **The Graph** | Two ways, both load-bearing. **AI use case:** the witness is an LLM agent that searches the Subgraph MCP, reads the schema and composes its own GraphQL — the finding it derives decides who loses a bond, so the data does real work rather than being printed. **Standardized products:** five lending protocols read through one Messari-schema query pattern with no protocol-specific code, so adding a protocol is a data change. **Corroborated reads** exploit the property only a content-addressed index has — a deployment id hashes the mapping code, so two deployments are two independent derivations, and the protocol refuses to convict when they disagree. Provenance failures reject rather than degrade. |
 
 ## AI usage
 

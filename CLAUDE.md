@@ -24,7 +24,7 @@ export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.cre/bin:$PATH"
 
 ```bash
 forge test                              # 55 Solidity tests
-npx vitest run                          # 59 TS tests
+npx vitest run                          # 64 TS tests
 npx tsc --noEmit -p tsconfig.json       # root typecheck (cre/ is excluded, has its own)
 cd cre/tribunal && npx tsc --noEmit     # workflow typecheck
 
@@ -34,6 +34,7 @@ npx tsx scripts/prove-eac.ts                # EAC proof
 npx tsx scripts/deploy-all.ts               # whole deployment cascade, one command
 npx tsx scripts/collect-evidence.ts         # rebuild docs/TX_HASHES.md from chain
 npx tsx scripts/verify-pinned.ts            # one query pattern vs all pinned deployments — RUN BEFORE RECORDING
+npx tsx scripts/prove-corroboration.ts      # independent deployments must agree, else Unverifiable
 
 npx tsx agents/runner/duel.ts honest compound-v3-ethereum   # any pinned subject; no code change per protocol
 

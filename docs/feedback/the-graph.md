@@ -56,6 +56,25 @@ This is the one piece of friction that pushed directly against the standardizati
 
 **What worked despite it:** once found, all four subgraphs answered a byte-identical query and returned identical field semantics, with zero indexing lag. The schema delivered exactly what it promises — the gap is discovery, not the standard.
 
+## 7. Deployment plurality per protocol is thin, and it is the thing integrity checks need most
+
+The property we ended up relying on most is one we have not seen discussed: **a deployment id is a content hash of the mapping code**, so two deployments indexing the same protocol are two independent derivations of the same chain state. That makes the derivation itself checkable, which no RPC can offer — an RPC has exactly one derivation, so reading it twice buys nothing.
+
+We use it to close a hole we had previously documented as unfixable: if a claimant and its witness read the same subgraph, they have independently re-derived the *query* while sharing the *derivation*, and a mapping bug yields two honest agents confidently agreeing on a wrong number. Requiring independently-indexed deployments to agree closes that, and disagreement is treated as a contested fact rather than resolved to a majority.
+
+It works, and we found a live case immediately. Two deployments of Morpho Aave V3, both on the Messari lending schema, read at an identical block:
+
+```
+QmVpuZKrjhjHx2hCtpGNaW29ZYq4Xt2GyPLpiMDP2YTAHE   utilization 1.6742%   TVL $25,196
+Qme9KY9Nm5YaRsew1CjR5rtwZMgQAG3SzxRmqevtVW7R83   utilization 1.5926%   TVL $26,487
+```
+
+488 bps apart with block skew eliminated and the schema identical, so the difference is the mapping code. We are not claiming either is wrong — we cannot tell, which is exactly the point.
+
+**The gap.** Of the eighteen Messari-lending subgraphs we could find, only Morpho Aave V3 has a second independent index. Aave v3, Compound III and Spark Lend each have one, so for those our check degrades to recording `single-source`. The most valuable integrity property available in the network is therefore unavailable for the largest protocols.
+
+**Suggestions.** Surface plurality as a first-class attribute — "N independent deployments index this protocol" — so a consumer can discover corroboration is possible without probing. And consider it a curation signal worth encouraging: a second index of a major protocol is low-glamour work with real integrity value, and right now nothing in the network makes that value visible. Divergence between deployments is also useful data in its own right; if the network surfaced it, subgraph bugs would be findable by anyone rather than only by teams that happen to query two.
+
 ---
 
 ## What we'd highlight to other teams
