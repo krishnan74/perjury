@@ -613,7 +613,20 @@ body > * { position: relative; z-index: 1; }
   to   { opacity: 1; transform: none; }
 }
 
-.js .enter { opacity: 0; animation: rise 0.9s var(--expo) forwards; }
+/* Entrance states are gated on SCRIPTING, declared in CSS rather than by a
+   class an inline script adds.
+   
+   The previous approach put `js` on <html> before hydration, which meant the
+   client DOM no longer matched the server HTML and React reported a hydration
+   mismatch on every load. `@media (scripting: enabled)` expresses the same
+   condition declaratively, so there is no script, no attribute to diverge, and
+   no mismatch.
+   
+   A browser that does not support the query simply never hides anything, which
+   is the correct direction to fail: content visible, animation skipped. */
+@media (scripting: enabled) {
+  .enter { opacity: 0; animation: rise 0.9s var(--expo) forwards; }
+}
 .d1 { animation-delay: 0.05s; }
 .d2 { animation-delay: 0.16s; }
 .d3 { animation-delay: 0.27s; }
@@ -626,16 +639,18 @@ body > * { position: relative; z-index: 1; }
    to make its own content visible: if the observer never fired, or scripts were
    blocked, the entire page rendered blank below the hero. Content is visible by
    default and animation is the enhancement, never the other way round. */
-.js .reveal {
-  opacity: 0;
-  transform: translate3d(0, 26px, 0);
-  transition: opacity 0.85s var(--expo), transform 0.85s var(--expo);
+@media (scripting: enabled) {
+  .reveal {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    transition: opacity 0.85s var(--expo), transform 0.85s var(--expo);
+  }
+  .reveal.in { opacity: 1; transform: none; }
 }
-.js .reveal.in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .enter { opacity: 1; animation: none; }
-  .js .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
 }
 
 /* Branded selection — a redaction, naturally. */
@@ -647,6 +662,7 @@ body > * { position: relative; z-index: 1; }
    performed in four seconds instead of described. */
 
 .record {
+  position: relative;
   border: 1px solid var(--rule);
   background: var(--paper-2);
   font-family: var(--mono);
@@ -774,8 +790,11 @@ body::after {
 
 .stamp {
   position: absolute;
-  right: -1.4rem;
-  bottom: 4.9rem;
+  /* Hangs off the bottom-right corner rather than sitting over the rows. It
+     previously covered the published verdict — the single value the whole
+     record exists to show. A seal marks a document; it must not redact it. */
+  right: -1.6rem;
+  bottom: -1.5rem;
   transform: rotate(-11deg) scale(0.82);
   opacity: 0;
   border: 2.5px solid var(--accent);
@@ -855,7 +874,7 @@ body::after {
   .stamp {
     right: auto;
     left: 50%;
-    bottom: -1.1rem;
+    bottom: -1.3rem;
     font-size: 0.72rem;
     padding: 0.42rem 0.85rem 0.36rem;
     animation-name: strike-sm;

@@ -67,17 +67,6 @@ export const revalidate = 30;
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${mono.variable} ${sans.variable}`}>
-      <head>
-        {/*
-          Marks the document as scripted before first paint, which is what gates
-          every entrance animation. Content is visible without it; the class only
-          opts in to hiding-then-revealing, so a blocked or failed script leaves a
-          readable page rather than a blank one.
-        */}
-        <script
-          dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }}
-        />
-      </head>
       <body>
         <SmoothScroll />
         <nav className="nav">

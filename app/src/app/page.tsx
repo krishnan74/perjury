@@ -73,12 +73,12 @@ export default async function Home() {
                 <span className="k">what is published</span>
                 <span className="v">MISMATCH</span>
               </div>
+              <div className="stamp" aria-hidden="true">
+                Sealed
+                <small>evidence withheld</small>
+              </div>
             </div>
-            <div className="stamp" aria-hidden="true">
-              Sealed
-              <small>evidence withheld</small>
-            </div>
-            <p className="note" style={{ marginTop: "2.6rem", borderLeft: 0, paddingLeft: 0 }}>
+            <p className="note" style={{ marginTop: "3.2rem", borderLeft: 0, paddingLeft: 0 }}>
               Everything the agent offered as support stays sealed. One word reaches the chain.
             </p>
           </div>
