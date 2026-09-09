@@ -239,3 +239,57 @@ export async function protocolSummary(events: ClaimEvent[], eligible: number, to
     agentsTotal: total,
   };
 }
+
+export interface ClaimRow {
+  id: string;
+  claimant: string;
+  witness: string | null;
+  bond: bigint;
+  verdict: VerdictName;
+  status: (typeof STATUS)[number];
+  appealed: boolean;
+  panel: string[];
+  submittedAt: number;
+  settledAt: number | null;
+  slashed: boolean;
+  events: ClaimEvent[];
+}
+
+/** Fold the event stream into one row per claim, newest first. */
+export function claimsIndex(events: ClaimEvent[]): ClaimRow[] {
+  const byId = new Map<string, ClaimEvent[]>();
+  for (const e of events) {
+    if (e.claimId === "-") continue;
+    byId.set(e.claimId, [...(byId.get(e.claimId) ?? []), e]);
+  }
+
+  const rows: ClaimRow[] = [];
+  for (const [id, evs] of byId) {
+    const find = (n: string) => evs.find((e) => e.name === n);
+    const submitted = find("ClaimSubmitted");
+    const assigned = find("WitnessAssigned");
+    const verdictEv = find("PanelUpheld") ?? find("PanelOverturned") ?? find("VerdictRecorded");
+    const settled = find("Settled");
+
+    // A panel verdict supersedes the original — the appeal is the final word.
+    const raw = verdictEv
+      ? Number(verdictEv.args.verdict ?? verdictEv.args.panel ?? 0)
+      : 0;
+
+    rows.push({
+      id,
+      claimant: String(submitted?.args.claimant ?? ""),
+      witness: assigned ? String(assigned.args.witness) : null,
+      bond: BigInt(String(submitted?.args.bond ?? 0n)),
+      verdict: (VERDICT[raw] ?? "None") as VerdictName,
+      status: settled ? "Settled" : verdictEv ? "Adjudicated" : assigned ? "WitnessAssigned" : "Pending",
+      appealed: Boolean(find("Appealed")),
+      panel: (find("PanelSeated")?.args.panel as string[] | undefined) ?? [],
+      submittedAt: submitted?.timestamp ?? 0,
+      settledAt: settled?.timestamp ?? null,
+      slashed: Boolean(find("ClaimantSlashed")),
+      events: evs,
+    });
+  }
+  return rows.sort((a, b) => Number(b.id) - Number(a.id));
+}
