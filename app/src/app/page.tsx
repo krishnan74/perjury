@@ -1,5 +1,6 @@
 import { claimEvents, claimsIndex, protocolSummary, eth, EXPLORER, REGISTRY } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
+import { DrawDiagram } from "./DrawDiagram";
 
 export const revalidate = 30;
 
@@ -177,6 +178,15 @@ export default async function Home() {
             <div className="foot">powered by — <b>ENSv2 Enhanced Access Control</b></div>
           </div>
         </div>
+      </section>
+
+      {/* ── The draws, actually observed ─────────────────────────────────── */}
+      <section className="wrap section">
+        <p className="eyebrow">Every draw so far</p>
+        <h2 className="h2" style={{ maxWidth: "24ch", marginBottom: "2.4rem" }}>
+          No arc returns to where it started.
+        </h2>
+        <DrawDiagram claims={rows} roster={roster} />
       </section>
 
       {/* ── Counted, not claimed ─────────────────────────────────────────── */}

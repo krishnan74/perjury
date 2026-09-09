@@ -105,7 +105,7 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
         <div className="stages">
           {claim.events.map((e) => (
             <div className="stage" data-state="done" key={`${e.name}-${e.tx}`}>
-              <span className="dot">&#9679;</span>
+              <span className="dot" aria-hidden="true">&#9679;</span>
               <span>
                 {STAGE_LABEL[e.name] ?? e.name}
                 {e.name === "WitnessAssigned" && (

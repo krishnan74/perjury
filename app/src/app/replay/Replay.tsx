@@ -69,11 +69,13 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
           Step
         </button>
         <button className="btn ghost" onClick={reset} disabled={at === 0}>Reset</button>
-        <span className="chip">
+        <span className="chip" role="group" aria-label="Playback speed">
           {[1, 10, 30, 120].map((x) => (
             <button
               key={x}
               onClick={() => setSpeed(x)}
+              aria-pressed={speed === x}
+              aria-label={`${x} times speed`}
               style={{
                 background: "none",
                 border: "none",
@@ -98,7 +100,7 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
           const state = i < at ? "done" : i === at ? (playing ? "active" : "idle") : "idle";
           return (
             <div className="stage" data-state={state} key={`${s.label}-${i}`}>
-              <span className="dot">{i < at ? "●" : "○"}</span>
+              <span className="dot" aria-hidden="true">{i < at ? "●" : "○"}</span>
               <span>
                 {s.label}
                 {s.detail && <span className="muted"> &mdash; {s.detail}</span>}

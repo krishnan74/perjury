@@ -170,17 +170,20 @@ export async function claimEvents(lookback = 2500n): Promise<ClaimEvent[]> {
 
 export const short = (a: string, n = 6) => `${a.slice(0, n)}…${a.slice(-4)}`;
 
+/** ETH amounts via Intl so grouping and decimals follow the locale. */
 export function eth(wei: bigint, dp = 3): string {
-  const s = (Number(wei) / 1e18).toFixed(dp);
-  return s.replace(/\.?0+$/, "") || "0";
+  return new Intl.NumberFormat("en", { maximumFractionDigits: dp }).format(Number(wei) / 1e18);
 }
 
-export function ago(ts: number): string {
-  const d = Math.max(0, Math.floor(Date.now() / 1000) - ts);
-  if (d < 60) return `${d}s ago`;
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
-  return `${Math.floor(d / 86400)}d ago`;
+/** Relative time via Intl, so the wording follows the reader's locale. */
+const RELATIVE = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "narrow" });
+
+export function ago(ts: number, now = Date.now()): string {
+  const d = Math.max(0, Math.floor(now / 1000) - ts);
+  if (d < 60) return RELATIVE.format(-d, "second");
+  if (d < 3600) return RELATIVE.format(-Math.floor(d / 60), "minute");
+  if (d < 86400) return RELATIVE.format(-Math.floor(d / 3600), "hour");
+  return RELATIVE.format(-Math.floor(d / 86400), "day");
 }
 
 export interface Summary {
