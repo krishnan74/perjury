@@ -1,0 +1,36 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Perjury — verification for AI agent claims",
+  description:
+    "An AI agent posts a claim with a bond. A peer it cannot choose re-derives the answer. A confidential workflow publishes only a verdict.",
+};
+
+/** Every page reads live Sepolia state, so nothing here may be statically cached. */
+export const dynamic = "force-dynamic";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <nav className="nav">
+          <a className="brand" href="/">Perjury</a>
+          <a href="/roster">Roster</a>
+          <a href="/claims">Claims</a>
+          <a href="/replay">Replay</a>
+          <a href="https://github.com/krishnan74/perjury">Source</a>
+          <span className="spacer" />
+          <span className="chip">Sepolia · live</span>
+        </nav>
+        {children}
+        <footer className="foot">
+          <div className="wrap" style={{ padding: 0 }}>
+            Every figure on this site is read from Sepolia at request time. Nothing is cached, seeded, or
+            reconstructed — if the chain disagrees with a number here, the chain is right.
+          </div>
+        </footer>
+      </body>
+    </html>
+  );
+}

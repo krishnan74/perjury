@@ -1,0 +1,316 @@
+/*
+ * Perjury looks like a legal record, because that is what it produces.
+ *
+ * Two decisions drive everything below.
+ *
+ * 1. A tribunal issues findings, so the page reads like a document rather than
+ *    an app: paper ground, serif display, generous rules, no cards floating on
+ *    gradients. Data is monospace because every number here came off a chain and
+ *    should look like it can be checked.
+ *
+ * 2. The redaction bar is the motif. Perjury's whole claim is that evidence goes
+ *    in and only a verdict comes out, and a solid black block over withheld text
+ *    is the one visual that states that without a caption. It is used ONLY for
+ *    things genuinely not published on chain — never as decoration.
+ */
+
+:root {
+  --paper: #f6f5f1;
+  --paper-2: #efeee8;
+  --ink: #14140f;
+  --ink-2: #3d3c35;
+  --muted: #75736a;
+  --rule: #dcdad2;
+
+  --match: #1c6b41;
+  --mismatch: #a32b22;
+  --unverifiable: #8a6410;
+  --pending: #4a4890;
+
+  --seal: #14140f;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+
+  --measure: 62ch;
+  --gutter: clamp(1.25rem, 5vw, 4.5rem);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+/* ── Type ─────────────────────────────────────────────────────────────── */
+
+.display {
+  font-family: var(--serif);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  font-size: clamp(2.6rem, 7vw, 5.4rem);
+  margin: 0;
+}
+
+.h2 {
+  font-family: var(--serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  margin: 0;
+}
+
+/* Section eyebrow. The `//` is a comment marker: these label the page, they are
+   not part of the record. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.9rem;
+}
+.eyebrow::before { content: "// "; }
+
+.lede {
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: var(--measure);
+}
+
+.mono { font-family: var(--mono); }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
+.section { padding: clamp(3rem, 8vw, 6rem) 0; border-top: 1px solid var(--rule); }
+.section:first-of-type { border-top: 0; }
+
+/* ── Nav ──────────────────────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.1rem var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+.nav a { text-decoration: none; color: var(--ink-2); }
+.nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.nav .brand {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-right: 0.5rem;
+}
+.nav .spacer { margin-left: auto; }
+
+.chip {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  padding: 0.25rem 0.5rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── The assertions strip ─────────────────────────────────────────────────
+   Deliberately not a "network stats" bar. Perjury's numbers are small, and the
+   interesting ones are zeros — each row is a thing that has never happened,
+   counted from chain. Volume would flatter us less honestly than this does. */
+
+.assertions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.assertion {
+  padding: 1.1rem 1.2rem;
+  border-right: 1px solid var(--rule);
+}
+.assertion:last-child { border-right: 0; }
+.assertion .k {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.45;
+  display: block;
+  min-height: 2.6em;
+}
+.assertion .v {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  line-height: 1;
+  margin-top: 0.35rem;
+  display: block;
+}
+.assertion .n { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+/* ── Verdict marks ────────────────────────────────────────────────────── */
+
+.verdict {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.v-Match { color: var(--match); }
+.v-Mismatch { color: var(--mismatch); }
+.v-Unverifiable { color: var(--unverifiable); }
+.v-None { color: var(--pending); }
+
+/* ── Rows (roster, feed) ──────────────────────────────────────────────── */
+
+.row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.05rem 0;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+}
+.row:hover { background: var(--paper-2); }
+.row .idx { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.row .title { font-size: 1.02rem; font-weight: 550; }
+.row .meta {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-top: 0.28rem;
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+.row .right { text-align: right; }
+.row .figure { font-family: var(--serif); font-size: 1.9rem; line-height: 1; }
+.row .figure-note {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}
+.flag { color: var(--mismatch); }
+
+/* ── Redaction ────────────────────────────────────────────────────────────
+   Used only for values that genuinely never left the enclave. */
+
+.redacted {
+  background: var(--seal);
+  color: transparent;
+  user-select: none;
+  border-radius: 1px;
+  padding: 0 0.35rem;
+}
+.redacted::selection { background: var(--seal); }
+
+/* ── Stage list (replay + live runner) ────────────────────────────────── */
+
+.stages { border: 1px solid var(--rule); background: var(--paper-2); }
+.stage {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  gap: 0.9rem;
+  align-items: baseline;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+.stage:last-child { border-bottom: 0; }
+.stage[data-state="idle"] { color: var(--muted); opacity: 0.55; }
+.stage[data-state="active"] { background: #fff; }
+.stage[data-state="done"] { color: var(--ink); }
+.stage .dot { font-size: 0.9rem; }
+.stage .when { color: var(--muted); font-size: 0.74rem; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.btn {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:hover { opacity: 0.86; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.actions { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 1.6rem; }
+
+/* ── Definition grid (claim detail) ───────────────────────────────────── */
+
+.defs { display: grid; grid-template-columns: minmax(11rem, 15rem) 1fr; gap: 0; }
+.defs dt, .defs dd {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--rule);
+  margin: 0;
+}
+.defs dt {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.defs dd { font-family: var(--mono); font-size: 0.84rem; word-break: break-all; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: clamp(1.5rem, 4vw, 3rem); }
+
+.note {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--muted);
+  border-left: 2px solid var(--rule);
+  padding-left: 0.9rem;
+  max-width: var(--measure);
+}
+
+footer.foot {
+  border-top: 1px solid var(--rule);
+  padding: 2rem var(--gutter) 3rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .row { grid-template-columns: 1.8rem 1fr; }
+  .row .right { grid-column: 2; text-align: left; margin-top: 0.5rem; }
+  .defs { grid-template-columns: 1fr; }
+  .defs dt { border-bottom: 0; padding-bottom: 0.2rem; }
+}
