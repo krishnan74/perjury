@@ -60,4 +60,22 @@ Where a protocol has a second independent index, both must now agree or the read
 
 The honest limit: only one of five pinned protocols has a second index, so elsewhere the read is stamped `single-source` and the original limitation stands.
 
-**Where it stands.** 55 Solidity tests, 64 TypeScript, both typechecks clean. Every engineering gate met early. The video is unrecorded and is now the only thing that can lose this. `WitnessRoster.sol` still carries its `⚠ NOT YET HUMAN-LED` label, awaiting the line-by-line review reserved for it.
+**Where it stands.** 55 Solidity tests, 64 TypeScript, both typechecks clean. Every engineering gate met early. The video is unrecorded and is now the only thing that can lose this. `WitnessRoster.sol` still carries its `⚠ NOT YET HUMAN-LED` label, awaiting the line-by-line review reserved for it. *(Reviewed and relabelled later the same day — see below.)*
+
+## Sep 9, later — sponsor-track review, and two holes it found
+
+Read seven prior winning projects to see what the ENS and Graph tracks actually reward. Two useful things came out of it, neither of them cosmetic.
+
+**The Graph work was hygiene-tier, and now isn't.** A prior winner had taken almost exactly our setup — Messari standardized lending across Aave, Compound and Spark — and placed first by going wider. So the pinned set went to 13 deployments across two schema families (lending *and* DEX) and five chains, still behind one selection set per family and one derivation, with no per-protocol or per-chain branch anywhere.
+
+That was not free. Two tolerances in this codebase were expressed in **blocks**, which is only meaningful on the chain you tuned it for. The 50-block freshness window is ten minutes on Ethereum and twelve seconds on Arbitrum, so a healthy Uniswap v3 deployment 149 blocks behind was a hard fail and about 37 seconds in reality. The same mistake sat in the tribunal, where a flat 25-block skew limit made two honest agents reading an L2 twenty seconds apart return `Unverifiable`. Both are now expressed in seconds and converted per chain, and assertions carry the chain they were read from. The second one was found by running it, not by reading it.
+
+**Registration never proved you owned the name.** Reading how a winning project bound identity to ENS sent us back to our own `registerAgent`, which accepted *any* name: `nodeTaken` stopped a second agent claiming a name but never the first. Since standing is written to that record and the record gates eligibility, an attacker could attach its own misbehaviour to somebody else's name, or squat names to deny them registration. The threat audit had missed it — it looked for attacks on the mechanism and not on the identity binding underneath it.
+
+The intended fix was forward resolution against the name's `addr` record. The ENSv2 Permissioned Resolver implementation has no `addr()`/`setAddr()` in any form — established by scanning the deployed bytecode for every selector shape, which is the habit the earlier `text()` incident taught us. So the binding is an issuance text record instead, on a **different EAC key from standing**, and the tribunal holds no grant on it: the contract that lowers an agent's standing must not also decide whose standing it is.
+
+**The tribunal was trusting provenance it should have checked.** A question — does the confidential workflow re-derive the Graph data? — surfaced that it does not, and that our own §5.3 claimed the tribunal decided whether provenance was adequate when it only checked that an attestation existed. The enclave now re-validates the deployment allowlist, indexing errors, per-chain freshness, and that an assertion describes the block its data came from. Same shape as the TEE overclaim: the mechanism was fine, the sentence was stronger than the code.
+
+**`WitnessRoster.sol` was reviewed and relabelled.** It carried `⚠ NOT YET HUMAN-LED` for two days. The review produced a concrete finding — `MAX_WALK = 32` means that above 32 agents a draw examines only 32 consecutive slots and can report no eligible witness while eligible agents exist further round. It fails closed and the demo roster is five, so it is documented as a known bound rather than fixed.
+
+**Where it stands.** 60 Solidity tests, 80 TypeScript, both typechecks clean. Three redeploys today: one for the name-binding check, one to clear a phantom agent a prover script had leaked into the roster, and one to widen the challenge window from 30s to 90s after scene 2's appeal kept losing a race with it. All three scenes re-run on the final stack. The video is still unrecorded and is still the only thing that can lose this.

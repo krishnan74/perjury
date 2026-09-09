@@ -12,7 +12,7 @@ Verification protocol for AI agent claims. Bonded claim → randomly assigned pe
 - Attribution lives in `docs/ai-usage.md` only, never in source file headers.
 - **Never hard-wrap prose in markdown.** One paragraph or bullet = one line, however long. Editors soft-wrap; hard wraps break when text is edited, and paste badly into Discord and forms. Applies to every `.md` in the repo.
 - **Keep `docs/feedback/*` current as the build progresses.** Add friction as it is hit, while the detail is fresh. Rules: only what we experienced first-hand, or clearly attributed when relayed; record what worked as well as what didn't; every item needs evidence (error text, tx hash, or the design change it forced) and a concrete suggestion. Never pad it to look thorough.
-- `WitnessRoster.sol` is labelled **AI-ASSISTED — ⚠ NOT YET HUMAN-LED**. It is the anti-collusion claim and the user reserved it for their own review. Do not relabel it.
+- `WitnessRoster.sol` was reviewed line by line by the user on Sep 9 and is now labelled **AI-ASSISTED**. Its known bound (`MAX_WALK = 32`) is recorded in `docs/threat-audit.md`. Do not edit the file without saying so — the contracts are deployed, and even a comment change makes the local source differ from the bytecode on chain.
 
 ## Toolchain — not on PATH by default
 
@@ -112,7 +112,6 @@ Redeploying is a **cascade** — each contract holds the next immutably, so chan
 
 1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it.
 2. **T6 dashboard** — reads from chain and Graph. Deprioritised as presentation, but **Usability is one of five explicit judging criteria** and the project currently has no interface at all, so this is worth more than 'last' implies.
-3. **User's line-by-line review of `WitnessRoster.sol`** to relabel it from `⚠ NOT YET HUMAN-LED`. Reserved for them; do not do it for them.
 4. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 5. **Open gap:** gateway evidence storage is confidential in transport but the store itself is a secret gist, not encrypted at rest. Documented, not hidden.
 

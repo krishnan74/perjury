@@ -47,7 +47,6 @@ CRE confidential-DON deploy access was requested and has not been granted. It is
 In priority order:
 
 1. **Record the demo video.** The only item on the critical path. Nothing on-chain is waiting on it and everything it needs to show already exists.
-2. **Human line-by-line review of `WitnessRoster.sol`**, so its `⚠ NOT YET HUMAN-LED` label can move honestly. It is the anti-collusion core and the most likely thing a judge probes.
 3. **T6 dashboard** — reads from chain and Graph, no credentials needed.
 4. **ENS follow-up:** `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 

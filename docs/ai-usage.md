@@ -23,7 +23,7 @@ Implementation, and a substantial share of the mechanism proposals that the huma
 
 **What is deliberately not claimed**
 
-- `contracts/src/WitnessRoster.sol` remains labelled **⚠ NOT YET HUMAN-LED**. It is the anti-collusion core, the human reserved it for line-by-line review, and that review is not finished. It would be trivial to quietly relabel it and dishonest to do so.
+- The demo scene scripts were reserved for human authorship in §0.6 and Claude wrote them. That row in §0.3 was corrected *downward* rather than left standing.
 - Adjudication has never executed inside a TEE. See §0.3 and the [execution log](cre-execution-log.md).
 
 **How the work actually proceeded.** Not a single prompt producing a codebase. It was continuous: the human proposed the mechanism, Claude implemented, the human interrogated the result, found a hole or an overclaim, and directed the fix — dozens of times over. The decision log in §0.4 is the record of those turning points, and every directing prompt is committed in [`docs/prompts/`](prompts/).
@@ -68,7 +68,7 @@ Status legend: `planned` (not yet written) → `in progress` → `done`. No `pla
 | `README.md` | AI-ASSISTED | done | Human's framing and mechanism; AI drafted the prose. |
 | **Contracts** | | | |
 | `contracts/src/ClaimRegistry.sol` | AI-ASSISTED | done | Human specified bond escrow semantics, the no-admin-override constraint, and that no witness parameter may exist on its external surface. AI implemented the lifecycle machine and pull-payment settlement. **Human review outstanding.** |
-| `contracts/src/WitnessRoster.sol` | **AI-ASSISTED — ⚠ NOT YET HUMAN-LED** | done, **review required** | The anti-collusion core. Written by AI against human-specified properties. The file header and §0.6 both keep it labelled AI-ASSISTED until the team rewrites or line-by-line reviews it; `contracts/test/Assignment.t.sol` states the properties to defend. **Do not relabel without doing that work.** |
+| `contracts/src/WitnessRoster.sol` | AI-ASSISTED | done, **reviewed 2026-09-09** | The anti-collusion core. Drafted by AI against human-specified properties, then reviewed line by line by the human — `isEligible`, `_assign` and `_assignPanel`, the three functions the central claim rests on. The review surfaced the `MAX_WALK = 32` roster bound now recorded in [threat-audit.md](threat-audit.md). Label lifted from `⚠ NOT YET HUMAN-LED` only after that work was done (D23). |
 | `contracts/src/VerdictSink.sol` | AI-ASSISTED | done | Human specified the single immutable authorized sender and that no setter may exist. |
 | `contracts/src/PerjuryStandingWriter.sol` | AI-ASSISTED | done | Human specified the narrow-scope requirement: one mutating function, one record, no reachable path to setAddr/setOwner/roles. |
 | `contracts/test/**` | AI-ASSISTED | done | Human specified the test matrix ([§2.5](design.md)) and which negative cases must exist. 55 tests, 1024 fuzz runs. |
@@ -129,7 +129,9 @@ Running log of decision points. Each entry records the options that were on the 
 
 | D22 | 2026-09-09 | **Provenance was asserted by the agents, not verified by the tribunal** | Correct the doc / tighten the enclave | **Tighten the enclave.** Human asked whether the CRE workflow re-derives Graph data; it does not — it recomputes each party's value from that party's own submitted evidence. Checking that surfaced an overclaim in design.md §5.3, which said the tribunal decided whether provenance was adequate when it only checked that an attestation existed. Rather than soften the sentence, the enclave now re-validates the deployment allowlist, indexing errors, per-chain freshness, and block agreement. Chosen partly because it needed no contract redeploy. **Attribution: the human's question found the gap; Claude proposed and built the fix.** |
 
-*(Append D23+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
+| D23 | 2026-09-09 | **`WitnessRoster.sol` line-by-line review** | Relabel without reviewing / review, then relabel | **Reviewed, then relabelled.** The human read the three functions the anti-collusion claim rests on — `isEligible`, `_assign`, `_assignPanel` — and the `⚠ NOT YET HUMAN-LED` label was lifted only afterwards. The review's concrete output is the `MAX_WALK = 32` roster bound: below 33 agents the walk covers the whole ring, above it a draw can report no eligible witness while eligible agents exist further round. It fails closed and the demo roster is five, so it is documented as a known bound rather than fixed. |
+
+*(Append D24+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
 
 ### 0.5 Where attribution lives
 
@@ -149,12 +151,12 @@ The Involvement clause is the one with teeth: *"Submissions that rely entirely o
 
 | # | Reserved item | Status |
 |---|---|---|
-| 1 | **`WitnessRoster.sol` assignment + eligibility logic** — the anti-collusion mechanism, the project's central claim | ⚠ **Outstanding.** Written by Claude against human-specified properties. Still labelled NOT YET HUMAN-LED and will stay that way until the human can defend every branch without notes. `contracts/test/Assignment.t.sol` states the properties to defend. |
+| 1 | **`WitnessRoster.sol` assignment + eligibility logic** — the anti-collusion mechanism, the project's central claim | ✅ **Held.** Drafted by Claude, then reviewed line by line by the human on 2026-09-09, focused on `isEligible`, `_assign` and `_assignPanel`. The `⚠ NOT YET HUMAN-LED` label was carried for two days and lifted only after the review, not before it. |
 | 2 | **The three demo scene scripts** (`agents/runner/`) | ❌ **Not honoured.** Claude wrote them; the human designed the scenarios and directed the terminal-visualisation requirement. §0.3 has been corrected downward rather than left claiming otherwise. |
 | 3 | **The [§6](design.md) limitations text in the README**, in the human's own words | ⚠ **Outstanding.** Currently Claude's prose expressing the human's analysis (D2). |
 | 4 | **The enclave boundary** ([§3.2](design.md)) — which fields may cross out of the TEE | ✅ **Held.** The human owns the boundary decision; Claude implemented against it, and `packages/tribunal` carries leak tests asserting no evidence reaches the report. |
 
-Two of four are outstanding and one was not honoured. That is recorded here rather than quietly resolved, because the alternative — relabelling AI-drafted code as human-reviewed without doing the review — is a false claim a judge would uncover in about two questions.
+Two of four held, one outstanding, one not honoured. The interesting row is the first: it carried a `⚠ NOT YET HUMAN-LED` warning for two days while the review was outstanding, and the label moved only when the work was actually done. That is the discipline the whole table depends on — relabelling AI-drafted code as human-reviewed without doing the review would be a false claim a judge would uncover in about two questions.
 
 **What this does not undercut.** The Involvement clause asks for meaningful human contribution, and this project has it in the place that matters most: the design and its interrogation. The mechanism is the human's, sustained direction shaped every layer built on top of it, and the nineteen entries in §0.4 record where that direction changed the outcome. The single most serious flaw in the mechanism was found by the human questioning it, and the project's framing was rewritten because the human challenged the premise — see §0.0.
 
