@@ -12,19 +12,19 @@
 
 ## Status at a glance
 
-*Updated Sep 9.* **The protocol is live on Sepolia and all three demo scenes have run end to end.** What remains is presentation, not mechanism.
+*Updated Sep 10.* **The protocol is live on Sepolia, all three demo scenes have run end to end, and the site is built and merged to `main`.** What remains is the video.
 
 | Task | State |
 |---|---|
 | T0 Unblock | ● wallet funded · VRF sub + consumer · Graph key · CRE CLI + login · Foundry + Bun |
 | T1 CRE tribunal | ● workflow + TEE handler, report delivered on-chain by the Forwarder. Executed via the simulator, which runs **locally, not in an enclave** — [execution log](docs/cre-execution-log.md) |
-| T2 Contracts | ● all deployed, wired, immutable. 55 Foundry tests |
+| T2 Contracts | ● all deployed, wired, immutable. 60 Foundry tests |
 | T3 Randomness | ● live VRF v2.5 rounds assigning witnesses and seating appeal panels, repeatedly |
 | T4 ENSv2 | ● resolver deployed, per-key EAC, operator write revoked, standing written by the tribunal alone |
-| T5 Graph | ● live Gateway + guard + MCP + LLM agents. Five protocols on one standardized query pattern; corroborated reads across independent deployments. 64 TS tests |
-| T6 Dashboard | ◐ read-only + replay built on the `dashboard` branch; live triggering still to come |
+| T5 Graph | ● live Gateway + guard + MCP + LLM agents. 13 deployments, 2 schema families, 5 chains on one standardized query pattern; corroborated reads across independent deployments; claim and verification pinned to one block. 89 TS tests |
+| T6 Dashboard | ● five routes, read-only + replay, merged to `main`. Doubles as the pitch deck. Live triggering deliberately not built |
 | T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
-| T8 Submit | ◐ evidence and docs ready; **video not recorded** |
+| T8 Submit | ◐ evidence, docs and submission-form copy ready; **video not recorded** |
 
 ### Live on-chain
 
@@ -46,9 +46,11 @@ CRE confidential-DON deploy access was requested and has not been granted. It is
 
 In priority order:
 
-1. **Record the demo video.** The only item on the critical path. Nothing on-chain is waiting on it and everything it needs to show already exists.
-3. **T6 dashboard** — reads from chain and Graph, no credentials needed.
-4. **ENS follow-up:** `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
+1. **Record the demo video.** The only item on the critical path — 2:00–4:00, human voice, ≥720p, no TTS, no sped-up footage, intro under 20s. Everything it needs to show already exists. Before the take: `npx tsx scripts/verify-pinned.ts`, top up the operator and agent wallets, and re-run all three scenes. Walk [docs/design.md](docs/design.md) §7 shot list row by row.
+2. **Fill the ETHGlobal submission form** — drafted in `docs/ethglobal-submission.md` (gitignored). Three partner slots: Chainlink, ENS, The Graph.
+3. **Human-written limitations section** — the last unmet reserved component in [docs/ai-usage.md](docs/ai-usage.md) §0.6.
+4. **Deploy the site** — built and merged, deliberately not deployed yet. Judges are told it is live, so this has to happen before submitting.
+5. **ENS follow-up:** `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 
 Open gap, documented rather than hidden: evidence reaches the enclave over Confidential HTTP, but the store itself is a secret gist and is not encrypted at rest.
 
@@ -206,13 +208,20 @@ Usability being an explicit criterion changes the weight on [T6](#t6--dashboard)
 
 **Files:** `app/**`
 
-- [ ] Claim feed + status; witness assignment with VRF request/fulfil tx links.
-- [ ] **ENS standing bars that visibly move** on verdict.
-- [ ] Eligibility roster: who's selectable, and why the flagged agent isn't.
-- [ ] Agent tool-call stream (the witness's MCP reasoning, on camera).
-- [ ] **"What the tribunal did NOT publish"** panel: sealed evidence pointer beside the minimal on-chain report. This is the only way to film confidentiality.
+Built on the `dashboard` branch and merged to `main` at `d55e0c8`. The branch is kept, not deleted.
+
+- [x] Claim feed + status; witness assignment with VRF request/fulfil tx links — `/claims`, `/claims/[id]`.
+- [x] Eligibility roster: who's selectable, and why an excluded agent isn't, read through the same ENS reader the VRF callback uses — `/roster`.
+- [x] **"What the tribunal did NOT publish"** panel: sealed evidence beside the minimal on-chain report — `/claims/[id]`, `Redacted.tsx`. The bars are empty CSS-sized elements with an `aria-label`, never invented placeholder text.
+- [x] Replay: a settled claim played back from its own transactions, real hashes and real gaps, with the elapsed counter always showing true elapsed time — `/replay`.
+- [x] Landing page doubling as the pitch deck: six sections, theoretical → technical, so the video can be narrated off the page itself.
+- [ ] ENS standing bars that visibly move on verdict — standing is shown per agent, but not animated on settlement.
+- [ ] Agent tool-call stream (the witness's MCP reasoning, on camera) — cut.
+- [ ] Live triggering from the browser — deliberately deferred; read-only and replay were enough for the video.
 
 Renders from chain + Graph reads only. Never a place where behavior gets faked for the camera.
+
+Not deployed yet. `revalidate = 30` on every route, so it is ISR against Sepolia and the Gateway; deployment needs the same env the runners use.
 
 ---
 

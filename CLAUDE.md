@@ -24,7 +24,7 @@ export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.cre/bin:$PATH"
 
 ```bash
 forge test                              # 60 Solidity tests
-npx vitest run                          # 80 TS tests
+npx vitest run                          # 89 TS tests
 npx tsc --noEmit -p tsconfig.json       # root typecheck (cre/ is excluded, has its own)
 cd cre/tribunal && npx tsc --noEmit     # workflow typecheck
 
@@ -38,6 +38,8 @@ npx tsx scripts/verify-pinned.ts            # one query pattern vs all pinned de
 npx tsx scripts/prove-corroboration.ts      # independent deployments must agree, else Unverifiable
 
 npx tsx agents/runner/duel.ts honest compound-v3-ethereum   # any pinned subject; no code change per protocol
+
+cd app && npm run dev                       # the site — five routes, ISR against Sepolia + the Gateway
 
 npx tsx agents/runner/scene1.ts operator    # true claim   (~3m45s)
 npx tsx agents/runner/scene2.ts panel-1     # false claim + appeal (~6m45s)
@@ -79,6 +81,8 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 - **Two forwarders.** Simulation uses the mock `0x15fC6ae953E024d975e77382eEeC56A9101f9F88`; production uses `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`. Deploy `VerdictSink` with whichever matches the environment.
 - **CRE reports arrive from a Forwarder, not the workflow owner.** `VerdictSink.CRE_REPORT_WRITER` is immutable, so this was measured, not guessed. Unknown whether the address is stable across runs — this is why the protocol is not deployed yet.
 - **The tribunal re-validates provenance itself** (`provenanceOk` in both `packages/tribunal` and `cre/tribunal/workflow.ts`). The allowlist comes from config, generated from `pinned-deployments.json` by `deploy-all.ts` — if you pin a new deployment, redeploy or regenerate the config or the tribunal will reject honest evidence from it. A missing policy accepts NOTHING, deliberately.
+- **Claim and verification are pinned to one block.** The claimant records `atBlock`; the witness, tribunal and appeal path replay against that same block. `composeDocument(selection, atBlock)` injects `block: {number: N}` into `_meta` and the root field, and the guard requires the served block to equal the requested one. **Staleness is deliberately not checked on a pinned read** — the pin is the freshness contract. Without this, a metric that legitimately moved between the two reads looked like a mismatch.
+- **Tolerances are seconds, not blocks.** 50 blocks is 10 minutes on Ethereum and 12 seconds on Arbitrum; a healthy Arbitrum deployment 149 blocks behind was failing hard. Freshness and tribunal skew are both expressed in seconds and converted per chain, so every assertion carries its `chain`.
 - **A TEE reveals the workflow binary.** Only *data* is confidential (Vault DON secrets, Confidential HTTP payloads, intermediates). `docs/design.md` §3.4 says what is actually true; do not re-inflate the claim.
 - **ENSv2 reads go through ENSIP-10 `resolve(bytes dnsName, bytes data)`.** `text(bytes32,string)` and `text(bytes,string)` both REVERT on a factory-deployed Permissioned Resolver. Writes use `setText(bytes dnsName, ...)`. Two contracts shipped a direct `text()` call and reverted on-chain while unit tests passed; the mock now reverts on `text()` to match production.
 - **Root-resource EAC grants use `grantRootRoles` / `revokeRootRoles` / `hasRootRoles`.** `grantRoles(resource, ...)` reverts for the root resource.
@@ -96,8 +100,10 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 contracts/     Foundry. 4 protocol contracts + ScratchSink probe + Deploy scripts
 cre/           CRE project (project.yaml, secrets.yaml, tribunal/)
 packages/      shared · graph-guard · graph-client · mcp-client · tribunal · ens
-scripts/       register-name.ts · prove-eac.ts
-docs/          design.md · decisions.md · ai-usage.md · build-log.md · TX_HASHES.md
+agents/        claimant · witness · runner (duel + the three scenes)
+app/           Next.js 15 site — landing/pitch deck, claims, roster, replay
+scripts/       deploy-all · register-name · prove-eac · prove-name-binding · prove-corroboration · verify-pinned · collect-evidence
+docs/          design.md · decisions.md · ai-usage.md · build-log.md · threat-audit.md · for-reviewers.md · TX_HASHES.md
 ```
 
 Gitignored working docs (local only): `docs/tracks.md`, `docs/sponsor-questions.md`, `docs/ens-discord-message.md`, `docs/chainlink-discord-message.md`, `docs/cre-access-form.md`, `docs/ethglobal-submission.md`, `docs/pitch-and-qa.md`, `docs/feedback-session-1.md`, `discord-*.md`.
@@ -108,11 +114,28 @@ The full cascade is deployed and all three demo scenes have run end to end on Se
 
 Redeploying is a **cascade** — each contract holds the next immutably, so changing one means redeploying everything downstream and re-registering the agents. `npx tsx scripts/deploy-all.ts` does the whole thing in one command (~4 min). Do not hand-run the steps; a partial deploy once locked a roster to a codeless address permanently.
 
+## The site
+
+`app/` — Next.js 15 App Router, five routes, built on the `dashboard` branch and merged to `main` at `d55e0c8`. **Do not delete the `dashboard` branch.**
+
+| Route | What it is |
+|---|---|
+| `/` | Six sections, theoretical → technical. This doubles as the pitch deck; there is no separate deck, and the video is narrated off this page. |
+| `/claims`, `/claims/[id]` | Claim feed and detail, with the "what the tribunal did NOT publish" panel. |
+| `/roster` | Who may be drawn and why the excluded agent isn't — read through the same ENS reader the VRF callback uses, never a cache. |
+| `/replay` | A settled claim played back from its own transactions. Real hashes, real gaps; the elapsed counter always shows true elapsed time even when playback is sped up. |
+
+Read-only. Live triggering from the browser was deliberately deferred. Every route is `revalidate = 30` ISR against Sepolia and the Gateway — deployment needs the same env the runners use. **Not deployed yet**, and the copy tells judges the site is live, so deploy before submitting.
+
+UI notes worth not relearning: reveal animations are gated on `@media (scripting: enabled)`, never a JS-injected class on `<html>` — that caused a hydration mismatch. `.wrap` uses `padding-block` so `.section` cannot reset the horizontal gutter. Chrome headless enforces a ~500px minimum layout viewport, so "390px" screenshots are lying to you.
+
 ## Remaining
 
-1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it.
-2. **T6 dashboard** — reads from chain and Graph. Deprioritised as presentation, but **Usability is one of five explicit judging criteria** and the project currently has no interface at all, so this is worth more than 'last' implies.
-4. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
-5. **Open gap:** gateway evidence storage is confidential in transport but the store itself is a secret gist, not encrypted at rest. Documented, not hidden.
+1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it. Before the take: run `scripts/verify-pinned.ts`, top up the operator and the four agent wallets, and re-run all three scenes.
+2. **Submission form** — copy drafted in `docs/ethglobal-submission.md` (gitignored). Three partner slots: Chainlink, ENS, The Graph.
+3. **Human-written limitations section** — the last unmet reserved component in `docs/ai-usage.md` §0.6.
+4. **Deploy the site.**
+5. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
+6. **Open gap:** gateway evidence storage is confidential in transport but the store itself is a secret gist, not encrypted at rest. Documented, not hidden.
 
 Enclave execution still requires confidential-DON deploy access (requested, not received). The simulator path is the shipping path.

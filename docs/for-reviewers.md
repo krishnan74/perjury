@@ -10,19 +10,19 @@ A guided path through the parts of Perjury that use each partner technology, so 
 
 ## Chainlink — Confidential Workflows and VRF v2.5
 
-**Start here:** [`cre/tribunal/workflow.ts#L187-L270`](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L187-L270) — the entire confidential handler.
+**Start here:** [`cre/tribunal/workflow.ts#L279-L374`](https://github.com/krishnan74/perjury/blob/ab078d1/cre/tribunal/workflow.ts#L279-L374) — the entire confidential handler.
 
 Read it in this order:
 
 | What | Where |
 |---|---|
-| TEE handler registered — `cre.handlerInTee(..., [{tee:'nitro', regions:['us-west-2']}])` | [workflow.ts#L272-L281](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L272-L281) |
-| Vault DON secret fetched **inside** the enclave — binds the evidence commitment | [workflow.ts#L189-L193](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L189-L193) |
-| Confidential HTTP — both agents' sealed evidence enters here and never leaves | [workflow.ts#L195-L210](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L195-L210) |
+| TEE handler registered — `cre.handlerInTee(..., [{tee:'nitro', regions:['us-west-2']}])` | [workflow.ts#L376-L384](https://github.com/krishnan74/perjury/blob/ab078d1/cre/tribunal/workflow.ts#L376-L384) |
+| Vault DON secret fetched **inside** the enclave — binds the evidence commitment | [workflow.ts#L282-L285](https://github.com/krishnan74/perjury/blob/ab078d1/cre/tribunal/workflow.ts#L282-L285) |
+| Confidential HTTP — both agents' sealed evidence enters here and never leaves | [workflow.ts#L287-L301](https://github.com/krishnan74/perjury/blob/ab078d1/cre/tribunal/workflow.ts#L287-L301) |
 | Provenance re-validated inside the enclave, not taken on the agents' word |  see `provenanceOk` in the same file |
-| The boundary — what crosses back out via `usingTheDons()`, and what deliberately doesn't | [workflow.ts#L232-L270](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/cre/tribunal/workflow.ts#L232-L270) |
-| VRF v2.5 request — struct form, `ExtraArgsV1`, `uint256` subscription id | [WitnessRoster.sol#L210-L230](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/WitnessRoster.sol#L210-L230) |
-| Report receiver — one immutable authorized sender, no setter | [VerdictSink.sol#L30-L60](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/VerdictSink.sol#L30-L60) |
+| The boundary — what crosses back out via `usingTheDons()`, and what deliberately doesn't | [workflow.ts#L340-L374](https://github.com/krishnan74/perjury/blob/ab078d1/cre/tribunal/workflow.ts#L340-L374) |
+| VRF v2.5 request — struct form, `ExtraArgsV1`, `uint256` subscription id | [WitnessRoster.sol#L233-L256](https://github.com/krishnan74/perjury/blob/ab078d1/contracts/src/WitnessRoster.sol#L233-L256) |
+| Report receiver — one immutable authorized sender, no setter | [VerdictSink.sol#L21-L56](https://github.com/krishnan74/perjury/blob/ab078d1/contracts/src/VerdictSink.sol#L21-L56) |
 
 **Three things worth knowing before you judge it:**
 
@@ -35,14 +35,14 @@ Read it in this order:
 
 ## ENS — ENSv2 and Enhanced Access Control
 
-**Start here:** [`PerjuryStandingWriter.sol#L50-L67`](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/PerjuryStandingWriter.sol#L50-L67) — the only function in the system that can write an agent's reputation.
+**Start here:** [`PerjuryStandingWriter.sol#L50-L67`](https://github.com/krishnan74/perjury/blob/ab078d1/contracts/src/PerjuryStandingWriter.sol#L50-L67) — the only function in the system that can write an agent's reputation.
 
 | What | Where |
 |---|---|
-| The single mutating path — one record key, no reachable `setAddr`/`setOwner`/role call | [PerjuryStandingWriter.sol#L50-L67](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/PerjuryStandingWriter.sol#L50-L67) |
-| Reads go through ENSIP-10 `resolve()` — `text()` reverts on a Permissioned Resolver | [ENSTextStandingReader.sol#L28-L55](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/ens/ENSTextStandingReader.sol#L28-L55) |
-| Per-key EAC scoping — `grantSetterRoles`, then revoke root, then revoke the operator | [configure-eac.ts#L50-L92](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/scripts/configure-eac.ts#L50-L92) |
-| Reputation gates eligibility with no cache and no cron — an unreadable record is ineligible | [WitnessRoster.sol#L194-L204](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/contracts/src/WitnessRoster.sol#L194-L204) |
+| The single mutating path — one record key, no reachable `setAddr`/`setOwner`/role call | [PerjuryStandingWriter.sol#L50-L67](https://github.com/krishnan74/perjury/blob/ab078d1/contracts/src/PerjuryStandingWriter.sol#L50-L67) |
+| Reads go through ENSIP-10 `resolve()` — `text()` reverts on a Permissioned Resolver | [ENSTextStandingReader.sol#L38-L68](https://github.com/krishnan74/perjury/blob/ab078d1/contracts/src/ens/ENSTextStandingReader.sol#L38-L68) |
+| Per-key EAC scoping — `grantSetterRoles`, then revoke root, then revoke the operator | [configure-eac.ts#L54-L105](https://github.com/krishnan74/perjury/blob/ab078d1/scripts/configure-eac.ts#L54-L105) |
+| Reputation gates eligibility with no cache and no cron — an unreadable record is ineligible | [WitnessRoster.sol#L213-L232](https://github.com/krishnan74/perjury/blob/ab078d1/contracts/src/WitnessRoster.sol#L213-L232) |
 
 **Two keys, two writers** — the part worth reading closely. `com.perjury.agent-standing` is writable only by the tribunal; `com.perjury.agent-address`, which says whose reputation a record is, is writable only by the namespace operator and explicitly **not** by the tribunal. If one contract held both, a slashed identity could be moved onto a clean name. `npx tsx scripts/prove-name-binding.ts` shows registration refusing a name the caller was not issued — two reverts and one success, on-chain.
 
@@ -54,23 +54,26 @@ The write is scoped to a single key (`com.perjury.agent-standing`). The same con
 
 ## The Graph — Subgraph MCP, standardized schemas, and corroboration
 
-**Start here:** [`packages/graph-client/src/index.ts#L173-L214`](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/graph-client/src/index.ts#L173-L214) — `queryCorroborated`, the read every agent uses.
+**Start here:** [`packages/graph-client/src/index.ts#L264-L302`](https://github.com/krishnan74/perjury/blob/ab078d1/packages/graph-client/src/index.ts#L264-L302) — `queryCorroborated`, the read every agent uses.
 
 | What | Where |
 |---|---|
-| Corroborated read — every independent deployment of a protocol, then agreement | [graph-client#L173-L214](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/graph-client/src/index.ts#L173-L214) |
-| The rule: independent indexers disagreeing → `Unverifiable`, never a resolved winner | [graph-guard#L151-L200](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/graph-guard/src/index.ts#L151-L200) |
-| One schema-level derivation serving every protocol — no per-protocol branch | [graph-client#L103-L126](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/graph-client/src/index.ts#L103-L126) |
-| Provenance gate — pinning, freshness, indexing errors, empty result sets | [graph-guard#L64-L145](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/graph-guard/src/index.ts#L64-L145) |
-| Subgraph MCP over SSE — the witness's discovery path | [mcp-client#L10-L45](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/mcp-client/src/index.ts#L10-L45) |
-| The agent composing its own GraphQL, not running a hardcoded query | [witness#L57-L145](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/agents/witness/src/index.ts#L57-L145) |
-| Pinned deployments, with corroborators | [pinned-deployments.json](https://github.com/krishnan74/perjury/blob/4433717aec1104362e353c083687c00cc78afefb/packages/shared/src/pinned-deployments.json) |
+| Corroborated read — every independent deployment of a protocol, then agreement | [graph-client#L264-L302](https://github.com/krishnan74/perjury/blob/ab078d1/packages/graph-client/src/index.ts#L264-L302) |
+| The rule: independent indexers disagreeing → `Unverifiable`, never a resolved winner | [graph-guard#L170-L205](https://github.com/krishnan74/perjury/blob/ab078d1/packages/graph-guard/src/index.ts#L170-L205) |
+| One schema-level derivation serving every protocol — no per-protocol branch | [graph-client#L168-L204](https://github.com/krishnan74/perjury/blob/ab078d1/packages/graph-client/src/index.ts#L168-L204) |
+| Claim and verification pinned to one block — `block: {number: N}` injected into `_meta` and the root field | [graph-client#L95-L133](https://github.com/krishnan74/perjury/blob/ab078d1/packages/graph-client/src/index.ts#L95-L133) |
+| Provenance gate — pinning, freshness, indexing errors, empty result sets | [graph-guard#L64-L140](https://github.com/krishnan74/perjury/blob/ab078d1/packages/graph-guard/src/index.ts#L64-L140) |
+| Subgraph MCP over SSE — the witness's discovery path | [mcp-client#L10-L45](https://github.com/krishnan74/perjury/blob/ab078d1/packages/mcp-client/src/index.ts#L10-L45) |
+| The agent composing its own GraphQL, not running a hardcoded query | [witness#L55-L129](https://github.com/krishnan74/perjury/blob/ab078d1/agents/witness/src/index.ts#L55-L129) |
+| Pinned deployments, with corroborators | [pinned-deployments.json](https://github.com/krishnan74/perjury/blob/ab078d1/packages/shared/src/pinned-deployments.json) |
 
 **Two claims, both runnable:**
 
 `npx tsx scripts/verify-pinned.ts` — two selection sets answered by 13 deployments across two Messari schema families (lending and DEX) and five chains. It prints the query documents it used. There is no per-protocol or per-chain branch anywhere in the verification path, so adding a protocol, a chain or a whole schema family is a data change.
 
 `npx tsx scripts/prove-corroboration.ts` — two independent deployments of Morpho Aave V3, same schema, **identical block**, 488 bps apart. A deployment id is a content hash of the mapping code, so those are two independent derivations of the same chain state, and their disagreement means the fact is contested. The protocol returns `Unverifiable` and convicts nobody. An RPC cannot offer this — it has exactly one derivation.
+
+**One block, both sides.** The claimant records the block it read at, and the witness, the tribunal and the appeal panel all replay against that same block. Without it, a metric that legitimately moved between the two reads was indistinguishable from a lie — the same failure a wider tolerance would have papered over. A pinned read skips the staleness check on purpose: the pin *is* the freshness contract.
 
 **Honest limit:** only one of the 13 pinned deployments has a second independent index. Everywhere else the read is stamped `single-source` and the weaker guarantee travels with the verdict.
 

@@ -79,3 +79,19 @@ The intended fix was forward resolution against the name's `addr` record. The EN
 **`WitnessRoster.sol` was reviewed and relabelled.** It carried `⚠ NOT YET HUMAN-LED` for two days. The review produced a concrete finding — `MAX_WALK = 32` means that above 32 agents a draw examines only 32 consecutive slots and can report no eligible witness while eligible agents exist further round. It fails closed and the demo roster is five, so it is documented as a known bound rather than fixed.
 
 **Where it stands.** 60 Solidity tests, 80 TypeScript, both typechecks clean. Three redeploys today: one for the name-binding check, one to clear a phantom agent a prover script had leaked into the roster, and one to widen the challenge window from 30s to 90s after scene 2's appeal kept losing a race with it. All three scenes re-run on the final stack. The video is still unrecorded and is still the only thing that can lose this.
+
+## Sep 10 — the site, and the question a mentor asked
+
+**The project got an interface.** Built on a `dashboard` branch and merged: a landing page that carries the whole argument in six sections, a claim feed, a claim detail page showing the sealed evidence next to the minimal on-chain report, a roster that reads standing through the same ENS reader the VRF callback uses, and a replay that plays a settled claim back from its own transactions. The landing page doubles as the pitch deck — there is no separate deck, and the video is narrated off the page.
+
+Two things there were worth the argument. The redaction bars originally contained invented placeholder strings under a caption saying the content was sealed in the enclave, which is exactly the kind of prop that makes a real claim look fake; they are now empty CSS-sized elements with an `aria-label`. And the replay's elapsed counter always reports true elapsed time even at 120× playback, because the one thing a demo of a verification protocol cannot do is misrepresent its own timing.
+
+**A mentor asked whether a claim anyone can cheaply recompute is worth bonding.** Most of the feedback was already answered by the design, and one part of it we think is wrong: the bottleneck this protocol addresses is *obligation*, not computational hardness. Nobody was going to check, and now somebody is paid to. But one item landed hard.
+
+**Claim and verification could read the subgraph at different heights.** The claimant reads, the witness reads a minute later, and a metric that legitimately moved in between was indistinguishable from a lie. We had been treating this as a tolerance problem, which is the wrong shape — a wider tolerance buys room for real lies to hide in. The claimant now records the block it read at, and the witness, the tribunal and the appeal panel all replay against that same block. A pinned read skips the staleness check deliberately: the pin *is* the freshness contract, and asking whether a deliberately historical read is stale is a category error.
+
+Verified live rather than argued: claimant and witness both at block 25941992 returning `Match`, a fabricated claim at 25941998 returning `Mismatch`, and the methodology string carrying `pinned @ 25941992` so the block travels with the verdict.
+
+That change also surfaced a regression nobody would have seen in a scene. `duel.ts` called `adjudicate` without a `ProvenancePolicy`; once the tribunal became fail-closed, a missing policy accepts nothing, so every local verdict had quietly become `Unverifiable`. The scenes were unaffected because CRE reads its policy from config — which is precisely why it went unnoticed, and an argument for the local path and the deployed path sharing their configuration rather than merely resembling it.
+
+**Where it stands.** 60 Solidity tests, 89 TypeScript, both typechecks clean. The site is built and merged but not deployed. The video is still unrecorded and is still the only thing that can lose this.

@@ -27,7 +27,7 @@ Verified on live networks, not mocked:
 | **Automatic exclusion** | The roster snapshot in the block after settlement shows the slashed agent at standing −3 and ineligible — no operator, no manual step |
 | **Two query patterns, 13 deployments, 5 chains** | Messari lending *and* DEX schema families across Ethereum, Polygon, Arbitrum, Optimism and Gnosis, read with one selection set per family and one derivation — no per-protocol or per-chain code. `npx tsx scripts/verify-pinned.ts` proves it live |
 | **Corroborated reads** | Where a protocol has two independent deployments, both must agree or the verdict is `Unverifiable`. Two live Morpho Aave V3 indexes disagree by 488 bps at an identical block — `npx tsx scripts/prove-corroboration.ts` |
-| **Test suite** | 60 Foundry tests, 80 TypeScript tests |
+| **Test suite** | 60 Foundry tests, 89 TypeScript tests |
 
 **Dashboard:** a read-only site over the live protocol — roster with ENS standing, every claim, and a per-claim page setting what the tribunal published beside what it sealed. Plus a replay that steps a settled claim through its own transactions. `cd app && npm run dev`.
 
@@ -56,7 +56,7 @@ Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 cp .env.example .env          # add SEPOLIA_RPC_URL, GRAPH_STUDIO_KEY, keys
 npm install
 forge test                    # 60 contract tests
-npx vitest run                # 80 TypeScript tests
+npx vitest run                # 89 TypeScript tests
 
 # the three demo scenes, live on Sepolia, with terminal visualisation
 npx tsx agents/runner/scene1.ts operator   # true claim  → Match, bond returned
