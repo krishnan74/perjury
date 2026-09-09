@@ -42,6 +42,10 @@ console.log(`  asserts ${claim.assertion.value}%`);
 const asClaim = {
   claimId, subject: claim.subject, text: claim.text,
   metric: claim.assertion.metric, unit: claim.assertion.unit, comparator: claim.assertion.comparator,
+  // Witness and panel read the block the claimant read, not whatever is latest
+  // when they happen to run — a panel seated minutes later would otherwise be
+  // comparing against different chain state.
+  atBlock: claim.assertion.asOfBlock || undefined,
 };
 
 const w = await witness(asClaim, llm);

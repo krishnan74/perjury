@@ -16,10 +16,10 @@
 // evidence, methodology, or query.
 import { draftClaim } from "@perjury/claimant";
 import { witness } from "@perjury/witness";
-import { adjudicate, type SealedSubmission } from "@perjury/tribunal";
+import { adjudicate, DEFAULT_TOLERANCE, type SealedSubmission } from "@perjury/tribunal";
 import { ClaudeCodeClient } from "@perjury/llm";
 import { Verdict } from "@perjury/shared";
-import { pinnedFor } from "@perjury/graph-client";
+import { pinnedFor, PINNED, FRESHNESS_SECONDS } from "@perjury/graph-client";
 
 const mode = process.argv[2] === "false" ? "false" : "honest";
 const subject = process.argv[3] ?? "aave-v3-ethereum";
@@ -45,7 +45,8 @@ const claim = await draftClaim(
 );
 console.log(`CLAIMANT (${mode}):`);
 console.log(`  "${claim.text}"`);
-console.log(`  asserts ${claim.assertion.value} ${claim.assertion.unit}  fabricated=${claim.fabricated}\n`);
+console.log(`  asserts ${claim.assertion.value} ${claim.assertion.unit}  fabricated=${claim.fabricated}`);
+console.log(`  read @ block ${claim.assertion.asOfBlock}\n`);
 
 // The witness answers the claimant's question — same metric identity, its own value.
 const f = await witness(
@@ -56,24 +57,44 @@ const f = await witness(
     metric: claim.assertion.metric,
     unit: claim.assertion.unit,
     comparator: claim.assertion.comparator,
+    // Pin the witness to the block the claimant read, so state moving between
+    // the two readings cannot be mistaken for disagreement.
+    atBlock: claim.assertion.asOfBlock || undefined,
   },
   llm,
 );
 console.log("WITNESS (independent):");
 if (f.attestation) {
-  console.log(`  derives ${f.attestation.assertion.value} ${f.attestation.assertion.unit} @ block ${f.attestation.assertion.asOfBlock}\n`);
+  const pinned = claim.assertion.asOfBlock === f.attestation.assertion.asOfBlock;
+  console.log(`  derives ${f.attestation.assertion.value} ${f.attestation.assertion.unit} @ block ${f.attestation.assertion.asOfBlock}`);
+  console.log(`  ${pinned ? "same block as the claimant — no drift to argue about" : "DIFFERENT block from the claimant"}\n`);
 } else {
-  console.log(`  UNVERIFIABLE: ${f.unverifiableReason}\n`);
+  console.log(`  UNVERIFIABLE: ${f.unverifiableReason}`);
+  console.log(`  detail: ${f.methodology}\n`);
 }
 
 const seal = (a: typeof claim.attestation, m: string, ev: unknown, r?: string): SealedSubmission => ({
   attestation: a, methodology: m, evidence: ev, unverifiableReason: r,
 });
+// The tribunal re-validates provenance rather than trusting the agents, so it
+// needs the same allowlist they read against — exactly as the CRE workflow gets
+// it from config. Omitting it makes every verdict Unverifiable, because a
+// tribunal with no policy deliberately accepts nothing.
+const policy = {
+  pinnedDeployments: PINNED.flatMap((e) => [
+    e.deploymentId,
+    ...(e.corroborators ?? []).map((c) => c.deploymentId),
+  ]),
+  freshnessSeconds: FRESHNESS_SECONDS,
+};
+
 const report = adjudicate(
   1n,
   seal(claim.attestation, claim.methodology, claim.evidence, claim.unverifiableReason),
   seal(f.attestation, f.methodology, f.evidence, f.unverifiableReason),
   "demo-salt",
+  DEFAULT_TOLERANCE,
+  policy,
 );
 const name = Object.entries(Verdict).find(([, v]) => v === report.verdict)?.[0];
 console.log("TRIBUNAL:");

@@ -66,6 +66,7 @@ export function guard(
   pinned: PinnedDeployment,
   now: number = Date.now(),
   freshnessBlocks: number = FRESHNESS_BLOCKS,
+  atBlock?: number,
 ): Provenance {
   if (!res._meta) {
     throw new UnverifiableError("missing-meta", "response carried no _meta block");
@@ -84,9 +85,27 @@ export function guard(
   if (hasIndexingErrors) {
     throw new UnverifiableError("indexing-errors", "subgraph reports indexing errors");
   }
-  const lag = res.chainHead - block.number;
-  if (lag > freshnessBlocks) {
-    throw new UnverifiableError("stale-index", `index lags head by ${lag} blocks`);
+  if (atBlock !== undefined) {
+    // A pinned read must be served AT the agreed block. The Gateway silently
+    // falls back to the latest block if it cannot serve the requested one, so
+    // checking the served block is what makes the pin a guarantee rather than a
+    // request.
+    if (block.number !== atBlock) {
+      throw new UnverifiableError(
+        "stale-index",
+        `pinned read asked for block ${atBlock} but was served ${block.number}`,
+      );
+    }
+    // Staleness is deliberately NOT checked here. The pin IS the freshness
+    // contract: both parties agreed to read one historical block, so measuring
+    // its distance from the current head would reject the arrangement it exists
+    // to support. What stops an agent smuggling ancient data past a counterparty
+    // is that the counterparty reads the same block and the claim states it.
+  } else {
+    const lag = res.chainHead - block.number;
+    if (lag > freshnessBlocks) {
+      throw new UnverifiableError("stale-index", `index lags head by ${lag} blocks`);
+    }
   }
   if (res.data === null || res.data === undefined) {
     throw new UnverifiableError("no-data", "query returned no data");

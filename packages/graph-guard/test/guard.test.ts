@@ -251,3 +251,41 @@ describe("corroborate", () => {
     expect(CORROBORATION_BPS).toBeLessThanOrEqual(DEFAULT_TOLERANCE * 10_000);
   });
 });
+
+// ── Pinned reads ────────────────────────────────────────────────────────────
+describe("guard on a pinned read", () => {
+  it("rejects a response served at a different block than requested", () => {
+    // The Gateway can silently answer from the latest block if it cannot serve
+    // the requested one. Checking the served block is what makes a pin binding.
+    try {
+      guard(response({ meta: { block: { number: 1000 } } }), PINNED, Date.now(), FRESHNESS_BLOCKS, 999);
+      expect.unreachable("a mis-served pinned read must not pass");
+    } catch (err) {
+      expect(isUnverifiable(err)).toBe(true);
+      expect((err as UnverifiableError).reason).toBe("stale-index");
+    }
+  });
+
+  it("accepts a pinned read served at exactly that block", () => {
+    const p = guard(response({ meta: { block: { number: 1000 } } }), PINNED, Date.now(), FRESHNESS_BLOCKS, 1000);
+    expect(p.indexedBlock).toBe(1000);
+  });
+
+  it("does not apply the staleness window to a pinned read", () => {
+    // The pin IS the freshness contract. Measuring a deliberately historical
+    // block against the current head would reject the arrangement it supports.
+    const old = response({ chainHead: 99_999, meta: { block: { number: 1000 } } });
+    const p = guard(old, PINNED, Date.now(), FRESHNESS_BLOCKS, 1000);
+    expect(p.indexedBlock).toBe(1000);
+  });
+
+  it("still applies the staleness window when nothing is pinned", () => {
+    try {
+      guard(response({ chainHead: 99_999, meta: { block: { number: 1000 } } }), PINNED);
+      expect.unreachable("an unpinned stale read must still fail");
+    } catch (err) {
+      expect(isUnverifiable(err)).toBe(true);
+      expect((err as UnverifiableError).reason).toBe("stale-index");
+    }
+  });
+});

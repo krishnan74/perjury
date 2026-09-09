@@ -31,6 +31,17 @@ export interface Claim {
   metric: string;
   unit: string;
   comparator: Comparator;
+  /**
+   * The block the claimant read, pinned so the witness answers about the same
+   * chain state.
+   *
+   * Without it the two parties read whatever was latest at their own moment, and
+   * state that moved in between shows up as disagreement. That never convicted
+   * an honest claimant — the tribunal returns Unverifiable rather than Mismatch
+   * for readings too far apart — but it did mean honest claims could simply fail
+   * to resolve. Pinning removes the drift instead of tolerating it.
+   */
+  atBlock?: number;
 }
 
 export interface Finding {
@@ -132,6 +143,9 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
       claim.subject,
       plan.selection,
       (d) => deriveMetric(d, claim.metric),
+      {},
+      process.env.GRAPH_STUDIO_KEY ?? "",
+      claim.atBlock,
     );
 
     const assertion = await deriveAssertion(llm, claim, plan, data, provenance.indexedBlock);
@@ -140,7 +154,8 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
       attestation: { provenance, assertion, digest: digestOf(provenance, assertion) },
       methodology:
         `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}` +
-        ` [${provenance.corroboration?.sources ?? 1} independent deployment(s)]`,
+        ` [${provenance.corroboration?.sources ?? 1} independent deployment(s)` +
+        `${claim.atBlock ? `, pinned @ ${claim.atBlock}` : ""}]`,
       evidence: data,
     };
   } catch (e) {

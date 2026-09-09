@@ -28,6 +28,10 @@ console.log(`  "${claim.text}"  → asserts ${claim.assertion.value}%\n`);
 const asClaim = {
   claimId: "1", subject: claim.subject, text: claim.text,
   metric: claim.assertion.metric, unit: claim.assertion.unit, comparator: claim.assertion.comparator,
+  // Witness and panel read the block the claimant read, not whatever is latest
+  // when they happen to run — a panel seated minutes later would otherwise be
+  // comparing against different chain state.
+  atBlock: claim.assertion.asOfBlock || undefined,
 };
 const seal = (a: unknown, m: string, ev: unknown, r?: string): SealedSubmission =>
   ({ attestation: a as never, methodology: m, evidence: ev, unverifiableReason: r });

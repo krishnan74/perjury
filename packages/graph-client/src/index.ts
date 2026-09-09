@@ -92,13 +92,43 @@ export async function chainHead(chain = "ethereum"): Promise<number> {
  * ("{ lendingProtocols { id } }"), and strips any `_meta` the caller supplied so
  * a nested one cannot break the query.
  */
-export function composeDocument(selectionOrDocument: string): string {
+export function composeDocument(selectionOrDocument: string, atBlock?: number): string {
   let sel = selectionOrDocument.trim();
   if (sel.startsWith("query")) sel = sel.slice(sel.indexOf("{"));
   if (sel.startsWith("{") && sel.endsWith("}")) sel = sel.slice(1, -1);
   // Remove any _meta block the caller wrote, wherever it landed.
   sel = stripMeta(sel);
-  return `{ _meta { deployment block { number } hasIndexingErrors } ${sel.trim()} }`;
+
+  if (atBlock === undefined) {
+    return `{ _meta { deployment block { number } hasIndexingErrors } ${sel.trim()} }`;
+  }
+
+  // Pinned read: both parties must see the chain as it was at one block, so the
+  // argument is injected here rather than trusted to the agent's own query. An
+  // LLM composed that selection; asking it to remember a block argument would
+  // make the guarantee depend on the thing being verified.
+  const at = `block: {number: ${atBlock}}`;
+  return `{ _meta(${at}) { deployment block { number } hasIndexingErrors } ${withBlockArg(sel.trim(), at)} }`;
+}
+
+/**
+ * Add a `block:` argument to the root field of a selection set.
+ *
+ * The selection looks like `entity(first: 1) { ... }` or `entity { ... }`; only
+ * the ROOT field takes the argument, so this stops at the first brace or paren
+ * and never touches nested selections.
+ */
+function withBlockArg(selection: string, at: string): string {
+  const paren = selection.indexOf("(");
+  const brace = selection.indexOf("{");
+  if (paren !== -1 && (brace === -1 || paren < brace)) {
+    const close = selection.indexOf(")", paren);
+    if (close === -1) return selection;
+    const args = selection.slice(paren + 1, close).trim();
+    return `${selection.slice(0, paren + 1)}${args ? `${args}, ` : ""}${at}${selection.slice(close)}`;
+  }
+  if (brace === -1) return selection;
+  return `${selection.slice(0, brace).trimEnd()}(${at}) ${selection.slice(brace)}`;
 }
 
 /** Remove a `_meta { ... }` block by brace matching, not regex. */
@@ -187,6 +217,7 @@ async function readOne(
   apiKey: string,
   head: number,
   freshnessBlocks: number,
+  atBlock?: number,
 ): Promise<{ data: Record<string, unknown>; provenance: Provenance }> {
   const res = await fetch(`${GATEWAY}/${subgraphId}`, {
     method: "POST",
@@ -212,6 +243,7 @@ async function readOne(
     { subject, deploymentId } satisfies PinnedDeployment,
     Date.now(),
     freshnessBlocks,
+    atBlock,
   );
   return { data: body.data as Record<string, unknown>, provenance };
 }
@@ -235,15 +267,16 @@ export async function queryCorroborated<T>(
   derive: (data: T) => number,
   variables: Record<string, unknown> = {},
   apiKey: string = process.env.GRAPH_STUDIO_KEY ?? "",
+  atBlock?: number,
 ): Promise<GuardedResult<T>> {
   if (!apiKey) throw new Error("GRAPH_STUDIO_KEY unset — live Gateway access is required");
   const entry = pinnedFor(subject);
-  const withMeta = composeDocument(document);
+  const withMeta = composeDocument(document, atBlock);
   const head = await chainHead(entry.chain);
   const freshness = freshnessBlocksFor(entry.chain);
 
   const primary = await readOne(
-    subject, entry.subgraphId, entry.deploymentId, withMeta, variables, apiKey, head, freshness,
+    subject, entry.subgraphId, entry.deploymentId, withMeta, variables, apiKey, head, freshness, atBlock,
   );
 
   // Read the corroborators in parallel; one that is unreachable or stale must
@@ -251,7 +284,7 @@ export async function queryCorroborated<T>(
   const others = await Promise.all(
     (entry.corroborators ?? []).map(async (c): Promise<CorroboratingRead> => {
       const r = await readOne(
-        subject, c.subgraphId, c.deploymentId, withMeta, variables, apiKey, head, freshness,
+        subject, c.subgraphId, c.deploymentId, withMeta, variables, apiKey, head, freshness, atBlock,
       );
       return { provenance: r.provenance, value: derive(r.data as T) };
     }),

@@ -20,3 +20,33 @@ describe("composeDocument", () => {
     expect(composeDocument("{ lendingProtocols { id } }")).toContain("lendingProtocols { id }");
   });
 });
+
+// ── Block-pinned reads ──────────────────────────────────────────────────────
+// Both parties must read one agreed block, so the argument is injected by us
+// rather than trusted to the agent's own composed query.
+describe("composeDocument with a pinned block", () => {
+  it("adds the block argument to a field that already has arguments", () => {
+    const doc = composeDocument("lendingProtocols(first: 1) { id name }", 123);
+    expect(doc).toContain("lendingProtocols(first: 1, block: {number: 123})");
+  });
+
+  it("adds an argument list to a field that has none", () => {
+    const doc = composeDocument("lendingProtocols { id }", 456);
+    expect(doc).toContain("lendingProtocols(block: {number: 456})");
+  });
+
+  it("pins _meta too, so provenance reports the pinned block", () => {
+    const doc = composeDocument("lendingProtocols { id }", 789);
+    expect(doc).toContain("_meta(block: {number: 789})");
+  });
+
+  it("touches only the root field, never a nested selection", () => {
+    const doc = composeDocument("lendingProtocols { markets { id } }", 42);
+    expect(doc).toContain("lendingProtocols(block: {number: 42})");
+    expect(doc).not.toContain("markets(block");
+  });
+
+  it("is unchanged when no block is pinned", () => {
+    expect(composeDocument("lendingProtocols { id }")).not.toContain("block: {number");
+  });
+});
