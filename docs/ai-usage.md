@@ -2,6 +2,32 @@
 
 > **This section is written for ETHGlobal judges as much as for the team, and it is a living document — it is updated as each file lands, not reconstructed at the end.** It exists to satisfy ETHGlobal's AI usage policy for ETHOnline 2026 in full.
 
+### 0.0 What a reviewer should know, in one page
+
+If you read nothing else in this file, read this. The rest is the evidence behind it.
+
+**The division of labour on this project is: the human decided what to build and whether it was sound; Claude Code built it.** That split held from the first hour to the last, and it is visible in the artifacts rather than asserted here.
+
+**What the human owned end to end**
+
+- **The idea and the mechanism.** Bonded claims, randomly assigned peer verification, private adjudication that emits only a verdict, and reputation writable only by the adjudicator. All of it predates any AI involvement and is committed verbatim in [`docs/prompts/01-project-brief.md`](prompts/01-project-brief.md). The three constraints that generate the whole architecture — an auditor you choose is not an auditor; an adjudicator that publishes evidence hands future claimants a rubric; reputation the subject can write is not reputation — are the human's, and they are the project.
+- **Finding the holes.** The most serious mechanism bug in the project was found by the human asking a question, not by AI review: *what if the witness lies to the tribunal so the verdict comes back Mismatch and it profits?* That was a real, exploitable incentive hole, and it produced [ADR 0007](decisions.md) — the witness fee is now paid on every verdict including Match, and forfeited bonds are payable to nobody. The human then ordered a systematic audit for others, which became [`threat-audit.md`](threat-audit.md).
+- **Sanity-checking the mechanism against reality.** Repeatedly, and adversarially: *why do we need all this complexity when we could just log what the agent did?* *Won't this be too much overhead for an agent?* *Isn't this really accountability rather than verification?* Each of those forced a defence or a change. The third one changed the project's framing — the pitch now leads with deterrence and sampling rather than exhaustive verification, because the human was right that "verification" invites the overhead objection immediately.
+- **Priorities and scope.** The human ruled that the protocol had to be loophole-free before anything visual was built, which is why the dashboard is still unbuilt and the appeal layer, timeouts and fail-closed reads exist.
+- **Sponsor liaison, which materially corrected the code.** The human sourced answers directly from the ENS and Chainlink teams and relayed them. Two examples with consequences: Chainlink confirmed `cre workflow simulate` executes locally rather than in an enclave, which corrected a TEE overclaim that had spread across the repo; and ENS clarified the Enhanced Access Control role model, which determined how the resolver was deployed and locked down.
+- **Rejecting AI proposals.** More than once the human declined the options offered and sent the work back. The corroborated-reads mechanism ([design.md §5.5](design.md)) exists because the human brought a competitive analysis showing the Graph integration was hygiene-tier, rejected both approaches Claude proposed, and directed a rethink instead.
+
+**What Claude Code did**
+
+Implementation, and a substantial share of the mechanism proposals that the human then accepted, rejected or amended. Concretely: all Solidity, all TypeScript, the test suites, the deployment scripts, and the prose in most documents. Where a design element originated with Claude rather than the human, the decision log below says so explicitly — see D11, D17 and D19, where the human supplied the problem and Claude supplied the mechanism.
+
+**What is deliberately not claimed**
+
+- `contracts/src/WitnessRoster.sol` remains labelled **⚠ NOT YET HUMAN-LED**. It is the anti-collusion core, the human reserved it for line-by-line review, and that review is not finished. It would be trivial to quietly relabel it and dishonest to do so.
+- Adjudication has never executed inside a TEE. See §0.3 and the [execution log](cre-execution-log.md).
+
+**How the work actually proceeded.** Not a single prompt producing a codebase. It was continuous: the human proposed the mechanism, Claude implemented, the human interrogated the result, found a hole or an overclaim, and directed the fix — dozens of times over. The decision log in §0.4 is the record of those turning points, and every directing prompt is committed in [`docs/prompts/`](prompts/).
+
 ### 0.1 Policy compliance map
 
 | Policy clause | How this project satisfies it | Where |
@@ -26,7 +52,7 @@ Three labels, used consistently across the docs, in per-file headers, and in the
 
 ### 0.3 Component attribution table (living — update as each file lands)
 
-Status legend: `planned` (not yet written) → `in progress` → `done`. This table is currently pre-populated with *intended* provenance for planned files. Each entry must be confirmed or corrected when the file is actually written; an intended label is not a claim.
+Status legend: `planned` (not yet written) → `in progress` → `done`. No `planned` rows remain. Every label below describes a file that exists, and one row (`agents/runner/**`) was corrected *downward* when the intended provenance turned out not to match what happened — an intended label is not a claim.
 
 | Component / file | Provenance | Status | Notes |
 |---|---|---|---|
@@ -45,29 +71,31 @@ Status legend: `planned` (not yet written) → `in progress` → `done`. This ta
 | `contracts/src/WitnessRoster.sol` | **AI-ASSISTED — ⚠ NOT YET HUMAN-LED** | done, **review required** | The anti-collusion core. Written by AI against human-specified properties. The file header and §0.6 both keep it labelled AI-ASSISTED until the team rewrites or line-by-line reviews it; `contracts/test/Assignment.t.sol` states the properties to defend. **Do not relabel without doing that work.** |
 | `contracts/src/VerdictSink.sol` | AI-ASSISTED | done | Human specified the single immutable authorized sender and that no setter may exist. |
 | `contracts/src/PerjuryStandingWriter.sol` | AI-ASSISTED | done | Human specified the narrow-scope requirement: one mutating function, one record, no reachable path to setAddr/setOwner/roles. |
-| `contracts/test/**` | AI-ASSISTED | done | Human specified the test matrix ([§2.5](design.md)) and which negative cases must exist. 28 tests, 1024 fuzz runs. |
+| `contracts/test/**` | AI-ASSISTED | done | Human specified the test matrix ([§2.5](design.md)) and which negative cases must exist. 55 tests, 1024 fuzz runs. |
 | `contracts/src/ens/ENSTextStandingReader.sol` | AI-ASSISTED | done | Human specified that eligibility be a pure function of the ENS record at assignment time — no cache, no cron, no admin. |
 | `contracts/test/mocks/Mocks.sol` | AI-GENERATED | done | Test scaffolding: VRF coordinator and an ENS resolver that models EAC enforcement. |
 | **CRE workflow** | | | |
 | `packages/tribunal/**` | AI-ASSISTED | done | Human specified the enclave boundary ([§3.2](design.md)): what enters, and that only verdict + commitment may leave. AI implemented tolerance comparison and the degeneracy heuristic. 14 tests, incl. leak tests asserting no evidence reaches the report. |
-| `cre/tribunal/main.ts` | AI-ASSISTED | **written, not run** | Thin wrapper over the above. SDK registration API unconfirmed until T1 — marked TODO in the file rather than assumed. |
+| `cre/tribunal/workflow.ts` | AI-ASSISTED | done | The confidential handler. Human owns the enclave boundary — what may cross out — per §0.6 item 4. Executed via the CRE simulator; **never in a real enclave**, see [execution log](cre-execution-log.md). |
 | **Graph layer** | | | |
 | `packages/llm/**` | AI-ASSISTED | done | Two backends behind one interface: `claude -p` for testing, Anthropic API for the demo. |
 | `packages/mcp-client/**` | AI-ASSISTED | done | Subgraph MCP over SSE. |
-| `packages/graph-guard/**` | AI-ASSISTED | done | Human specified the reject-never-degrade rule ([§5.3](design.md)); AI implemented pinning, freshness, and attestation mechanics. 13 tests. |
+| `packages/graph-guard/**` | AI-ASSISTED | done | Human specified the reject-never-degrade rule ([§5.3](design.md)); AI implemented pinning, freshness, attestation, and the corroboration rule proposed under D17/D19. |
 | `packages/shared/**` | AI-ASSISTED | done | Canonical assertion shape and order-stable digest, so two independent derivations are comparable. |
 | **ENS layer** | | | |
-| `packages/ens/**` | AI-ASSISTED *(intended)* | planned | Human specifies EAC scoping and the self-write revocation; AI handles ENSv2 beta API mechanics. |
+| `packages/ens/**` | AI-ASSISTED | done | Human specified EAC scoping and the self-write revocation, and sourced the ENSv2 role model from the ENS team (D15); AI handled the beta API mechanics. |
 | **Agents** | | | |
 | `agents/witness/**` | AI-ASSISTED | done | Human owns the isolation constraint. Witness adopts the claim's metric identity and derives only the value. |
 | `agents/claimant/**` | AI-ASSISTED | done | Includes a `false` mode that derives the true value then overstates it, for demo scene 2. |
-| `agents/runner/**` (demo scenes) | **HUMAN-LED** *(intended)* | planned | The three scenarios are the human's design (prompt 01) — scene scripts should be human-driven, see §0.6. |
+| `agents/runner/**` (demo scenes) | AI-ASSISTED | done | **Label corrected downward.** §0.6 reserved these for human authorship; in practice Claude wrote them against the human's scenario design (prompt 01) and the human directed the terminal-visualisation requirement. The *scenarios* are the human's, the *scripts* are not. All three run on Sepolia. |
 | **Frontend** | | | |
-| `app/**` | AI-GENERATED *(intended)* | planned | Dashboard UI is presentation of state the protocol already produces. Mechanically assisted; low design-ownership stakes. |
+| `app/**` | — | **not built** | Dashboard deliberately deprioritised until the protocol was loophole-free (D12). Not started. |
 | **Ops** | | | |
-| `scripts/**` (deploy, seed) | AI-GENERATED *(intended)* | planned | Boilerplate deployment plumbing. |
-| `scripts/prove-eac.ts` | AI-ASSISTED *(intended)* | planned | Exception to the above: this is the ENS track's central evidence artifact, not plumbing. |
-| `README.md` | AI-ASSISTED *(intended)* | planned | Human writes the limitations section ([§6](design.md)) in their own words. |
+| `scripts/**` (deploy, evidence) | AI-GENERATED | done | Deployment plumbing plus `collect-evidence.ts`. `deploy-all.ts` exists because the human questioned a 15-minute manual cascade (D16). |
+| `scripts/prove-eac.ts` | AI-ASSISTED | done | Exception to the above: the ENS track's central evidence artifact, not plumbing. |
+| `scripts/verify-pinned.ts` | AI-ASSISTED | done | One query pattern against every pinned deployment. Written to make the standardized-schema claim inspectable rather than asserted. |
+| `scripts/prove-corroboration.ts` | AI-ASSISTED | done | Demonstrates independently-indexed deployments disagreeing on live data, and the protocol refusing to convict (D17, D19). |
+| `docs/threat-audit.md` | AI-ASSISTED | done | Findings enumerated by Claude on the human's instruction after the human found the first one themselves (D11, D12). |
 
 ### 0.4 Decision log — how the human directed the work
 
@@ -84,7 +112,19 @@ Running log of decision points. Each entry records the options that were on the 
 | D7 | 2026-09-07 | **Agent implementation** | LLM agents + Subgraph MCP / deterministic scripted GraphQL / hybrid | **LLM agents driving Subgraph MCP as tools.** Accepted on-camera nondeterminism risk in exchange for a genuine AI use case for The Graph track. |
 | D8 | 2026-09-07 | **Attribution regime** | — | Human directed that AI usage be documented as a living log with per-file provenance, that prompts be committed verbatim, and that design ownership be distinguished from implementation assistance throughout. See `docs/prompts/02-ai-usage-policy-directive.md`. |
 
-*(Append D9+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
+| D9 | 2026-09-08 | **Documentation volume** | 26 separate docs / consolidate | **Consolidate to 9.** Human's reasoning: a reviewer with limited time will not read 26 files, and volume reads as padding rather than rigour. |
+| D10 | 2026-09-08 | **Commit attribution** | Keep `Co-Authored-By` trailers / strip them | **Strip.** AI involvement is documented in this file, not as a repo contributor. Applied retroactively across history. |
+| D11 | 2026-09-08 | **The lying-witness incentive** *(most consequential finding in the project)* | — | **Human found it by questioning the mechanism**, unprompted: if the witness is paid from the loser's bond, it profits by submitting evidence that forces a Mismatch. This was real and exploitable. Claude proposed the fix and the human accepted it: the witness fee is paid on *every* verdict including Match, the forfeited bond is payable to nobody, and the tribunal recomputes both sides from raw evidence with an asymmetric rule so a witness cannot convert junk into a slash. See [ADR 0007](decisions.md). **Attribution split: the hole is the human's finding, the mechanism is Claude's.** |
+| D12 | 2026-09-08 | **Audit scope and build order** | Ship features / audit first | **Audit first, and no visualisation until the protocol is loophole-free.** Human directed a systematic hunt after D11 rather than waiting to be asked again; the result is [`threat-audit.md`](threat-audit.md), nine findings, all closed. The dashboard remains unbuilt as a direct consequence of this ordering. |
+| D13 | 2026-09-08 | **How the project is framed** | "Verification" / "accountability" | **Accountability, with deterrence rather than detection.** Human challenged the premise repeatedly — why not just log the agent's actions, isn't this too much overhead for real agent work, is this not really about the fear of losing a bond. The last framing is the human's and it is better than the one it replaced: "verification" implies checking everything and invites the overhead objection immediately. This rewrote the pitch. |
+| D14 | 2026-09-08 | **Sponsor feedback honesty** | Comprehensive / only first-hand | **Only what we actually experienced, with evidence, and no padding.** Human's instruction was explicit: do not write anything merely to improve the odds of winning. Four claims were removed from the feedback docs as a result. |
+| D15 | 2026-09-08 | **Sponsor liaison as a correctness input** | — | **Human-sourced, and it corrected shipped work twice.** Chainlink confirmed `cre workflow simulate` runs locally, not in an enclave — correcting a TEE overclaim that had propagated through several documents. ENS clarified the Enhanced Access Control role model (`grantSetterRoles`, root-resource grants, `revokeRootRoles`), which determined how the resolver was deployed and how the operator's own write access was revoked. Neither was discoverable from the documentation available to Claude. |
+| D16 | 2026-09-08 | **Deployment cascade** | Hand-run the steps / one script | **One script.** Prompted by the human observing a 15-minute manual cascade and asking why. `scripts/deploy-all.ts` now does it in roughly four minutes, after a partial hand-run had once permanently locked a roster to a codeless address. |
+| D17 | 2026-09-09 | **Graph track positioning** | Accept current integration / add breadth / add Substreams / rethink | **Rethink, having rejected the first three.** Human brought a competitive analysis showing the Graph integration was hygiene-tier — mechanically similar to a prior third-place project — and declined both levers Claude proposed as insufficient. The rethink produced corroborated reads: a deployment id is a content hash of the mapping code, so independently-indexed deployments are independent derivations, and disagreement between them returns `Unverifiable`. **Attribution split: the challenge and the rejection are the human's, the mechanism is Claude's.** |
+| D18 | 2026-09-09 | **References to other teams' projects** | Keep as prior art / remove | **Remove.** Comparisons to other ETHGlobal submissions are gone from the repository docs. Public protocols (UMA, Kleros, Truebit, EigenLayer) remain cited in [design.md §8](design.md), because naming genuine prior art is what makes a novelty claim credible. |
+| D19 | 2026-09-09 | **What corroboration does when sources disagree** | Majority wins / prefer primary / refuse | **Refuse — return `Unverifiable`.** Claude proposed the rule and the human accepted it. Reasoning: if independent indexers disagree the underlying fact is contested, and picking a winner would invent a fact the data layer does not support. Also fixed the tolerance invariant — corroboration tolerance may never exceed adjudication tolerance, or the choice of source would decide who loses a bond. |
+
+*(Append D20+ as the build proceeds. Milestone exits are natural checkpoints — see [the build plan](../plan.md).)*
 
 ### 0.5 Where attribution lives
 
@@ -100,14 +140,18 @@ The Involvement clause is the one with teeth: *"Submissions that rely entirely o
 
 **Where the risk is.** If every file below the design layer ends up labeled AI-GENERATED, the submission is weak under this clause regardless of how good the design was. A plan authored by AI from a human design is fine and explicitly permitted; a codebase with no human authorship in it is the failure mode the clause describes.
 
-**Therefore — components reserved for direct human authorship**, chosen because they are exactly the parts a judge would probe:
+**Components reserved for direct human authorship, and their actual status.** These were chosen because they are exactly the parts a judge would probe. Reporting honestly on how the reservation held:
 
-1. **`WitnessRoster.sol` assignment + eligibility logic.** This is the anti-collusion mechanism — the project's central claim. The human should write it, or rewrite an AI draft line by line until they can defend every branch without reference to notes.
-2. **The three demo scene scripts** (`agents/runner/`). The scenarios are the human's design; the staging is where design meets reality, and the human should feel the friction directly.
-3. **The [§6](design.md) limitations text in the README**, written in the human's own words. This is the most intellectually honest part of the submission and should read like a person wrote it.
-4. **The enclave boundary decision** ([§3.2](design.md)) — which specific fields may cross out of the TEE. The human owns this table; AI implements against it.
+| # | Reserved item | Status |
+|---|---|---|
+| 1 | **`WitnessRoster.sol` assignment + eligibility logic** — the anti-collusion mechanism, the project's central claim | ⚠ **Outstanding.** Written by Claude against human-specified properties. Still labelled NOT YET HUMAN-LED and will stay that way until the human can defend every branch without notes. `contracts/test/Assignment.t.sol` states the properties to defend. |
+| 2 | **The three demo scene scripts** (`agents/runner/`) | ❌ **Not honoured.** Claude wrote them; the human designed the scenarios and directed the terminal-visualisation requirement. §0.3 has been corrected downward rather than left claiming otherwise. |
+| 3 | **The [§6](design.md) limitations text in the README**, in the human's own words | ⚠ **Outstanding.** Currently Claude's prose expressing the human's analysis (D2). |
+| 4 | **The enclave boundary** ([§3.2](design.md)) — which fields may cross out of the TEE | ✅ **Held.** The human owns the boundary decision; Claude implemented against it, and `packages/tribunal` carries leak tests asserting no evidence reaches the report. |
 
-**Anti-pattern to avoid:** accepting AI-drafted code for the four items above and relabeling it AI-ASSISTED without doing the review. The label would be false, and a judge in conversation would find out in about two questions.
+Two of four are outstanding and one was not honoured. That is recorded here rather than quietly resolved, because the alternative — relabelling AI-drafted code as human-reviewed without doing the review — is a false claim a judge would uncover in about two questions.
+
+**What this does not undercut.** The Involvement clause asks for meaningful human contribution, and this project has it in the place that matters most: the design and its interrogation. The mechanism is the human's, sustained direction shaped every layer built on top of it, and the nineteen entries in §0.4 record where that direction changed the outcome. The single most serious flaw in the mechanism was found by the human questioning it, and the project's framing was rewritten because the human challenged the premise — see §0.0.
 
 ### 0.7 Attribution upkeep
 

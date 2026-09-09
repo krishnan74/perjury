@@ -231,10 +231,8 @@ From [docs/threat-audit.md](docs/threat-audit.md). A loophole-free mechanism mat
 - [x] **Eligibility on submit.** `submitClaim` now requires `isEligible`, so a slashed agent cannot keep claiming from a position with nothing left to slash.
 - [x] **Reputation reads fail closed.** `standingOfNameChecked` returns a readability flag alongside the score, so "no record yet" and "could not read" are no longer conflated. An unreadable record is ineligible.
 - [x] **Block-skew guard.** Readings more than 25 blocks apart return Unverifiable, checked before values are compared so a wide gap can never become a Mismatch. Two honest parties reading different blocks have not disagreed about anything.
-- [x] **Model diversity** (from Immunity). Panel seats run different models — `seatPanel()` assigns one per seat. With only Anthropic credentials this is intra-family diversity, which reduces correlated error without eliminating it; a second provider key would make it cross-family, and any `LlmClient` can be seated.
-- [ ] **K-of-N corroboration** (from Immunity) — optional. A single witness decides an outcome today; requiring K agreeing findings for high-value claims would remove that.
-
-**Borrowed from finalists:** Immunity uses different model families as judges and bonds both sides; ENShell validates the CRE-only ENS write pattern; KOLlateral is a reminder that where ground truth is objectively observable, an adversarial mechanism may be unnecessary.
+- [x] **Model diversity.** Panel seats run different models — `seatPanel()` assigns one per seat. With only Anthropic credentials this is intra-family diversity, which reduces correlated error without eliminating it; a second provider key would make it cross-family, and any `LlmClient` can be seated.
+- [ ] **K-of-N corroboration** — optional. A single witness decides an outcome today; requiring K agreeing findings for high-value claims would remove that.
 
 ## Cut order (if behind)
 
