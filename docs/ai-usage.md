@@ -75,7 +75,7 @@ Status legend: `planned` (not yet written) → `in progress` → `done`. No `pla
 | `contracts/src/ens/ENSTextStandingReader.sol` | AI-ASSISTED | done | Human specified that eligibility be a pure function of the ENS record at assignment time — no cache, no cron, no admin. |
 | `contracts/test/mocks/Mocks.sol` | AI-GENERATED | done | Test scaffolding: VRF coordinator and an ENS resolver that models EAC enforcement. |
 | **CRE workflow** | | | |
-| `packages/tribunal/**` | AI-ASSISTED | done | Human specified the enclave boundary ([§3.2](design.md)): what enters, and that only verdict + commitment may leave. AI implemented tolerance comparison and the degeneracy heuristic. 14 tests, incl. leak tests asserting no evidence reaches the report. |
+| `packages/tribunal/**` | AI-ASSISTED | done | Human specified the enclave boundary ([§3.2](design.md)): what enters, and that only verdict + commitment may leave. AI implemented tolerance comparison and the degeneracy heuristic. 28 tests, incl. leak tests asserting no evidence reaches the report. |
 | `cre/tribunal/workflow.ts` | AI-ASSISTED | done | The confidential handler. Human owns the enclave boundary — what may cross out — per §0.6 item 4. Executed via the CRE simulator; **never in a real enclave**, see [execution log](cre-execution-log.md). |
 | **Graph layer** | | | |
 | `packages/llm/**` | AI-ASSISTED | done | Two backends behind one interface: `claude -p` for testing, Anthropic API for the demo. |

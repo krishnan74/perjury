@@ -8,10 +8,12 @@ Decisions still open are tracked in [`../plan.md`](../plan.md).
 |---|---|---|---|
 | [0001](#0001-use-chainlink-vrf-v25-for-witness-assignment) | Chainlink VRF v2.5 for witness assignment | 2026-09-07 | Accepted |
 | [0002](#0002-pursue-cre-beta-access-build-simulate-first-regardless) | Pursue CRE beta access; build simulate-first | 2026-09-07 | Accepted |
-| [0003](#0003-nextjs-dashboard-as-the-demo-surface) | Next.js dashboard as the demo surface | 2026-09-07 | Accepted |
+| [0003](#0003-nextjs-dashboard-as-the-demo-surface) | Next.js dashboard as the demo surface | 2026-09-07 | ⚠️ Superseded — terminal scenes instead |
 | [0004](#0004-llm-agents-driving-subgraph-mcp-not-scripted-graphql) | LLM agents driving Subgraph MCP | 2026-09-07 | Accepted |
 | [0005](#0005-living-attribution-log-with-committed-prompts) | Living attribution log + committed prompts | 2026-09-07 | Accepted |
 | [0006](#0006-keep-cre_report_writer-immutable-despite-chainlinks-advice) | Keep CRE_REPORT_WRITER immutable | 2026-09-08 | Accepted |
+| [0007](#0007-close-the-lying-witness-incentive) | Close the lying-witness incentive | 2026-09-08 | Accepted |
+| [0008](#0008-refuse-to-adjudicate-when-independent-indexers-disagree) | Refuse to adjudicate when independent indexers disagree | 2026-09-09 | Accepted |
 
 ---
 
@@ -88,7 +90,11 @@ The access request is item zero of M0, before any code. It costs one Discord mes
 
 ## 0003. Next.js dashboard as the demo surface
 
-**Date:** 2026-09-07 **Status:** Accepted **Decided by:** Project lead (human)
+**Date:** 2026-09-07 **Status:** ⚠️ **Superseded in practice — not built** (see note below) **Decided by:** Project lead (human)
+
+> **What actually happened.** The dashboard was never built. After the lying-witness incentive surfaced ([0007](#0007-close-the-lying-witness-incentive)), the human ruled that the protocol had to be loophole-free before anything visual, and the time went into the appeal layer, timeouts, fail-closed reads and corroborated reads instead. The demo surface became **ANSI-rendered terminal scenes** (`agents/runner/scene{1,2,3}.ts`) that read live chain state — roster tables with eligibility, before/after standing arrows, boxed verdicts, linked tx hashes.
+>
+> The reasoning below still holds, and the cost is real: reputation *movement* is less vivid in a terminal than it would be in a rendered bar. What the terminal buys back is that every number on screen is read from chain at that moment, with nothing between the viewer and the source. The decision is recorded as superseded rather than deleted, per this file's own rule.
 
 ### Context
 
@@ -277,9 +283,50 @@ Four changes, each closing a different part of the hole.
 
 | | Value | Why |
 |---|---|---|
-| Registration stake | 0.05 ETH | Several times the claim bond, so lying to win one bond is unprofitable |
+| Registration stake | 0.05 ETH proposed · **0.01 ETH deployed** | Several times the claim bond, so lying to win one bond is unprofitable. Lowered on testnet so five agents could be funded from one faucet balance; the ratio to the bond is what matters and it is preserved |
 | Claim bond | 0.01 ETH | Visible on camera, cheap enough to fund several agents |
 | Witness fee | 0.002 ETH | Paid regardless of verdict, funded by the claimant's submission fee |
 | Appeal bond | 0.02 ETH | Higher than the claim bond, to deter nuisance appeals |
 | Appeal panel | 3 witnesses | Smallest odd number that yields a majority |
-| Challenge window | 1 hour | Long enough to appeal, short enough to demo |
+| Challenge window | 1 hour proposed · **30s deployed** | Long enough to appeal, short enough to demo. An hour is right for production and unfilmable — a scene would take an hour to settle. Response window is 600s. Both are constructor parameters, not constants, precisely so this is a deployment choice rather than a code change |
+
+---
+
+## 0008. Refuse to adjudicate when independent indexers disagree
+
+**Date:** 2026-09-09 · **Status:** Accepted
+
+### Context
+
+Perjury's premise is that a second agent independently re-derives a claim. But claimant and witness were reading the *same* pinned deployment, so they re-derived the **query** while sharing the **derivation**. A bug in that subgraph's mapping code yields two honest agents agreeing on a wrong number, and the protocol settles a `Match` on it — paying out and raising both parties' standing.
+
+We had documented this as an unfixable limitation ([design.md §6](design.md)). It turned out to be fixable, because of a property specific to The Graph: a deployment id is a content hash of the mapping code, not merely an endpoint name. Two deployments indexing one protocol are two independent derivations of the same chain state, written by different people. An RPC offers nothing equivalent — it has exactly one derivation, so reading it twice buys nothing.
+
+### Options considered
+
+**Majority wins.** Read N deployments, take the modal value. Rejected: with two sources there is no majority, and with three it manufactures a decision. Worse, it means the protocol asserts a fact that its own inputs contradict.
+
+**Prefer the primary, log the divergence.** Simple, and preserves liveness. Rejected for the same reason in weaker form — a claimant would be convicted on a number that a second independent index says is wrong, and the disagreement would sit in a log nobody reads.
+
+**Widen the tolerance until they agree.** Rejected outright. This hides the problem and, if the corroboration tolerance ever exceeded the adjudication tolerance, the choice of source would silently decide who loses a bond.
+
+**Refuse — return `Unverifiable`.** Chosen.
+
+### Decision
+
+Where a protocol has more than one independent deployment, a read is attested only if they agree within `CORROBORATION_BPS`. Divergence raises `corroboration-divergence`, which the agents already convert into `Unverifiable`: bond returned, no slash, no standing change.
+
+Two supporting constraints:
+
+1. **`CORROBORATION_BPS` may never exceed the tribunal's adjudication tolerance.** Otherwise two sources could differ by more than the margin that decides a verdict while still counting as agreeing. A unit test asserts the invariant rather than trusting the constants to be edited together.
+2. **The reduction applied to each source is deterministic and LLM-free.** An LLM interpreting each source separately could paper over a real divergence, or manufacture one.
+
+Single-source reads are recorded as such, not rejected. Plurality is thin across the ecosystem, and refusing to verify without it would make the protocol useless rather than rigorous.
+
+### Consequences
+
+- The protocol can now decline to adjudicate because the *data layer* is contested, which is a new verdict cause and a genuinely new class of outcome.
+- Liveness drops where plurality exists and sources disagree — by design. Morpho Aave V3 is currently unverifiable through Perjury, and that is the correct answer rather than a bug.
+- The guarantee is uneven across protocols. Only one of five pinned subjects has a second independent index, so for the rest the original limitation stands and travels with the verdict as `single-source`.
+- It does not touch correlated error upstream of indexing. If the chain data or the protocol itself is misleading, every indexer inherits it.
+- Observed live on the day it shipped: two Morpho Aave V3 deployments, same Messari schema, identical block, 488 bps apart. `npx tsx scripts/prove-corroboration.ts`.

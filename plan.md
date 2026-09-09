@@ -12,51 +12,61 @@
 
 ## Status at a glance
 
-*Updated Sep 8.* Contracts, tribunal, and the Graph layer are working. Nothing is deployed as a protocol yet — deliberately, see below.
+*Updated Sep 9.* **The protocol is live on Sepolia and all three demo scenes have run end to end.** What remains is presentation, not mechanism.
 
 | Task | State |
 |---|---|
-| T0 Unblock | ● wallet funded · VRF sub (10 LINK) · Graph key · CRE CLI + login · Foundry + Bun |
-| T1 CRE tribunal | ● workflow + TEE handler runs via simulator (local, not an enclave), report delivered on-chain, forwarder identified |
-| T2 Contracts | ● all 5 deployed and wired on Sepolia, 32 tests |
-| T3 Randomness | ◐ roster + fuzz done · live VRF round outstanding |
-| T4 ENSv2 | ● resolver deployed, EAC configured, operator write revoked, **standing written by the tribunal on-chain** |
-| T5 Graph | ◐ live data + guard + MCP client ● · **agent reasoning needs `ANTHROPIC_API_KEY`** |
-| T6 Dashboard | ○ not started |
-| T7 Scenes | ◐ appeal path proven on-chain; three demo scenes not yet scripted |
-| T8 Submit | ○ not started |
+| T0 Unblock | ● wallet funded · VRF sub + consumer · Graph key · CRE CLI + login · Foundry + Bun |
+| T1 CRE tribunal | ● workflow + TEE handler, report delivered on-chain by the Forwarder. Executed via the simulator, which runs **locally, not in an enclave** — [execution log](docs/cre-execution-log.md) |
+| T2 Contracts | ● all deployed, wired, immutable. 55 Foundry tests |
+| T3 Randomness | ● live VRF v2.5 rounds assigning witnesses and seating appeal panels, repeatedly |
+| T4 ENSv2 | ● resolver deployed, per-key EAC, operator write revoked, standing written by the tribunal alone |
+| T5 Graph | ● live Gateway + guard + MCP + LLM agents. Five protocols on one standardized query pattern; corroborated reads across independent deployments. 64 TS tests |
+| T6 Dashboard | ○ not started — deliberately last, see D12 in [ai-usage.md](docs/ai-usage.md) |
+| T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
+| T8 Submit | ◐ evidence and docs ready; **video not recorded** |
 
 ### Live on-chain
-- Operator `0xDcbe075a907960951Cd4df379BB21461097eEa91` — 0.4 ETH, 11,000 MockUSDC
-- `perjury.eth` registered (ENSv2 hackathon deployment, 1 year)
-- `ScratchSink` `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` — probe, throwaway
-- CRE report delivered: tx `0xbd50a73c…6ac4721d`
 
-### Why the protocol is not deployed yet
-`VerdictSink.CRE_REPORT_WRITER` is immutable. Reports arrive from a Forwarder (`0x15fC6ae9…9F88`), measured — not the workflow owner. Unknown whether that address is stable across runs or differs on the live DON. Deploying against a run-specific forwarder recreates exactly the bug the probe caught. **Open question with Chainlink.**
+Addresses, per-scene transaction trails and the full ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md). Rebuild it from chain with `npx tsx scripts/collect-evidence.ts`.
 
-### Blocked on
-1. `ANTHROPIC_API_KEY` → the witness/claimant agents (last piece of T5). **Only item you control.**
-2. ENS answers — questions posted Sep 8, awaiting reply → EAC grants, subnames, `prove-eac.ts` shape
-3. Chainlink Forwarder stability — asked in Discord → protocol deploy, then T3 live VRF
+Proven, each with a transaction: VRF assignment where the witness is never the claimant · settlement in both directions · a false claim caught, appealed, and upheld by a randomly seated panel of three · bond, appeal bond, stake and eligibility all forfeited · ENS standing written by the tribunal and by nobody else, with the operator itself reverting · automatic exclusion in the block after settlement.
 
-**Sent Sep 8:** CRE access form submitted (simulation already works; the grant is only needed for live confidential-DON deployment and Vault DON secrets). ENS questions posted. Nothing else is waiting on us to ask.
+### The protocol is deployed
+
+The earlier hold — `VerdictSink.CRE_REPORT_WRITER` is immutable and the Forwarder address had only been observed once — was resolved by measuring it against a throwaway probe and then deploying against the measured value. Reports have arrived from `0x15fC6ae9…9F88` on every run since. Redeploying is a cascade because each contract holds the next immutably; `npx tsx scripts/deploy-all.ts` does the whole thing in one command.
+
+### Nothing is blocked
+
+All three previous blockers cleared. The agents run on `claude -p` rather than a raw API key; the ENS team answered the EAC questions and the resolver is configured and locked; the Forwarder address is measured and stable across runs.
+
+CRE confidential-DON deploy access was requested and has not been granted. It is **not** a blocker — the Chainlink track explicitly accepts execution via the CLI simulator with evidence, and that is the shipping path.
 
 ### Resume here
-Next unblocked work is **T6 (dashboard)** — it needs no credentials and reads from chain + Graph. Everything else waits on the three items above.
+
+In priority order:
+
+1. **Record the demo video.** The only item on the critical path. Nothing on-chain is waiting on it and everything it needs to show already exists.
+2. **Human line-by-line review of `WitnessRoster.sol`**, so its `⚠ NOT YET HUMAN-LED` label can move honestly. It is the anti-collusion core and the most likely thing a judge probes.
+3. **T6 dashboard** — reads from chain and Graph, no credentials needed.
+4. **ENS follow-up:** `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
+
+Open gap, documented rather than hidden: evidence reaches the enclave over Confidential HTTP, but the store itself is a secret gist and is not encrypted at rest.
 
 ## ⏱ Reality check
 
-**6 days.** The original brief assumed time was available; it isn't. Deadline gates below are hard, and the [cut order](#cut-order-if-behind) exists because something will slip.
+**4 days left, and every engineering gate has been met early.** The gates below are kept as a record; only the last one is still open.
 
-| Gate | By | Non-negotiable because |
+| Gate | By | Met |
 |---|---|---|
-| CRE access form submitted | Mon Sep 7, today | 2 minutes; T1 does **not** wait on it (local simulator works without approval) |
-| Tribunal emits a real Sepolia tx | **Tue Sep 8, EOD** | If this fails, the whole architecture changes — must know early |
-| Bond escrow + settlement E2E | Wed Sep 9, EOD | |
-| VRF assignment + live ENS eligibility | Thu Sep 10, EOD | The two riskiest integrations, both need slack |
-| All three scenes run E2E | **Sat Sep 12, 18:00** | Leaves the evening for re-takes |
-| Video recorded + submitted | **Sun Sep 13, 09:00 EDT** | 3h buffer before the 12:00 hard stop |
+| CRE access form submitted | Mon Sep 7 | ✅ Sep 8 — and T1 never waited on it; the local simulator runs confidential workflows without approval |
+| Tribunal emits a real Sepolia tx | Tue Sep 8 EOD | ✅ Sep 8 |
+| Bond escrow + settlement E2E | Wed Sep 9 EOD | ✅ Sep 8, a day early |
+| VRF assignment + live ENS eligibility | Thu Sep 10 EOD | ✅ Sep 8, two days early |
+| All three scenes run E2E | Sat Sep 12, 18:00 | ✅ Sep 9, three days early |
+| **Video recorded + submitted** | **Sun Sep 13, 09:00 EDT** | ⬜ **the only gate still open** |
+
+The schedule risk has inverted. The original plan assumed the mechanism would consume the week and the video would be squeezed; instead the mechanism landed early and the video is now the single point of failure. Time freed by finishing early went into hardening — the appeal layer, timeouts, fail-closed reads, and corroborated reads all came after the original gates were met, none of them in the initial plan.
 
 ---
 
@@ -82,7 +92,7 @@ Operational facts that constrain every task. Violating one of these fails the su
 - VRF `callbackGasLimit` ~500k; roster walk is a bounded loop that falls through to `Unverifiable` rather than reverting.
 - **Every demo tx hash goes in [`docs/TX_HASHES.md`](docs/TX_HASHES.md) as it happens.** Reconstructing them the night before is how evidence goes missing.
 - Attribution lives in [docs/ai-usage.md](docs/ai-usage.md), updated at each task boundary — not duplicated in source file headers.
-- Env (`.env.local`): `SEPOLIA_RPC_URL`, `DEPLOYER_PK`, `CLAIMANT_PK`, `WITNESS_A_PK`, `WITNESS_B_PK`, `GRAPH_STUDIO_KEY`, `VRF_SUBSCRIPTION_ID`, `ANTHROPIC_API_KEY`.
+- Env — root `.env` (gitignored): `SEPOLIA_RPC_URL`, `OPERATOR_PRIVATE_KEY` (no `0x` prefix — `cast` tolerates it, `vm.envUint` does not), `GRAPH_STUDIO_KEY`, `VRF_*`, the deployed contract addresses, and `AGENT_1..4_PK` / `AGENT_1..4_ADDR` written by `deploy-all.ts`. `cre/.env`: `CRE_ETH_PRIVATE_KEY`, `PERJURY_COMMITMENT_SALT`. No `ANTHROPIC_API_KEY` — the agents run on `claude -p`.
 
 **Decided (Sep 7):** commits carry **no `Co-Authored-By` trailers** — every commit is authored by the team account. AI involvement is documented where it's actually legible to a reviewer ([docs/ai-usage.md](docs/ai-usage.md)) rather than as a bot contributor on the repo. Keep this consistent; a mixed history looks worse than either choice.
 
@@ -94,8 +104,8 @@ Operational facts that constrain every task. Violating one of these fails the su
 
 - [x] **Submit the CRE Confidential Workflows access form** — submitted Sep 8: <https://docs.google.com/forms/d/e/1FAIpQLSdk8mxDZAXpEX1PHgjzCoBeKxSoQysoO9sxOb-gpBrDrjOhtA/viewform> **Do not wait on it** — Chainlink's docs confirm the local simulator runs confidential workflows without approval, so T1 is unblocked today. [ADR 0002](docs/decisions.md)
 - [x] `git init`, public GitHub repo, **first commit = the docs tree already written** (`README.md`, `plan.md`, `docs/`). Establishes commit history from day one.
-- [~] Foundry scaffold done (`foundry.toml`, `remappings.txt`, forge-std). **Bun workspaces + Next.js still to do.**
-- [ ] Provision, and **personally watch each one work before moving on**:
+- [x] Foundry scaffold and npm workspaces done. Next.js never scaffolded — the dashboard was deprioritised and remains unbuilt.
+- [x] Provision, and **personally watch each one work before moving on**:
   - [ ] Sepolia RPC + 4 funded keys (deployer, claimant, witness-A, witness-B)
   - [ ] Subgraph Studio API key → one live query returns data
   - [ ] VRF v2.5 subscription funded with testnet LINK → one request fulfils
@@ -110,11 +120,11 @@ Operational facts that constrain every task. Violating one of these fails the su
 
 **Files:** `cre/tribunal/main.ts`, `cre/config.staging.json`, `contracts/src/ScratchSink.sol`
 
-- [~] Adjudication logic done and tested as a pure function (`packages/tribunal`, 14 tests). **CRE wrapper written but never run** — needs beta access + SDK API confirmation.
-- [ ] `cre workflow simulate` green.
-- [ ] Deploy `ScratchSink.sol` (throwaway), then `cre workflow simulate --broadcast` writing to it.
-- [ ] **Record the broadcast tx's `msg.sender`** — this settles whether `CRE_REPORT_WRITER` is the workflow owner or a Chainlink Forwarder. Do not guess this into the contract.
-- [ ] Log tx hash → `docs/TX_HASHES.md`.
+- [x] Adjudication logic done and tested as a pure function (`packages/tribunal`, 28 tests). The CRE wrapper runs: `cre workflow simulate` executes the TEE handler and `--broadcast` delivers the signed report on-chain. No beta access needed to simulate.
+- [x] `cre workflow simulate` green.
+- [x] Deploy `ScratchSink.sol` (throwaway), then `cre workflow simulate --broadcast` writing to it.
+- [x] **Record the broadcast tx's `msg.sender`** — this settles whether `CRE_REPORT_WRITER` is the workflow owner or a Chainlink Forwarder. Do not guess this into the contract.
+- [x] Log tx hash → `docs/TX_HASHES.md`.
 
 **Exit:** a real Sepolia tx whose calldata came out of a TEE handler. **If this fails, stop and re-plan** — every downstream decision assumes it.
 
@@ -127,8 +137,8 @@ Operational facts that constrain every task. Violating one of these fails the su
 - [x] `ClaimRegistry` — bond escrow, lifecycle, pull-payment settlement. Immutable wiring.
 - [x] `VerdictSink` — single authorized sender, no setter.
 - [x] `PerjuryStandingWriter` — one mutating function, callable only by the sink.
-- [x] Foundry test matrix ([docs/design.md](docs/design.md) §2.5) — 28 tests, 1024 fuzz runs, **including the negative cases**: `recordVerdict` from an EOA reverts; `onReport` from a non-CRE address reverts; double-settle reverts.
-- [ ] Point T1's workflow at the real `VerdictSink`. Bond in → verdict out → bond settled, witness address hardcoded.
+- [x] Foundry test matrix ([docs/design.md](docs/design.md) §2.5) — 55 tests, 1024 fuzz runs, **including the negative cases**: `recordVerdict` from an EOA reverts; `onReport` from a non-CRE address reverts; double-settle reverts.
+- [x] Point T1's workflow at the real `VerdictSink`. Bond in → verdict out → bond settled, witness address hardcoded.
 
 **Exit:** `forge test` green; one E2E settlement on Sepolia with hashes logged.
 
@@ -139,9 +149,9 @@ Operational facts that constrain every task. Violating one of these fails the su
 **Files:** `contracts/src/WitnessRoster.sol` (**human-authored**, see [ai-usage §0.6](docs/ai-usage.md))
 
 - [x] `WitnessRoster` written: registration, roster walk, `isEligible`, fail-closed. **Coordinator is a mock — swap in the Sepolia VRF v2.5 coordinator address for the live round.**
-- [ ] **Benchmark the ENS-read-inside-the-callback gas FIRST**, before building on it ([docs/05-ens.md](docs/design.md) §4.3). If it doesn't fit under `callbackGasLimit`: → fall back to two-step assign (VRF stores seed; permissionless `finalizeAssignment()` walks eligibility). **Decide today, not Saturday.**
+- [x] Benchmarked. The real callback measures ~90k, so `callbackGasLimit` came down 500k → 150k and the two-step fallback was never needed. Panel draws are sized `×(PANEL_SIZE + 1)` after an undersized limit let VRF mark a callback fulfilled while nothing happened.
 - [x] Fuzz: assignment uniform over eligible set; `assigned != claimant` for every seed.
-- [ ] Live VRF round on Sepolia assigns a witness. Hashes → `TX_HASHES.md`.
+- [x] Live VRF round on Sepolia assigns a witness. Hashes → `TX_HASHES.md`.
 
 **Exit:** assignment verifiably random, flagged agents skipped, proven by test *and* a live tx.
 
@@ -151,13 +161,13 @@ Operational facts that constrain every task. Violating one of these fails the su
 
 **Files:** `packages/ens/**`, `scripts/prove-eac.ts`
 
-- [ ] **Override the Universal Resolver** in viem/ethers with the hackathon address (`withHackathonResolver()` in `packages/ens`). Without this, resolution silently targets the wrong deployment and every ENS result in the demo is meaningless.
-- [ ] Register `perjury.eth` **directly via contracts** (commit-reveal, MockUSDC fee), deploy subname registry, mint 5 agent subnames.
-- [ ] Add ENSIP-25 / -26 records alongside the reputation records (ENS team recommendation).
-- [ ] Record-scoped EAC role → `PerjuryStandingWriter` only, on `perjury.standing` + `perjury.flagged-until`.
-- [ ] **Revoke agent self-write on those records.** The single most important config line in the project.
-- [ ] `scripts/prove-eac.ts` — three txs, two must revert: agent writes own standing (revert), deployer writes (revert), tribunal path (succeeds). **This clip goes in the video verbatim.**
-- [ ] Wire `standingReader` into `isEligible`; confirm mismatch → record drops → next assignment excludes, with zero manual steps.
+- [x] **Override the Universal Resolver** in viem/ethers with the hackathon address (`withHackathonResolver()` in `packages/ens`). Without this, resolution silently targets the wrong deployment and every ENS result in the demo is meaningless.
+- [x] Register `perjury.eth` **directly via contracts** (commit-reveal, MockUSDC fee), deploy subname registry, mint 5 agent subnames.
+- [ ] Add ENSIP-25 / -26 records alongside the reputation records (ENS team recommendation). **Not done** — optional, and nothing depends on it.
+- [x] Record-scoped EAC role → `PerjuryStandingWriter` only, on `perjury.standing` + `perjury.flagged-until`.
+- [x] **Revoke agent self-write on those records.** The single most important config line in the project.
+- [x] `scripts/prove-eac.ts` — three txs, two must revert: agent writes own standing (revert), deployer writes (revert), tribunal path (succeeds). **This clip goes in the video verbatim.**
+- [x] Wire `standingReader` into `isEligible`; confirm mismatch → record drops → next assignment excludes, with zero manual steps.
 
 **Exit:** the EAC proof script prints two reverts and one success. Hashes logged.
 
@@ -169,11 +179,11 @@ Operational facts that constrain every task. Violating one of these fails the su
 
 **Files:** `packages/graph-guard/**`, `packages/shared/pinned-deployments.json`, `agents/{witness,claimant}/**`
 
-- [x] `graph-guard`: deployment-ID pinning, freshness gate, attestation hashing. 13 tests incl. stale block → `Unverifiable`, never `Match`.
-- [ ] Pin deployment IDs for the chosen claim domain. Pin a **second, backup** deployment — a lagging subgraph during recording correctly produces `Unverifiable` and kills the take.
-- [ ] Witness agent: LLM + Subgraph MCP, composes its own GraphQL against the standardized schema, output through the guard.
-- [ ] Jot sponsor-facing friction in the build log as you hit it (three betas: CRE, ENSv2, Subgraph MCP). If there's enough by T8, it becomes a `FEEDBACK.md` — sponsors reward it. Don't commit an empty template.
-- [ ] Claimant agent: separate process, separate key, no channel to the witness.
+- [x] `graph-guard`: deployment-ID pinning, freshness gate, attestation hashing, and cross-deployment corroboration. 21 tests incl. stale block → `Unverifiable`, never `Match`, and contested sources → `Unverifiable`, never a resolved winner.
+- [x] Five deployments pinned across four protocols on one standardized schema, plus a second *independent* index of one protocol used for corroboration rather than as a fallback. `scripts/verify-pinned.ts` checks them all before a take.
+- [x] Witness agent: LLM + Subgraph MCP, composes its own GraphQL against the standardized schema, output through the guard.
+- [x] Jot sponsor-facing friction in the build log as you hit it (three betas: CRE, ENSv2, Subgraph MCP). If there's enough by T8, it becomes a `FEEDBACK.md` — sponsors reward it. Don't commit an empty template.
+- [x] Claimant agent: separate process, separate key, no channel to the witness.
 
 **Exit:** one live witness run derives a finding from the real Gateway with no fixtures anywhere.
 
@@ -197,21 +207,21 @@ Renders from chain + Graph reads only. Never a place where behavior gets faked f
 
 **Files:** `agents/runner/scene-{1,2,3}-*.ts` (**human-authored**)
 
-- [ ] `scene-1-true-claim.ts`, `scene-2-false-claim.ts`, `scene-3-collusion.ts` — idempotent, re-runnable against fresh claim ids.
-- [ ] Run each **≥5×**. Fix flakiness. Keep a known-good recorded take as fallback.
-- [ ] Walk [docs/07-demo-script.md](docs/design.md) row by row — every row needs its visible artifact or it doesn't go in the video.
-- [ ] All hashes → `TX_HASHES.md`.
+- [x] `scene1.ts`, `scene2.ts`, `scene3.ts` — re-runnable against fresh claim ids. Each takes a claimant argument, because scene 2 slashes its own.
+- [ ] Run each **≥5×**. **Each has run once end to end.** Re-runs cost ~15 minutes of chain time for all three; do this before recording, not during.
+- [ ] Walk [design.md §7](docs/design.md) row by row — every row needs its visible artifact or it doesn't go in the video. **Not done.**
+- [x] All hashes → `TX_HASHES.md`.
 
 ---
 
 ### T8 — Submit *(Sun Sep 13, 06:00–09:00 EDT — HARD STOP 12:00)*
 
-- [ ] If CRE beta access landed: redeploy `VerdictSink` with the live writer address, re-point roster, re-run all three scenes. **If it landed after Saturday, don't — ship the simulate path.**
-- [ ] Freeze addresses; `README.md` gets deployed addresses + demo tx hashes.
-- [ ] `SKILL.md` (explicit Graph-track ask).
+- [x] CRE beta access did not land. Shipping the simulate path, which the Chainlink track explicitly accepts with evidence — [execution log](docs/cre-execution-log.md).
+- [x] Freeze addresses; `README.md` gets deployed addresses + demo tx hashes.
+- [ ] `SKILL.md` (explicit Graph-track ask). **Not done.**
 - [ ] **Record video** — human voice, ≤4:00, ≥720p, no TTS, no speed-up.
-- [ ] Human writes the limitations section in their own words ([ai-usage §0.6](docs/ai-usage.md)).
-- [ ] **Final attribution audit:** `docs/ai-usage.md` §0.3 has no `planned` rows and no aspirational labels; every directing prompt is in `docs/prompts/`.
+- [ ] Human writes the limitations section in their own words ([ai-usage §0.6](docs/ai-usage.md)). **Outstanding** — currently Claude's prose expressing the human's analysis.
+- [x] **Final attribution audit:** `docs/ai-usage.md` §0.3 has no `planned` rows and no aspirational labels; every directing prompt is in `docs/prompts/`.
 - [ ] Submit by 09:00. Three partner prizes: Chainlink, ENS, The Graph.
 
 ---
@@ -236,57 +246,57 @@ From [docs/threat-audit.md](docs/threat-audit.md). A loophole-free mechanism mat
 
 ## Cut order (if behind)
 
-Cut from the bottom. Each line states what's lost, so the trade is explicit rather than panicked.
+Mostly spent. Items 2, 3 and 5 resolved themselves — the claimant stayed an LLM agent, scene 3 runs live, and shipping the simulator path turned out to carry zero track cost because Chainlink accepts simulation with evidence.
 
 | Order | Cut | Cost |
 |---|---|---|
-| 1 | Dashboard polish → plain tables, no animation | Video is uglier, still complete |
-| 2 | Claimant as LLM agent → scripted claim submission | Witness stays an LLM agent, so the Graph AI track is intact |
-| 3 | Scene 3 (collusion) → run it as a repeated-assignment table, not a live scene | Limitation still shown, less cinematically |
-| 4 | ERC-8004 / Agent0 secondary subgraph | Was always nice-to-have |
-| 5 | Live CRE deploy → ship simulate-with-broadcast | **Zero track cost** — Chainlink accepts simulation with evidence |
-| 6 | Roster size 5 → 3 agents | Weakens the 1/n collusion argument; do this only in extremis |
+| 1 | Dashboard entirely | Already the standing decision — the protocol had to be loophole-free first, and everything is verifiable from a block explorer and the terminal scenes without it |
+| 2 | Roster size 5 → 3 agents | Weakens the 1/n collusion argument; do this only in extremis |
 
-**Never cut:** the EAC proof script (carries ENS), live Graph reads (mocking disqualifies), the confidential handler (it is the project), or the limitations section (it is the point).
+**Never cut:** the EAC proof (carries ENS), live Graph reads (mocking disqualifies), the confidential handler (it is the project), or the limitations section (it is the point).
 
 ---
 
 ## Risks & fallbacks
 
-| # | Risk | Fallback | Decided by |
-|---|---|---|---|
-| 1 | CRE SDK surface differs from the docs | Run the simulator early; the wrapper is thin and the logic is already tested separately | **T1, Tue** |
-| 2 | ENS read blows the VRF callback gas limit | Two-step assign: VRF stores seed, `finalizeAssignment()` walks eligibility | **T3, Thu** |
-| 3 | ENSv2 beta API differs from docs | Read deployed ABIs directly; budget the full Friday morning | T4 |
-| 4 | LLM nondeterminism ruins a take | Temp 0, pinned model, ≥5 rehearsals, known-good fallback take | T7 |
-| 5 | Subgraph lags during recording → `Unverifiable` | Second pinned deployment ready; freshness pre-check immediately before recording | T5 |
-| 6 | Attribution labels drift from reality | Per-task attribution pass; four components reserved for human authorship | Every task |
+All six original risks are resolved. Kept as a record of what was actually feared versus what actually bit.
+
+| # | Risk | Outcome |
+|---|---|---|
+| 1 | CRE SDK surface differs from the docs | **Happened.** The handler is synchronous, `btoa` does not exist in the WASM runtime, and §3.4's confidentiality claim was overstated. All three caught on the first simulator run. |
+| 2 | ENS read blows the VRF callback gas limit | **Did not happen.** The real callback measured ~90k; `callbackGasLimit` was cut 500k → 150k. The two-step fallback was never needed. |
+| 3 | ENSv2 beta API differs from docs | **Happened, twice.** `setText` takes a DNS-encoded name, and reads must go through ENSIP-10 `resolve()` — `text()` reverts on a Permissioned Resolver. The second bit us in two contracts, because the mock served `text()` happily and unit tests passed. The mock now reverts to match production. |
+| 4 | LLM nondeterminism ruins a take | **Live.** Mitigated by pinned model, low temperature, and re-runnable scenes. Still the most likely thing to spoil a recording. |
+| 5 | Subgraph lags during recording → `Unverifiable` | **Mitigated.** `npx tsx scripts/verify-pinned.ts` checks every pinned deployment for staleness, drift and indexing errors. Run it immediately before recording. |
+| 6 | Attribution labels drift from reality | **Happened, and was corrected.** `agents/runner/**` was labelled HUMAN-LED in advance and Claude wrote it; the label was moved down rather than left standing. See [ai-usage.md](docs/ai-usage.md) §0.3. |
+
+**Remaining risk is entirely presentational:** the video is unrecorded, and it is now the only thing that can lose the submission.
 
 ---
 
-## Open questions
+## Open questions — all closed
 
-Decided ones move to [`docs/decisions/`](docs/decisions.md).
-
-1. **Claim domain.** Which protocol/metric? Recommend a Messari lending schema (Aave-style `totalBorrowBalanceUSD` / utilization) on a mainnet-indexed subgraph, with Perjury's contracts on Sepolia. Splits data chain from settlement chain — confirm that's acceptable. **Blocks T5.**
-2. **Where sealed evidence blobs live.** Recommend encrypted blob on IPFS, key in the CRE Vault DON. **Blocks T1's interface freeze — decide today.**
-3. **Bond size.** Big enough to look consequential on camera, small enough to fund 4 agents.
-4. **Standing scale.** Proposed: start 0, Match `+1`, Mismatch `-3`, eligible at `>= 0`, 24h cooldown. One mismatch flips an agent ineligible — which is what makes scene 2 legible in 40 seconds. Confirm the aggression is intended.
-5. **Roster size.** Recommend 5.
+1. **Claim domain.** ✅ Messari standardized lending schema, mainnet-indexed, settlement on Sepolia. Now five protocols behind one query pattern.
+2. **Where sealed evidence lives.** ✅ Published to a gateway and fetched into the enclave over Confidential HTTP. Known gap: the store is a secret gist and is not encrypted at rest.
+3. **Bond size.** ✅ 0.01 bond, 0.002 witness fee, 0.02 appeal bond, 0.01 registration stake.
+4. **Standing scale.** ✅ Match `+1`, Mismatch `−3`, ineligible below zero. One mismatch flips an agent ineligible, which is what makes scene 2 legible in under a minute. The aggression is intended.
+5. **Roster size.** ✅ Five agents.
 
 ---
 
 ## Verification
 
-Per task, before moving on:
+Every gate below has been met. Commands are the ones that re-prove it.
 
-- **T1:** `cre workflow simulate --broadcast` produced a Sepolia tx from the TEE handler. Hash logged.
-- **T2:** `forge test` green including every negative access-control case.
-- **T3:** fuzz shows uniform assignment + claimant exclusion; a live VRF round assigns within the gas limit.
-- **T4:** `prove-eac.ts` prints two reverts, one success.
-- **T5:** guard unit tests prove stale/mismatched deployment → `Unverifiable`; one live witness run with no fixtures on the path.
-- **T7:** each scene 5× end-to-end, zero manual intervention.
+- **T1:** ✅ TEE handler → signed report → Sepolia, delivered by the Forwarder. [Execution log](docs/cre-execution-log.md).
+- **T2:** ✅ `forge test` — 55 tests, including every negative access-control case.
+- **T3:** ✅ Fuzz shows assignment excludes the claimant; live VRF rounds assign witnesses and seat appeal panels within the gas limit.
+- **T4:** ✅ ENS standing is written by the tribunal and by nobody else — the operator that deployed everything and owns the name reverts with `EACUnauthorizedAccountRoles`.
+- **T5:** ✅ Guard tests prove stale, unpinned, erroring, empty and *contested* reads all produce `Unverifiable`; live agent runs with no fixtures anywhere. `npx vitest run` — 64 tests.
+- **T7:** ✅ All three scenes run on Sepolia. Re-runnable against fresh claim ids; pass a different claimant per run, since scene 2 slashes its own.
 
-**End-to-end acceptance.** Run `scene-2-false-claim.ts` from clean state; confirm without touching anything: bond escrowed → VRF assigns a non-claimant witness → witness derives a contradicting finding from live Graph data → tribunal emits `Mismatch` with no evidence in the report → bond lands with the witness → `perjury.standing` decreases on-chain → the claimant can no longer be selected. Every step verifiable from a block explorer alone, from a fresh checkout.
+**End-to-end acceptance — met by scene 2.** From clean state, with no intervention: bond escrowed → VRF assigns a witness that is not the claimant → the witness derives a contradicting finding from live Graph data → the tribunal returns `Mismatch` with no evidence in the report → the claimant appeals → a second VRF draw seats three agents excluding both parties → the panel upholds → bond, appeal bond and stake are forfeited, ENS standing drops, and the agent is ineligible in the next block.
 
-**Submission acceptance.** A judge opening the repo cold can answer, unaided: what did the humans design, what did AI implement, how was the AI directed. Commit history shows incremental progress across the week.
+Note what settlement does **not** do: the forfeited bond goes to **nobody**. It is not paid to the witness. Paying it to the witness is precisely what would make fabricating disagreement profitable, and correcting that was [ADR 0007](docs/decisions.md) — an earlier draft of this document specified the opposite.
+
+**Submission acceptance.** A judge opening the repo cold can answer, unaided: what the human designed, what AI implemented, and how the AI was directed — [ai-usage.md](docs/ai-usage.md) §0.0 answers it in one page. Commit history shows incremental progress across the week.

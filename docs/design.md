@@ -518,6 +518,8 @@ Scenario 3 ([§7](#7-on-camera-checklist-what-must-be-true-and-shown)) shows the
 
 Rule for the whole video: **if it is narrated but not on screen, it does not count.** Every row below needs a visible artifact — a tx hash, a state change, a revert, or a rendered value that moves.
 
+> **Surface note.** These rows were written assuming a rendered dashboard. The dashboard was not built ([ADR 0003](decisions.md) records why), so the artifacts come from the terminal scenes instead — `agents/runner/scene{1,2,3}.ts` render roster tables with eligibility, before/after standing arrows, boxed verdicts and linked transaction hashes, all read from chain at the moment of display. Every row below still has a visible artifact; it is rendered in a terminal rather than a browser.
+
 #### Scenario 1 — a TRUE claim, opportunistically challenged
 
 | # | Must be shown | Visible artifact |
