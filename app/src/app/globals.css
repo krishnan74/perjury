@@ -321,3 +321,197 @@ footer.foot {
   .defs { grid-template-columns: 1fr; }
   .defs dt { border-bottom: 0; padding-bottom: 0.2rem; }
 }
+
+/* ══ Deck mode ════════════════════════════════════════════════════════════
+   The landing page carries the whole pitch — there is no slide deck behind
+   this project, so the page has to do the explaining a deck would. That means
+   more structure than a marketing page: a full-height opening, a grid that
+   argues rather than lists, and per-capability attribution so a sponsor can see
+   which part of the mechanism their technology is holding up. */
+
+.hero {
+  min-height: calc(100vh - 3.6rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(3rem, 9vh, 7rem) 0 2rem;
+  position: relative;
+}
+
+/* Ruled-paper ground. Faint enough to read as texture rather than pattern; it
+   gives the flat paper some grain so large empty areas do not look unfinished. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(20, 20, 15, 0.028) 0 1px,
+    transparent 1px 7px
+  );
+}
+body > * { position: relative; z-index: 1; }
+
+.hero .display { font-size: clamp(3rem, 9vw, 7rem); }
+
+/* On an unusually tall viewport a 100vh hero becomes an empty field with a
+   headline stranded in it. Cap it rather than let the fold dictate the layout. */
+@media (min-height: 1200px) {
+  .hero { min-height: auto; padding: 6rem 0 4rem; }
+  .hero .scrollcue { margin-top: 3rem; }
+}
+
+/* The caret is the one animated thing on the page. A claim is a statement that
+   has just been made, and a cursor is what "just said" looks like. */
+.caret {
+  display: inline-block;
+  width: 0.075em;
+  height: 0.82em;
+  background: var(--ink);
+  margin-left: 0.06em;
+  vertical-align: -0.04em;
+  animation: blink 1.15s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
+
+.sub {
+  font-family: var(--mono);
+  font-size: clamp(0.86rem, 1.25vw, 1rem);
+  line-height: 1.85;
+  color: var(--ink-2);
+  max-width: 58ch;
+}
+
+.scrollcue {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: auto;
+  padding-top: 3rem;
+}
+
+/* ── Bento ────────────────────────────────────────────────────────────────
+   Equal columns read as a list, and a list implies the items are
+   interchangeable. These arguments are not: one cell carries the weight and the
+   others qualify it, so the grid is asymmetric on purpose. */
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+}
+.cell {
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 1.5rem 1.7rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 15rem;
+}
+.cell:nth-child(3n) { border-right: 0; }
+.cell.wide { grid-column: span 2; }
+.cell.tall { grid-row: span 2; }
+
+.cell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-family: var(--mono);
+  margin-bottom: 1.6rem;
+}
+.cell-head .num { font-size: 1.35rem; color: var(--muted); letter-spacing: 0.05em; }
+.cell-head .tag {
+  font-size: 0.66rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+}
+.cell h3 {
+  font-family: var(--serif);
+  font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.8rem;
+  font-weight: 600;
+}
+.cell p {
+  font-family: var(--mono);
+  font-size: 0.79rem;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+}
+.cell .foot {
+  margin-top: auto;
+  padding-top: 1.4rem;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cell .foot b { color: var(--ink-2); font-weight: 500; letter-spacing: 0.08em; }
+
+/* Inline verdict-coloured words, used in running prose. */
+.ok { color: var(--match); }
+.bad { color: var(--mismatch); }
+.warn { color: var(--unverifiable); }
+
+/* ── Redaction as texture ─────────────────────────────────────────────────
+   The same motif at display scale. Used once, to show a claim with everything
+   the tribunal withholds struck out — the argument the whole project makes,
+   made visually rather than in a caption. */
+
+.seal-panel {
+  background: var(--seal);
+  color: var(--paper);
+  padding: clamp(1.5rem, 3.5vw, 2.6rem);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 2.1;
+}
+.seal-panel .k {
+  color: #8b887c;
+  font-size: 0.66rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.seal-panel .bar {
+  display: inline-block;
+  background: #2a2a22;
+  width: var(--w, 14ch);
+  height: 1.05em;
+  vertical-align: -0.18em;
+  border-radius: 1px;
+}
+.seal-panel .out { color: var(--paper); }
+
+/* ── Cost ledger ──────────────────────────────────────────────────────────
+   What one false claim actually cost, as a running total. */
+
+.ledger { border-top: 1px solid var(--rule); }
+.ledger-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+.ledger-row .amt { color: var(--mismatch); white-space: nowrap; }
+.ledger-row.total { font-size: 0.95rem; }
+.ledger-row.total .amt { font-family: var(--serif); font-size: 1.5rem; }
+
+@media (max-width: 900px) {
+  .bento { grid-template-columns: 1fr; }
+  .cell, .cell.wide, .cell.tall { grid-column: auto; grid-row: auto; border-right: 0; }
+}
