@@ -65,22 +65,11 @@ export default function Seal({ seal }: { seal: SealData }) {
           witness={seal.witnessValue}
           band={seal.band}
           unit={seal.unit}
+          identical={seal.identicalEvidence}
+          divergence={seal.divergence}
         />
       )}
 
-      {seal.identicalEvidence === true && seal.divergence !== null && (
-        <p className="seal-point">
-          Both were handed <b>identical rows</b> and their conclusions differ by{" "}
-          <b>{round(seal.divergence)}</b>
-          {seal.unit === "percent" ? " points" : ""}. The data did not disagree.
-        </p>
-      )}
-      {seal.identicalEvidence === false && (
-        <p className="seal-point">
-          The two parties&rsquo; archived rows are not identical, so their readings differ as well as
-          their conclusions.
-        </p>
-      )}
 
       {/*
         Empty CSS-sized bars with aria-labels, never invented placeholder text.
@@ -109,7 +98,7 @@ export default function Seal({ seal }: { seal: SealData }) {
         <QueryDiff claimant={seal.claimantQuery} witness={seal.witnessQuery} />
       )}
 
-      <p className="seal-out-head">Out of it</p>
+      <p className="seal-out-head">Out of it &mdash; the entire report</p>
       <dl className="seal-out">
         <dt>verdict</dt>
         <dd className={`verdict v-${seal.verdict}`}>{seal.verdict}</dd>
@@ -119,34 +108,19 @@ export default function Seal({ seal }: { seal: SealData }) {
         </dd>
       </dl>
 
+      {/*
+        One line. The heading above already says this is the entire report, and
+        the paragraph that used to sit here repeated it at length while costing
+        the beat the height it needed to fit a screen.
+      */}
       <p className="seal-note">
-        Two fields. Neither value, neither query and neither party&rsquo;s evidence appears in this or
-        any other transaction — the commitment is a hash over both submissions and a salt held in the
-        enclave.{" "}
+        The commitment is a hash over both submissions and a salt held in the enclave.{" "}
         <a href={`${EXPLORER}/tx/${seal.tx}`} target="_blank" rel="noreferrer">
-          The report
-        </a>{" "}
-        arrived from a Chainlink Forwarder.
+          Delivered by a Forwarder
+        </a>
+        .
       </p>
 
-      {/*
-        An earlier version of this paragraph justified the archive by asserting
-        that confidentiality "was never meant to be permanent". That is not the
-        design. Under docs/design.md §3.5 the bundle is stored encrypted with the
-        key held by the Vault DON, so it stays confidential indefinitely and any
-        later disclosure is a party's own choice. The demo is the exception, and
-        it has to be labelled as one rather than dressed up as a principle.
-      */}
-      <p className="seal-note seal-why">
-        <b>Why you can read the two values above.</b> Only because this is a testnet and the runner
-        keeps a local copy of each settled bundle. The evidence the tribunal read never existed in the
-        open: it was <b>encrypted</b> to a key whose private half the Chainlink Vault DON releases
-        only into the attested enclave, so the gateway that carried it holds ciphertext and nothing
-        else. Node operators never see plaintext, and neither party ever sees the other&rsquo;s work
-        &mdash; the enclave is the only place the two submissions meet. An agent knows its own
-        evidence and may choose to reveal it later; the commitment above is what makes such a reveal
-        checkable by anyone.
-      </p>
     </div>
   );
 }
@@ -219,11 +193,15 @@ function NumberLine({
   witness,
   band,
   unit,
+  identical,
+  divergence,
 }: {
   claimant: number;
   witness: number;
   band: { lo: number; hi: number; bps: number };
   unit: string | null;
+  identical: boolean | null;
+  divergence: number | null;
 }) {
   const lo = Math.min(claimant, witness, band.lo);
   const hi = Math.max(claimant, witness, band.hi);
@@ -240,9 +218,6 @@ function NumberLine({
 
   return (
     <div className="numberline" data-inside={inside}>
-      <p className="numberline-head">
-        Agreement is within <b>{band.bps / 100}%</b> of the witness&rsquo;s value
-      </p>
 
       <div className="numberline-track" role="img"
            aria-label={`Claimant ${claimant}${suffix}, witness ${witness}${suffix}, agreement band ${round(band.lo)} to ${round(band.hi)}`}>
@@ -260,9 +235,22 @@ function NumberLine({
         </span>
       </div>
 
+      {/*
+        One line carrying what used to take three blocks: the band, which side of
+        it the claim fell on, and — the sentence this page exists to earn — that
+        both parties were handed the same rows and still disagreed.
+      */}
       <p className="numberline-foot">
-        band {round(band.lo)}{suffix} &ndash; {round(band.hi)}{suffix} ·{" "}
-        {inside ? "the claimant sits inside it" : "the claimant sits outside it"}
+        {inside ? "inside" : "outside"} the band {round(band.lo)}
+        {suffix}&ndash;{round(band.hi)}{suffix}
+        {identical === true && divergence !== null && (
+          <>
+            {" · "}
+            <b>identical rows</b>, {round(divergence)}
+            {suffix === "%" ? " points" : ""} apart
+          </>
+        )}
+        {identical === false && " · the two parties' rows differ as well"}
       </p>
     </div>
   );

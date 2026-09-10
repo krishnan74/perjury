@@ -27,9 +27,8 @@ export default function Panel({ appeal }: { appeal: Appeal }) {
     <div className="panel-fork">
       <p className="panel-head">The appeal</p>
       <p className="panel-note">
-        {appeal.appellant ? `${appeal.appellant.name} appealed. ` : ""}
-        A second VRF draw seats three agents, excluding the claimant, the original witness and the
-        appellant. A panel containing any of them would not be review.
+        A second draw, excluding the claimant, the original witness and the appellant. A panel
+        containing any of them would not be review.
       </p>
 
       <div className="panel-seats">
@@ -72,14 +71,12 @@ export default function Panel({ appeal }: { appeal: Appeal }) {
       <p className="panel-outcome" data-outcome={appeal.outcome ?? "open"}>
         {appeal.outcome === "upheld" && (
           <>
-            The panel <b>upheld</b> {appeal.original}. The appellant loses its appeal bond on top of
-            everything else.
+            The panel <b>upheld</b> {appeal.original}. The appellant loses its appeal bond too.
           </>
         )}
         {appeal.outcome === "overturned" && (
           <>
-            The panel <b>overturned</b> {appeal.original}. The contradicted party is slashed instead,
-            and reputation follows the finding that stands.
+            The panel <b>overturned</b> {appeal.original}. The contradicted party is slashed instead.
           </>
         )}
         {appeal.outcome === null && <>The panel has not returned a finding yet.</>}

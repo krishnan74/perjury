@@ -64,7 +64,9 @@ export default function AgentRead({ read, who }: { read: Read; who?: Identity })
             {read.asserted}
             {read.unit === "percent" ? "%" : ` ${read.unit}`}
           </b>
-          {read.reasoning && <p className="agent-read-why">{read.reasoning}</p>}
+          {read.reasoning && (
+            <p className="agent-read-why" title={read.reasoning}>{read.reasoning}</p>
+          )}
         </dd>
       </dl>
 

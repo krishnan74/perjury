@@ -186,9 +186,8 @@ export default function Lanes({
             */}
             {b.kind === "verdict" && b.gap > 20 && i < at && (
               <p className="lane-quiet">
-                {fmt(b.gap)} with nothing on chain. Both submissions went to the gateway, the
-                tribunal adjudicated in a confidential handler, and the report was signed and
-                delivered by a Forwarder.
+                {fmt(b.gap)} with nothing on chain: the gateway, the enclave, and the signing of the
+                report.
               </p>
             )}
             {b.read && i < at && <AgentRead read={b.read} who={b.who} />}

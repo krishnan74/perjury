@@ -41,9 +41,9 @@ export default function Draw({ draw, claimantName }: { draw: DrawData | null; cl
     <div className="draw">
       <p className="draw-head">The draw</p>
       <p className="draw-note">
-        Chainlink returned one random word. The roster walks from{" "}
-        <span className="mono">seed mod {draw.rosterSize}</span> and takes the first agent that is
-        eligible and is not the claimant.
+        One random word from Chainlink. The roster walks from{" "}
+        <span className="mono">seed mod {draw.rosterSize}</span> to the first eligible agent that is
+        not the claimant.
       </p>
 
       <ol className="draw-list">
@@ -65,11 +65,6 @@ export default function Draw({ draw, claimantName }: { draw: DrawData | null; cl
         ))}
       </ol>
 
-      <p className="draw-rule">
-        The claimant is struck out because <span className="mono">_assign</span> skips it whatever the
-        seed says. An agent the walk stepped over was not eligible at that block.
-      </p>
-
       <p className="draw-seed" title={draw.seed}>
         <span className="draw-seed-k">seed</span>
         <span className="mono">{draw.seed.slice(0, 22)}…</span>
@@ -88,8 +83,8 @@ export default function Draw({ draw, claimantName }: { draw: DrawData | null; cl
       </p>
 
       <p className="draw-note draw-foot">
-        <span className="mono">submitClaim</span> takes a subject and a commitment. It has no witness
-        parameter, so {claimantName} had no way to request, hint at or bias this.
+        The claimant is struck out whatever the seed says. <span className="mono">submitClaim</span>{" "}
+        has no witness parameter, so {claimantName} could not bias this.
       </p>
     </div>
   );

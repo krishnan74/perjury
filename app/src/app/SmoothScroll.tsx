@@ -44,15 +44,16 @@ interface LenisHandle {
 /**
  * Bring an element into view, once, without hijacking the reader.
  *
- * `offset` is negative to leave room above the target — a beat pinned to the top
- * edge of the viewport is technically visible and unreadable, because the thing
- * it follows from has just scrolled off.
+ * `offset` is negative to leave a little room above the target: a beat pinned to
+ * the very top edge reads as clipped. It is deliberately small, because every
+ * beat is now sized to fit a viewport and headroom is height the beat needs —
+ * at 140px the tallest beat ran off the bottom of a 1280x800 laptop.
  *
  * Under prefers-reduced-motion it jumps instead of animating. Not scrolling at
  * all would be worse: the reader would lose the beat entirely, which is the
  * opposite of an accommodation.
  */
-export function scrollIntoViewSmooth(el: HTMLElement, offset = -140) {
+export function scrollIntoViewSmooth(el: HTMLElement, offset = -64) {
   if (typeof window === "undefined") return;
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
