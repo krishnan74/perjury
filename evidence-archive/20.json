@@ -1,0 +1,106 @@
+{
+  "claimId": "20",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "indexedBlock": 25945150,
+        "chainHead": 25945150,
+        "queriedAt": 1789021137872,
+        "queryHash": "8f737cecf132cf064f16485f4b9dce400732443472dc1688cea1bdb87aeee708",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilizationRatio",
+        "comparator": "gt",
+        "value": 40.47,
+        "unit": "percent",
+        "asOfBlock": 25945150
+      },
+      "digest": "1cced7e82a29e638ec89e49d8ea02816a0734b5dfc57629bd43dd3210628c558"
+    },
+    "methodology": "claimant: Aave v3 via messari-lending; Utilization ratio measures capital efficiency by dividing total borrowed balance by total deposit balance across Aave v3.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "id": "0xbaa999ac55eace41ccae355c77809e68bb345170",
+          "totalBorrowBalanceUSD": "9884382007.768712035099715814998404",
+          "totalDepositBalanceUSD": "24426504142.59150645783260143617089"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "block": {
+          "number": 25945150
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols { id totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witness": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "indexedBlock": 25945150,
+        "chainHead": 25945158,
+        "queriedAt": 1789021226852,
+        "queryHash": "f1bf9b23807d9a72ca7b46ab19b5f7d67c0ac69344775c6ca048bfaefbdb89cb",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilizationRatio",
+        "comparator": "gt",
+        "value": 40.46,
+        "unit": "percent",
+        "asOfBlock": 25945150
+      },
+      "digest": "f221f5c06de13bec6df202c466cf2a83b62275dae9bb40e21cc527924293399c"
+    },
+    "methodology": "witness: Aave v3 via messari-lending; UtilizationRatio is calculated as (totalBorrowBalanceUSD / totalDepositBalanceUSD) × 100; these two metrics enable independent computation of the ratio. [1 independent deployment(s), pinned @ 25945150]",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "9884382007.768712035099715814998404",
+          "totalDepositBalanceUSD": "24426504142.59150645783260143617089"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "block": {
+          "number": 25945150
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta(block: {number: 25945150}) { deployment block { number } hasIndexingErrors } lendingProtocols(block: {number: 25945150}) { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witnessAgent": {
+    "name": "panel-1.perjury.eth",
+    "address": "0x51Dce343aA4D470e2E6cAaDd781C60C1f1516eb9"
+  },
+  "claimText": "Aave v3 utilizationRatio is above 38.44%.",
+  "claimHash": "0xe01ce8b990444180d5c8302afd45e321f5e4aa8836c4faf8b10b562121d2be8c",
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/0d8239d035274b0adca1fd64af67ec77",
+  "archivedAt": "2026-09-10T06:20:34.424Z"
+}

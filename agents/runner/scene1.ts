@@ -12,7 +12,8 @@ import { dnsEncode } from "@perjury/ens";
 import * as p from "./lib/present";
 import {
   AGENTS, BOND, REGISTRY, REGISTRY_ABI, VERDICT, account, addressOf, claim, op, pub,
-  claimantFor, draftEvidence, preflight, rosterSnapshot, runTribunal, standingOf, walletFor,
+  awaitWitness, claimantFor, draftEvidence, preflight, rosterSnapshot, runTribunal, standingOf,
+  walletFor,
   witnessEvidence,
 } from "./lib/chain";
 import { keccak256, toBytes } from "viem";
@@ -53,7 +54,7 @@ p.tx("submitClaim", submitHash);
 
 p.step("Chainlink VRF assigns the witness");
 p.note("The claimant cannot choose, influence, or predict who checks it.");
-await p.waitFor("waiting for VRF", async () => (await claim(claimId)).witness !== "0x0000000000000000000000000000000000000000");
+await awaitWitness(claimId, p.waitFor);
 const c = await claim(claimId);
 const witnessAgent = AGENTS.find((a) => addressOf(a).toLowerCase() === c.witness.toLowerCase());
 p.line("witness drawn", `${witnessAgent?.name ?? c.witness}  ${c.witness.slice(0, 12)}…`, p.c.cyan);

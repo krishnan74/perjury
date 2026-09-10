@@ -8,7 +8,7 @@
 // result onto a typed assertion. It does not get to decide whether the data was
 // trustworthy — graph-guard makes that call deterministically, because an agent
 // cannot be relied on to report honestly about its own data.
-import { composeDocument, queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
+import { queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import type { Attestation, TypedAssertion, Comparator } from "@perjury/shared";
@@ -147,7 +147,7 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
     // agreement between them. Divergence throws, and the catch below turns it
     // into UNVERIFIABLE: if the indexers themselves disagree about what the chain
     // says, the fact is contested and no claimant may be convicted on it.
-    const { data, provenance } = await queryCorroborated<Record<string, unknown>>(
+    const { data, provenance, queryDocument } = await queryCorroborated<Record<string, unknown>>(
       claim.subject,
       plan.selection,
       (d) => deriveMetric(d, claim.metric),
@@ -164,7 +164,7 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
         `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}` +
         ` [${provenance.corroboration?.sources ?? 1} independent deployment(s)` +
         `${claim.atBlock ? `, pinned @ ${claim.atBlock}` : ""}]`,
-      query: composeDocument(plan.selection, claim.atBlock ?? provenance.indexedBlock),
+      query: queryDocument,
       evidence: data,
     };
   } catch (e) {

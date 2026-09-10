@@ -146,6 +146,35 @@ export function runTribunal(kind: "verdict" | "panel" = "verdict"): string {
   return m ? VERDICT[Number(m[1])] ?? "?" : "?";
 }
 
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+/**
+ * Wait for VRF to assign, and refuse to continue if it has not.
+ *
+ * `waitFor` returns false on timeout rather than throwing, and scenes 1 and 2
+ * ignored that. A slow round therefore let a scene carry on with an unassigned
+ * witness: claim 18 recorded the zero address as its drawn witness, VRF landed
+ * afterwards, and the scene still reported success. A binding recorded from a
+ * claim that had not been assigned yet is worse than no binding, so this throws.
+ */
+export async function awaitWitness(
+  claimId: bigint,
+  waitFor: (label: string, check: () => Promise<boolean>) => Promise<boolean>,
+): Promise<Address> {
+  const ok = await waitFor(
+    "waiting for VRF",
+    async () => (await claim(claimId)).witness !== ZERO_ADDRESS,
+  );
+  const c = await claim(claimId);
+  if (!ok || c.witness === ZERO_ADDRESS) {
+    throw new Error(
+      `VRF did not assign a witness for claim ${claimId} within the wait. ` +
+      "Check the subscription balance and consumer registration before recording.",
+    );
+  }
+  return c.witness as Address;
+}
+
 /**
  * Phase one: the claimant drafts, before any bond is posted.
  *

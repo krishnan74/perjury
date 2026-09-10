@@ -13,7 +13,8 @@ import { keccak256, toBytes } from "viem";
 import * as p from "./lib/present";
 import {
   AGENTS, APPEAL_BOND, BOND, REGISTRY, REGISTRY_ABI, ROSTER, ROSTER_ABI, account, addressOf,
-  claim, claimantFor, draftEvidence, op, preflight, pub, rosterSnapshot, runTribunal, standingOf,
+  awaitWitness, claim, claimantFor, draftEvidence, op, preflight, pub, rosterSnapshot, runTribunal,
+  standingOf,
   walletFor, witnessEvidence,
 } from "./lib/chain";
 
@@ -49,7 +50,7 @@ p.line("bond at risk", "0.010 ETH");
 p.line("stake at risk", `${Number(beforeStake) / 1e18} ETH`);
 
 p.step("VRF assigns a witness the claimant cannot influence");
-await p.waitFor("waiting for VRF", async () => (await claim(claimId)).witness !== "0x0000000000000000000000000000000000000000");
+await awaitWitness(claimId, p.waitFor);
 const c = await claim(claimId);
 const wa = AGENTS.find((a) => addressOf(a).toLowerCase() === c.witness.toLowerCase());
 p.line("witness drawn", `${wa?.name ?? c.witness}  ${c.witness.slice(0, 12)}…`, p.c.cyan);

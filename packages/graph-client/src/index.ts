@@ -151,6 +151,16 @@ function stripMeta(s: string): string {
 export interface GuardedResult<T> {
   data: T;
   provenance: Provenance;
+  /**
+   * The document actually sent, which is the one `queryHash` was computed over.
+   *
+   * Returned rather than left to the caller to rebuild. An earlier version had
+   * the agents recompose it from their selection to record alongside the
+   * attestation, and the reconstruction did not always reproduce the string the
+   * guard had hashed — so an archived query and its hash could disagree. A
+   * query you cannot check against its own hash is decoration.
+   */
+  queryDocument: string;
 }
 
 /**
@@ -298,6 +308,7 @@ export async function queryCorroborated<T>(
   return {
     data: primary.data as T,
     provenance: { ...primary.provenance, corroboration },
+    queryDocument: withMeta,
   };
 }
 
@@ -335,5 +346,5 @@ export async function query<T>(
     freshnessBlocksFor(entry.chain),
   );
 
-  return { data: data as T, provenance };
+  return { data: data as T, provenance, queryDocument: withMeta };
 }

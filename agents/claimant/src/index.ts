@@ -8,7 +8,7 @@
 // It can also be told to lie. Scene 2 of the demo needs a claim that is false in
 // a way a witness will actually catch, and fabricating that honestly means
 // deriving the true value first and then stating something else.
-import { composeDocument, queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
+import { queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import { digestOf, type Attestation, type Comparator, type TypedAssertion } from "@perjury/shared";
@@ -103,7 +103,7 @@ export async function draftClaim(
     // Corroborated like the witness's read: the claimant is held to the same
     // data standard it will be judged against, so a contested reading is caught
     // before a bond is ever posted rather than after.
-    const { data, provenance } = await queryCorroborated<Record<string, unknown>>(
+    const { data, provenance, queryDocument } = await queryCorroborated<Record<string, unknown>>(
       subject,
       p.selection,
       (d) => deriveMetric(d, metric),
@@ -134,9 +134,9 @@ export async function draftClaim(
       assertion,
       attestation: { provenance, assertion, digest: digestOf(provenance, assertion) },
       methodology: `claimant: ${pinned.protocolName} via ${pinned.schema}; ${p.reasoning}`,
-      // The document as sent, not the selection as planned: _meta and the block
-      // pin are injected by the guard, and what was asked is what went out.
-      query: composeDocument(p.selection, provenance.indexedBlock),
+      // The document the client actually sent, so it hashes to the queryHash in
+      // provenance. Recomposing it here did not reliably reproduce that string.
+      query: queryDocument,
       evidence: data,
       fabricated,
     };
