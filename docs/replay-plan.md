@@ -1,8 +1,8 @@
 # Replay — making the protocol visible
 
-> **Status: Tier A built, plus B0 and B1.** *Updated Sep 10.* A1, A2, A3 and A5 are on `/replay`, along with the evidence archive (B0) and each agent's query and derived value (B1, as a distilled card with the query behind a toggle). What remains is A4, A6, A7, B2 and B3 — all additive, none of them holes.
+> **Status: built.** *Updated Sep 10.* Every item in this spec is on `/replay`. Claim 25 exercises all of them: the claimant reads and drafts before bonding, the draw shows the seed landing and the walk stepping past, both agents' evidence is sealed and opened only in the enclave, the seal carries the number line, the appeal forks into three bound seats, and standing drops on settlement.
 >
-> Two things in this spec turned out to be wrong and were built differently. **A5 asked for a standing bar dropping below an eligibility threshold; there is no such threshold.** `WitnessRoster.isEligible` gates on the cooldown flag, the stake floor and whether the ENS record reads at all — gating on the standing value was deliberately removed because it made exclusion permanent. The bar moves between the real `StandingUpdated` values and the exclusion is stated in the roster's own terms. **B0's framing of the disclosure was also wrong**, and is corrected in [ADR 0009](decisions.md): the archive is testnet tooling, not a statement that confidentiality expires.
+> **Three things in this spec turned out to be wrong.** A5 asked for a standing bar dropping below an eligibility threshold; `WitnessRoster.isEligible` has no such test — it gates on the cooldown flag, the stake floor and whether the ENS record reads at all, and gating on the standing value was deliberately removed because it made exclusion permanent. B0's framing of the disclosure was wrong and is corrected in [ADR 0009](decisions.md): the archive is testnet tooling, not a claim that confidentiality expires. And the opening paragraph below says two agents write "different GraphQL queries against different indexers" — on every run so far they read the **same** deployment and compose the **same** selection, differing only in the block pin the guard injects. The real corroboration story is narrower and true: same block, same rows, and on a false claim, different conclusions.
 
 ## The problem
 
@@ -57,7 +57,7 @@ Beside the box, dimmed and explicitly labelled: **what did not cross out.** The 
 
 Non-negotiable, inherited from the existing component: redaction bars stay **empty CSS-sized elements with an `aria-label`**. Never invented placeholder strings. We tore those out once already.
 
-### A4. The appeal fork
+### A4. The appeal fork ✅
 
 Scene 2 is the best scene and its most dramatic moment is currently a single line reading `PanelSeated`. The spine should **fork into three parallel lanes** which then vote, and visibly re-converge into `PanelUpheld` / `PanelOverturned`. Panel members come from `appealOf(claimId).panel`.
 
@@ -67,11 +67,11 @@ Listed as cut in [`plan.md`](../plan.md) T6; it is the ENS payoff and it is curr
 
 This is the emotional close of the whole story — *the punishment is that nobody will let you judge anymore* — and it costs one animated bar.
 
-### A6. Scrub bar
+### A6. Scrub bar ✅
 
 Replace play/pause/step with a horizontal time axis carrying real durations, draggable, with the beats marked. For recording you want to jump to the interesting eight seconds, not sit through a ninety-second challenge window in real time.
 
-### A7. Narration line per beat
+### A7. Narration line per beat ✅
 
 One sentence of plain English under each step, so the page carries itself when a judge opens it without you talking over it, and so the video needs less voiceover.
 
@@ -85,19 +85,21 @@ Fix: alongside `publishBundle(bundle)`, write `evidence-archive/<claimId>.json` 
 
 **Decide before doing this.** Writing the bundle to a public file after settlement is a deliberate disclosure and should be recorded as a decision in [`decisions.md`](decisions.md), not slipped in. The argument for: confidentiality is a property of the *adjudication window*, not of eternity, and a verdict nobody can audit afterwards is worth less than one they can. The argument against: the project uses the word "sealed" a great deal and a reviewer should not have to work out which sense we mean. Whichever way it goes, say so on the page.
 
-### B1. The two queries, side by side ◐ *(each query is shown in its own lane behind a toggle; not yet side by side with differing lines marked)*
+### B1. The two queries, side by side ✅ *(token-level, not line-level — see below)*
 
 **This is the money shot and it is completely absent today.** Two different GraphQL documents, composed independently by two LLM agents, against different deployment IDs, arriving at the same number. Show them in the lanes as they are written, with the differing lines marked.
 
+*Built differently in two ways.* The diff is **token-level**, because each composed document is a single line and a line diff marks everything while communicating nothing. And the documents are not as different as this paragraph assumed: both agents independently choose the same fields from the same schema, and what differs is the block argument the guard injects into the witness's read. That is a smaller claim and a truer one — it shows the witness replaying against the block the claimant read.
+
 Nothing else on the site makes the case as directly. A viewer who sees this understands in one glance both what corroboration means and why an RPC cannot offer it.
 
-### B2. The number line
+### B2. The number line ✅
 
 Retire the words `Match` / `Mismatch` as the primary signal and plot the two derived values against the tolerance band. Inside the band is a match; scene 2's fabricated claim sits visibly outside it. A number line is understood in about half a second, where a verdict word has to be explained.
 
 Keep the word as a label — it is what the contract stores — but let the geometry carry the meaning.
 
-### B3. The pinned block, shown once
+### B3. The pinned block, shown once ✅ *(stamped on each agent's card rather than once between them)*
 
 Both lanes stamped with the same block height, sourced from the attestation. It is the answer to the most common sceptical question — *how do you know they were even looking at the same thing* — and it is one line of type.
 
@@ -112,10 +114,17 @@ Both lanes stamped with the same block height, sourced from the attestation. It 
 
 ## Suggested order
 
-`A1 → A2 → A3 → A5` was the coherent minimum and is done, as are `B0` and most of `B1`. The page now runs from the claimant's first read to the standing drop.
+All of it is done. The page runs from the claimant's first read to the standing drop.
 
-`B2` (the number line) is the strongest remaining addition: the two values are already on the seal panel as figures, and plotting them against the tolerance band would let the geometry carry what the word `Mismatch` currently has to explain.
+**One thing this spec did not anticipate.** Building it surfaced eight defects, because drawing the flow honestly meant the data had to be honest first:
 
-`A4`, `A6`, `A7`, `B3` remain additive and can be dropped without leaving a hole.
+1. The claim was bonded to a hardcoded hash rather than to what the agent said.
+2. The claimant drafted *after* bonding, so the bond committed to nothing.
+3. The witness submission was not tied to the drawn agent.
+4. The panel was seated as `seat-a/b/c`, so findings could not be attributed either.
+5. The panel phase re-derived the witness and overwrote the record with a later read.
+6. Archived queries did not hash to their own `queryHash`.
+7. Scenes carried on when VRF had not assigned.
+8. A spelling variant in a model-authored metric name failed a scene closed.
 
-**One thing this spec did not anticipate.** Building it surfaced six defects in the runner, because drawing the flow honestly meant the data had to be honest first: the claim was bonded to a hardcoded hash rather than to what the agent said, the claimant drafted *after* bonding, the witness submission was not tied to the drawn agent, the panel phase re-derived the witness and corrupted the record, archived queries did not hash to their own `queryHash`, and scenes carried on when VRF had not assigned. All are fixed. A visualisation that refuses to draw anything it cannot source turns out to be a decent test harness.
+All fixed. Two of them — the bonded hash and the panel seating — were gaps in what the protocol could prove about itself, not merely in what the page could draw. A visualisation that refuses to render anything it cannot source turns out to be a decent test harness.
