@@ -174,11 +174,14 @@ const SCRIPT: Record<
     label: "Claim submitted, bond escrowed",
     note: "The claimant states a figure it derived from an indexer and stakes ETH on it. The call takes a subject and a commitment; there is no parameter for a witness.",
   },
+  // The draw is a protocol act, but the moment belongs to the witness: it is
+  // when the witness enters, having had no say in it. The mechanics of the draw
+  // itself are shown on the spine at this same row.
   WitnessAssigned: {
-    lane: "spine",
+    lane: "witness",
     kind: "draw",
-    label: "VRF drew the witness",
-    note: "Chainlink returns a random word and the roster walks from it to the first eligible agent that is not the claimant.",
+    label: "Drawn as witness by VRF",
+    note: "The witness did not volunteer and cannot decline. Assignment is pushed to it by a random draw it had no way to influence.",
   },
   VerdictRecorded: {
     lane: "spine",

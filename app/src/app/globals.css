@@ -1004,3 +1004,153 @@ body::after {
   .standing-num { font-size: 1.6rem; }
   .standing-scale { margin-right: 4.2rem; }
 }
+
+
+/* ══ Replay lanes ═════════════════════════════════════════════════════════
+   Two lanes and a centre spine, replacing the single stage column.
+
+   The one rule this layout must never break: nothing connects the claimant
+   lane to the witness lane. No arrow, no rule crossing the spine, no row that
+   spans both. The two agents cannot reach each other in the protocol, and a
+   connector drawn here would assert otherwise.
+
+   The lanes face the spine — the claimant's rule runs down the right of its
+   column, the witness's down the left of its — so they read as two parties
+   addressing the chain rather than addressing each other. */
+
+.lanes {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.2fr) 1fr;
+  column-gap: clamp(0.9rem, 2.6vw, 2.2rem);
+  align-items: start;
+  margin-top: 1.6rem;
+}
+
+.lane-head {
+  grid-row: 1;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 0.7rem;
+}
+.lane-head.claimant { grid-column: 1; text-align: right; }
+.lane-head.spine    { grid-column: 2; color: var(--ink-2); }
+.lane-head.witness  { grid-column: 3; }
+
+.lane-rule { width: 1px; background: var(--rule); justify-self: start; height: 100%; }
+.lane-rule.claimant { grid-column: 1; justify-self: end; }
+.lane-rule.spine    { grid-column: 2; background: var(--ink); opacity: 0.28; }
+.lane-rule.witness  { grid-column: 3; }
+
+.lane-beat {
+  position: relative;
+  padding: 0.55rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  transition: opacity 0.5s var(--quart), color 0.5s var(--quart);
+}
+.lane-beat.claimant { grid-column: 1; text-align: right; padding-right: 1.1rem; }
+.lane-beat.spine    { grid-column: 2; padding-left: 1.1rem; }
+.lane-beat.witness  { grid-column: 3; padding-left: 1.1rem; }
+
+/* The marker sits ON the lane's own rule, never between two lanes. */
+.lane-dot {
+  position: absolute;
+  top: 0.85rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--muted);
+  transition: background-color 0.4s var(--quart), border-color 0.4s var(--quart);
+}
+.lane-beat.claimant .lane-dot { right: -3.5px; }
+.lane-beat.spine .lane-dot,
+.lane-beat.witness .lane-dot { left: -3.5px; }
+
+/* The column headers carry this on desktop; the tag is for the stacked layout. */
+.lane-tag {
+  display: none;
+  font-size: 0.6rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.lane-label { margin: 0; line-height: 1.45; }
+.lane-detail { margin: 0.3rem 0 0; color: var(--muted); line-height: 1.45; }
+.lane-tx {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Idle is muted, never faded. At 0.4 the whole board read as disabled before
+   playback started, which is how a judge first sees the page. The stage list it
+   replaces had already learned this and set colour rather than opacity. */
+.lane-beat[data-state="idle"] { color: var(--muted); }
+.lane-beat[data-state="idle"] .lane-label { color: var(--muted); }
+.lane-beat[data-state="done"] { color: var(--ink); }
+.lane-beat[data-state="done"] .lane-dot { background: var(--accent); border-color: var(--accent); }
+.lane-beat[data-state="active"] { opacity: 1; }
+.lane-beat[data-state="active"] .lane-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-beat, .lane-dot { transition: none; }
+}
+
+/* Under 900px the three columns stack into one, and the lane tag on every card
+   carries the side the layout can no longer show. */
+/* The one interval on this page with no transaction behind it, marked as such.
+   Dashed, dotless and hashless on purpose — every other element here links to a
+   tx, and this must not be mistakable for one. */
+.lane-offchain {
+  grid-column: 3;
+  align-self: center;
+  margin-left: 1.1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--muted);
+  transition: border-color 0.5s var(--quart);
+}
+.lane-offchain p { margin: 0; }
+.lane-offchain-note { margin-top: 0.35rem !important; opacity: 0.8; }
+.lane-offchain[data-state="done"] { border-color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) { .lane-offchain { transition: none; } }
+
+@media (max-width: 900px) {
+  .lanes { grid-template-columns: 1fr; }
+  .lane-head { display: none; }
+  .lane-rule { display: none; }
+  .lane-beat,
+  .lane-beat.claimant,
+  .lane-beat.spine,
+  .lane-beat.witness {
+    grid-column: 1;
+    grid-row: auto !important;
+    text-align: left;
+    padding: 0.75rem 0 0.75rem 1.1rem;
+    border-left: 1px solid var(--rule);
+  }
+  .lane-beat.spine { border-left-color: var(--ink); }
+  .lane-beat .lane-dot { left: -3.5px; right: auto; top: 1.05rem; }
+  .lane-tag { display: block; }
+  /* Base rule pins this to column 3; without the override the implicit
+     columns it creates survive the stack and squeeze column 1 to nothing. */
+  .lane-offchain {
+    grid-column: 1;
+    grid-row: auto !important;
+    margin: 0.4rem 0 0.4rem 1.1rem;
+  }
+}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ReplayScript } from "@/lib/replay";
+import Lanes from "./Lanes";
 import Standing from "./Standing";
 
 const EXPLORER = "https://sepolia.etherscan.io";
@@ -100,27 +101,7 @@ export default function Replay({ script }: { script: ReplayScript }) {
         <span style={{ transform: `scaleX(${steps.length ? at / steps.length : 0})` }} />
       </div>
 
-      <div className="stages">
-        {steps.map((s, i) => {
-          const state = i < at ? "done" : i === at ? (playing ? "active" : "idle") : "idle";
-          return (
-            <div className="stage" data-state={state} key={s.key}>
-              <span className="dot" aria-hidden="true">{i < at ? "●" : "○"}</span>
-              <span>
-                {s.label}
-                {s.detail && <span className="muted"> &mdash; {s.detail}</span>}
-              </span>
-              {i < at ? (
-                <a className="when" href={`${EXPLORER}/tx/${s.tx}`} target="_blank" rel="noreferrer">
-                  +{s.gap}s &middot; {s.tx.slice(0, 10)}&hellip;
-                </a>
-              ) : (
-                <span className="when">&nbsp;</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <Lanes script={script} at={at} playing={playing} />
 
       {/*
         Rendered whenever the chain recorded a standing write for this claim. A
