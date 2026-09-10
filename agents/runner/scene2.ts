@@ -80,7 +80,13 @@ for (const seat of ap.panel) {
 p.note("Neither party is on the panel, and the seats run different models.");
 
 p.step("The panel re-derives, independently of the first witness");
-panelEvidence(String(claimId));
+panelEvidence(
+  String(claimId),
+  ap.panel.map((seat) => ({
+    name: AGENTS.find((a) => addressOf(a).toLowerCase() === seat.toLowerCase())?.name ?? seat,
+    address: seat,
+  })),
+);
 p.verdict(runTribunal("panel"), "Three independent derivations, majority stands.");
 
 p.step("Settlement");

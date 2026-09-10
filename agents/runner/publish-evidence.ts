@@ -168,12 +168,30 @@ if (phase === "draft") {
   };
 
   if (withPanel) {
-    const members = ["seat-a", "seat-b", "seat-c"];
+    /*
+     * Seat the agents the chain drew, not three placeholder labels.
+     *
+     * This used to pass ["seat-a", "seat-b", "seat-c"], which are model
+     * assignments and had no connection to the addresses VRF seated — so a
+     * finding could not be attributed to whoever produced it, and the replay
+     * could not honestly show a panel voting. Same gap the witness submission
+     * had. Passed as name=address pairs so the archive keeps both.
+     */
+    const seated = (process.argv[4] ?? "").split(",").filter(Boolean);
+    if (seated.length === 0) throw new Error("panel phase needs the drawn seats: name=0xaddr,name=0xaddr,…");
+
+    const members = seated.map((s) => s.split("=")[1] ?? s);
+    const names = new Map(seated.map((s) => [s.split("=")[1] ?? s, s.split("=")[0] ?? ""]));
+
     const findings = await runPanel(asClaim, seatPanel(members));
-    bundle.panel = findings.map((f) => ({ member: f.member, submission: f.submission }));
+    bundle.panel = findings.map((f) => ({
+      member: f.member,
+      name: names.get(f.member),
+      submission: f.submission,
+    }));
     console.log("PANEL:");
     for (const f of findings) {
-      console.log(`  ${f.member} → ${f.submission.attestation?.assertion.value ?? f.submission.unverifiableReason}`);
+      console.log(`  ${names.get(f.member) ?? f.member} → ${f.submission.attestation?.assertion.value ?? f.submission.unverifiableReason}`);
     }
   }
 
@@ -232,6 +250,6 @@ if (phase === "draft") {
 } else {
   console.error("usage: publish-evidence.ts draft   <claimId> [honest|false]");
   console.error("       publish-evidence.ts witness <claimId> <witnessName> <witnessAddr>");
-  console.error("       publish-evidence.ts panel   <claimId>");
+  console.error("       publish-evidence.ts panel   <claimId> <name=0xaddr,name=0xaddr,…>");
   process.exit(1);
 }

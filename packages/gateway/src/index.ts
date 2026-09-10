@@ -18,8 +18,15 @@ export interface EvidenceBundle {
   claimId: string;
   claim: SealedSubmission;
   witness: SealedSubmission;
-  /** Panel seats, present only for an appeal. */
-  panel?: { member: string; submission: SealedSubmission }[];
+  /**
+   * Panel seats, present only for an appeal.
+   *
+   * `member` is the address VRF drew, not a seat label. It used to be "seat-a",
+   * "seat-b", "seat-c" — model assignments with no connection to the agents the
+   * chain actually seated, so nothing tied a finding to whoever produced it.
+   * That is the same gap the witness submission had.
+   */
+  panel?: { member: string; name?: string; submission: SealedSubmission }[];
   /**
    * The agent VRF actually drew.
    *

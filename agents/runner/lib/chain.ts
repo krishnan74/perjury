@@ -219,10 +219,16 @@ export function witnessEvidence(claimId: string, witnessName: string, witnessAdd
  * reading after the panel had been seated — and an appeal reviews what the
  * tribunal actually read, not a fresh answer to the same question.
  */
-export function panelEvidence(claimId: string): string {
+export function panelEvidence(claimId: string, seats: { name: string; address: string }[]): string {
   return execFileSync(
     "npx",
-    ["tsx", "agents/runner/publish-evidence.ts", "panel", claimId],
+    [
+      "tsx",
+      "agents/runner/publish-evidence.ts",
+      "panel",
+      claimId,
+      seats.map((s) => `${s.name}=${s.address}`).join(","),
+    ],
     { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
   );
 }
