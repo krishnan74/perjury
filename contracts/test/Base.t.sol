@@ -22,6 +22,9 @@ contract Base is Test {
     MockResolver internal resolver;
 
     address internal constant CRE = address(0xC2E);
+    /// @dev The second Forwarder. Chainlink runs one for DON execution and one
+    ///      for the CLI simulator, and the sink has to accept both.
+    address internal constant ALT_CRE = address(0xC2E2);
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
     address internal carol = makeAddr("carol");
@@ -43,7 +46,7 @@ contract Base is Test {
         writer = new PerjuryStandingWriter(
             ITextResolver(address(resolver)), IClaimRegistry(address(registry)), IWitnessRoster(address(roster))
         );
-        sink = new VerdictSink(CRE, IClaimRegistry(address(registry)), IStandingWriter(address(writer)));
+        sink = new VerdictSink(CRE, ALT_CRE, IClaimRegistry(address(registry)), IStandingWriter(address(writer)));
 
         roster.wireRegistry(IClaimRegistry(address(registry)));
         registry.wireSink(address(sink), address(writer));

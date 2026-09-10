@@ -365,4 +365,29 @@ contract ClaimRegistry is IClaimRegistry {
     function claimOf(uint256 claimId) external view returns (Claim memory) {
         return _claims[claimId];
     }
+
+    /// @dev How far back `pendingForTribunal` will look. A view call still runs
+    ///      under the node's eth_call gas cap, so the scan has to be bounded.
+    uint256 public constant TRIBUNAL_SCAN_WINDOW = 256;
+
+    /// @notice The oldest claim the tribunal still owes work on, and which kind.
+    /// @dev Exists so a deployed CRE workflow can discover its own work instead
+    ///      of carrying a claim id in its deploy-time config. A workflow whose
+    ///      subject is fixed at deploy time can only ever adjudicate one claim,
+    ///      which is fine for a scripted demo and useless for a live submission.
+    /// @dev Returns kind 0 for an initial adjudication and kind 1 for an appeal,
+    ///      matching VerdictSink.KIND_VERDICT and KIND_PANEL. claimId 0 means
+    ///      there is nothing to do.
+    /// @dev An appeal is only ready once its panel is seated; before that the
+    ///      VRF request is still in flight and there is no one to adjudicate.
+    function pendingForTribunal() external view returns (uint256 claimId, uint8 kind) {
+        uint256 last = nextClaimId;
+        uint256 first = last > TRIBUNAL_SCAN_WINDOW ? last - TRIBUNAL_SCAN_WINDOW : 1;
+        for (uint256 i = first; i < last; ++i) {
+            Status s = _claims[i].status;
+            if (s == Status.WitnessAssigned) return (i, 0);
+            if (s == Status.UnderAppeal && _appeals[i].panel.length > 0) return (i, 1);
+        }
+        return (0, 0);
+    }
 }

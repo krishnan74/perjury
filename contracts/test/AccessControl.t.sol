@@ -8,7 +8,7 @@ import {ClaimRegistry} from "../src/ClaimRegistry.sol";
 import {WitnessRoster} from "../src/WitnessRoster.sol";
 import {VerdictSink} from "../src/VerdictSink.sol";
 import {PerjuryStandingWriter} from "../src/PerjuryStandingWriter.sol";
-import {Verdict, Status} from "../src/interfaces/IPerjury.sol";
+import {Verdict, Status, IClaimRegistry, IStandingWriter} from "../src/interfaces/IPerjury.sol";
 
 contract AccessControlTest is Base {
     function test_recordVerdict_fromEOA_reverts() public {
@@ -32,6 +32,38 @@ contract AccessControlTest is Base {
         vm.prank(operator);
         vm.expectRevert(VerdictSink.NotTribunal.selector);
         sink.onReport("", abi.encode(uint8(0), id, uint8(Verdict.Match), bytes32(0)));
+    }
+
+    /// @dev Chainlink runs two Forwarders per chain for a tenant: one for a
+    ///      workflow deployed to the DON, one for the CLI simulator. The address
+    ///      is immutable and the registry's pointer at this sink locks on first
+    ///      wiring, so picking one at deployment would bet the whole demo on
+    ///      that execution path continuing to work.
+    function test_onReport_fromTheSecondForwarder_isAccepted() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(1, 1);
+        vm.prank(ALT_CRE);
+        sink.onReport("", abi.encode(uint8(0), id, uint8(Verdict.Match), keccak256("evidence")));
+        assertEq(uint8(registry.claimOf(id).verdict), uint8(Verdict.Match));
+    }
+
+    /// @dev Two doors, not any door. The second address widens the set by
+    ///      exactly one known Forwarder and nothing else.
+    function test_onReport_fromAThirdAddress_stillReverts() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(1, 1);
+        vm.prank(mallory);
+        vm.expectRevert(VerdictSink.NotTribunal.selector);
+        sink.onReport("", abi.encode(uint8(0), id, uint8(Verdict.Match), bytes32(0)));
+    }
+
+    /// @dev Passing zero collapses the two doors into one, so a deployment that
+    ///      wants a single authorised sender does not need a different contract.
+    function test_zeroSecondForwarderCollapsesToOneDoor() public {
+        VerdictSink single =
+            new VerdictSink(CRE, address(0), IClaimRegistry(address(registry)), IStandingWriter(address(writer)));
+        assertEq(single.CRE_REPORT_WRITER(), CRE);
+        assertEq(single.ALT_REPORT_WRITER(), CRE, "collapses rather than authorising address(0)");
     }
 
     function test_onWitnessAssigned_fromEOA_reverts() public {

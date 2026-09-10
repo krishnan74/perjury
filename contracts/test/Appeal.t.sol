@@ -191,4 +191,71 @@ contract AppealTest is Base {
         vm.expectRevert();
         registry.appeal{value: 0.02 ether}(id);
     }
+
+    // ── Tribunal work discovery ─────────────────────────────────────────────
+    //
+    // A deployed workflow carries its config from deploy time, so a claim id in
+    // that config pins it to one claim forever. These cover the view it reads
+    // instead.
+
+    function test_pendingForTribunal_nothingToDo() public view {
+        (uint256 id, uint8 kind) = registry.pendingForTribunal();
+        assertEq(id, 0, "no claims, nothing pending");
+        assertEq(kind, 0);
+    }
+
+    function test_pendingForTribunal_ignoresAClaimStillAwaitingVrf() public {
+        uint256 id = _submit(alice);
+        (uint256 found,) = registry.pendingForTribunal();
+        assertEq(found, 0, "no witness drawn yet, so there is nothing to adjudicate");
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        (found,) = registry.pendingForTribunal();
+        assertEq(found, id, "assigning the witness is what makes it the tribunal's work");
+    }
+
+    function test_pendingForTribunal_clearsOnceAdjudicated() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        _report(id, Verdict.Match);
+        (uint256 found,) = registry.pendingForTribunal();
+        assertEq(found, 0, "a verdict is recorded, so the tribunal owes nothing");
+    }
+
+    function test_pendingForTribunal_reportsAnAppealAsKindPanel() public {
+        (uint256 id,) = _appealed(Verdict.Mismatch);
+        (uint256 found, uint8 kind) = registry.pendingForTribunal();
+        assertEq(found, id);
+        assertEq(kind, 1, "a seated appeal is judged by the panel, not the witness");
+    }
+
+    /// @dev Before the panel VRF fulfils there is no one to adjudicate, and
+    ///      handing the workflow the claim anyway would make it fetch evidence
+    ///      that does not exist yet on every tick.
+    function test_pendingForTribunal_waitsForThePanelToBeSeated() public {
+        uint256 id = _submit(alice);
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        _report(id, Verdict.Mismatch);
+        vm.deal(alice, alice.balance + 0.02 ether);
+        vm.prank(alice);
+        registry.appeal{value: 0.02 ether}(id);
+        (uint256 found,) = registry.pendingForTribunal();
+        assertEq(found, 0, "appealed but the panel draw is still in flight");
+        vrf.fulfill(vrf.nextRequestId() - 1, uint256(keccak256("panel")));
+        (found,) = registry.pendingForTribunal();
+        assertEq(found, id, "seated, so now it is adjudicable");
+    }
+
+    /// @dev Oldest first, so a backlog drains in order rather than starving the
+    ///      claim that has been waiting longest.
+    function test_pendingForTribunal_returnsTheOldestOutstandingClaim() public {
+        uint256 first = _submit(alice);
+        vrf.fulfill(vrf.nextRequestId() - 1, 1);
+        uint256 second = _submit(bob);
+        vrf.fulfill(vrf.nextRequestId() - 1, 2);
+        (uint256 found,) = registry.pendingForTribunal();
+        assertEq(found, first, "oldest first");
+        _report(first, Verdict.Match);
+        (found,) = registry.pendingForTribunal();
+        assertEq(found, second, "and it moves on once that one is answered");
+    }
 }

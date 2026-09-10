@@ -13,6 +13,8 @@ import {IClaimRegistry, IStandingWriter} from "../src/interfaces/IPerjury.sol";
 contract DeploySink is Script {
     function run() external {
         address creWriter = vm.envAddress("CRE_REPORT_WRITER");
+        // Optional. Unset means one door, which is the old behaviour.
+        address altWriter = vm.envOr("CRE_ALT_REPORT_WRITER", address(0));
         ClaimRegistry registry = ClaimRegistry(payable(vm.envAddress("CLAIM_REGISTRY_ADDRESS")));
         PerjuryStandingWriter writer = PerjuryStandingWriter(vm.envAddress("STANDING_WRITER_ADDRESS"));
 
@@ -21,13 +23,14 @@ contract DeploySink is Script {
 
         vm.startBroadcast();
         VerdictSink sink = new VerdictSink(
-            creWriter, IClaimRegistry(address(registry)), IStandingWriter(address(writer))
+            creWriter, altWriter, IClaimRegistry(address(registry)), IStandingWriter(address(writer))
         );
         registry.wireSink(address(sink), address(writer));
         writer.wireSink(address(sink));
         vm.stopBroadcast();
 
         console.log("VerdictSink       ", address(sink));
-        console.log("accepts reports from (immutable):", creWriter);
+        console.log("accepts reports from (immutable):", sink.CRE_REPORT_WRITER());
+        console.log("and also from (immutable):       ", sink.ALT_REPORT_WRITER());
     }
 }

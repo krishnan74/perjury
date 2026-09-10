@@ -48,8 +48,12 @@ contract Deploy is Script {
             ITextResolver(resolver), IClaimRegistry(address(registry)), IWitnessRoster(address(roster))
         );
 
-        VerdictSink sink =
-            new VerdictSink(creWriter, IClaimRegistry(address(registry)), IStandingWriter(address(writer)));
+        VerdictSink sink = new VerdictSink(
+            creWriter,
+            vm.envOr("CRE_ALT_REPORT_WRITER", address(0)),
+            IClaimRegistry(address(registry)),
+            IStandingWriter(address(writer))
+        );
 
         // One-time wiring. Every one of these reverts forever after.
         roster.wireRegistry(IClaimRegistry(address(registry)));
