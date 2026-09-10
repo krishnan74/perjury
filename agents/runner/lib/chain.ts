@@ -146,12 +146,43 @@ export function runTribunal(kind: "verdict" | "panel" = "verdict"): string {
   return m ? VERDICT[Number(m[1])] ?? "?" : "?";
 }
 
-/** Publish real agent submissions and point the tribunal at them. */
-export function publishEvidence(claimId: string, honesty: "honest" | "false", panel = false): string {
-  const args = ["tsx", "agents/runner/publish-evidence.ts", claimId, honesty];
+/**
+ * Phase one: the claimant drafts, before any bond is posted.
+ *
+ * Returns the claim text and the keccak hash of it. The scene bonds THAT hash,
+ * so what is at stake is a specific sentence rather than a placeholder constant
+ * that meant the same thing on every run.
+ */
+export function draftEvidence(
+  claimId: string,
+  honesty: "honest" | "false",
+): { out: string; text: string; claimHash: `0x${string}` } {
+  const out = execFileSync(
+    "npx",
+    ["tsx", "agents/runner/publish-evidence.ts", "draft", claimId, honesty],
+    { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
+  );
+  const text = out.match(/^CLAIM_TEXT (.*)$/m)?.[1]?.trim();
+  const claimHash = out.match(/^CLAIM_HASH (0x[0-9a-fA-F]{64})$/m)?.[1];
+  if (!text || !claimHash) throw new Error(`draft phase produced no claim hash:\n${out}`);
+  return { out, text, claimHash: claimHash as `0x${string}` };
+}
+
+/**
+ * Phase two: the drawn witness derives its own answer, then both are published.
+ *
+ * Takes the agent VRF drew so the submission is attributable. Runs only after
+ * assignment, which is the order the protocol actually specifies.
+ */
+export function witnessEvidence(
+  claimId: string,
+  witnessName: string,
+  witnessAddr: string,
+  panel = false,
+): string {
+  const args = ["tsx", "agents/runner/publish-evidence.ts", "witness", claimId, witnessName, witnessAddr];
   if (panel) args.push("--panel");
-  const out = execFileSync("npx", args, { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 });
-  return out;
+  return execFileSync("npx", args, { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 });
 }
 
 /**

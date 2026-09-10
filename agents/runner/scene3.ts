@@ -50,7 +50,10 @@ for (let i = 0; i < rounds; i++) {
   const id = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "nextClaimId" });
   const hash = await signer.writeContract({
     address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
-    args: [keccak256(toBytes(`collusion-round-${i}`)), keccak256(toBytes("claim"))],
+    // These claims exist only to exercise the draw and are never adjudicated,
+    // so there is no drafted sentence to bind. Distinct per round rather than
+    // one constant, so no two probes share a claim hash.
+    args: [keccak256(toBytes(`collusion-round-${i}`)), keccak256(toBytes(`collusion-probe-${i}`))],
     value: BOND,
   });
   await pub.waitForTransactionReceipt({ hash });

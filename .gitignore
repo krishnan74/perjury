@@ -46,6 +46,9 @@ node_modules/
 # stray screenshots
 Screenshot*.png
 
+# evidence staging, between the draft and witness phases
+.evidence/
+
 # local working notes
 docs/sponsor-questions.md
 docs/tracks.md

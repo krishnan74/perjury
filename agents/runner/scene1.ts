@@ -12,7 +12,8 @@ import { dnsEncode } from "@perjury/ens";
 import * as p from "./lib/present";
 import {
   AGENTS, BOND, REGISTRY, REGISTRY_ABI, VERDICT, account, addressOf, claim, op, pub,
-  claimantFor, preflight, publishEvidence, rosterSnapshot, runTribunal, standingOf, walletFor,
+  claimantFor, draftEvidence, preflight, rosterSnapshot, runTribunal, standingOf, walletFor,
+  witnessEvidence,
 } from "./lib/chain";
 import { keccak256, toBytes } from "viem";
 
@@ -33,12 +34,18 @@ p.note("Any of these could be drawn as the witness. The claimant does not get a 
 const before = await standingOf(CLAIMANT);
 const claimId = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "nextClaimId" });
 
-p.step("The claimant posts a claim, and bonds it");
+p.step("The claimant reads live Graph data and drafts its claim");
+p.note("Nothing is bonded yet. The agent decides what it is willing to stake on before it stakes.");
+const draft = draftEvidence(String(claimId), "honest");
+p.assertion("CLAIMANT", draft.text, `${round2(draft.out.match(/asserts ([\d.]+)%/)?.[1])}%`, p.c.cyan);
+
+p.step("The claimant posts that exact claim, and bonds it");
 p.line("claimant", `${CLAIMANT}  ${who.address.slice(0, 12)}…`);
+p.line("claimHash", `${draft.claimHash.slice(0, 18)}…  = keccak256 of the sentence above`);
 p.line("bond", "0.010 ETH   (+ 0.002 witness fee)");
 const submitHash = await signer.writeContract({
   address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
-  args: [keccak256(toBytes("aave-v3-ethereum:utilization")), keccak256(toBytes("utilization above threshold"))],
+  args: [keccak256(toBytes("aave-v3-ethereum:utilization")), draft.claimHash],
   value: BOND,
 });
 await pub.waitForTransactionReceipt({ hash: submitHash });
@@ -52,11 +59,11 @@ const witnessAgent = AGENTS.find((a) => addressOf(a).toLowerCase() === c.witness
 p.line("witness drawn", `${witnessAgent?.name ?? c.witness}  ${c.witness.slice(0, 12)}…`, p.c.cyan);
 p.line("is it the claimant?", c.witness.toLowerCase() === who.address.toLowerCase() ? "YES — BROKEN" : "no", p.c.green);
 
-p.step("Both agents derive an answer from live Graph data, independently");
-p.note("Separate processes, separate keys, no channel between them.");
-const out = publishEvidence(String(claimId), "honest");
-const claimantLine = out.match(/CLAIMANT.*?: "(.*?)"/)?.[1] ?? "";
-const claimantVal = out.match(/asserts ([\d.]+)%/)?.[1] ?? "?";
+p.step("The drawn witness derives its own answer, independently");
+p.note("Separate process, separate key, no channel to the claimant. It reads the block the claimant read.");
+const out = witnessEvidence(String(claimId), witnessAgent?.name ?? "unknown", c.witness);
+const claimantLine = draft.text;
+const claimantVal = draft.out.match(/asserts ([\d.]+)%/)?.[1] ?? "?";
 const witnessVal = round2(out.match(/derives ([\d.]+)/)?.[1]);
 p.assertion("CLAIMANT", claimantLine, `${claimantVal}%`, p.c.blue);
 p.assertion("WITNESS", "independently re-derived from Aave v3 via The Graph", `${witnessVal}%`, p.c.magenta);

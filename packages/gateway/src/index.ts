@@ -18,6 +18,18 @@ export interface EvidenceBundle {
   witness: SealedSubmission;
   /** Panel seats, present only for an appeal. */
   panel?: { member: string; submission: SealedSubmission }[];
+  /**
+   * The agent VRF actually drew.
+   *
+   * The witness submission used to be anonymous, so nothing connected the
+   * evidence the tribunal read to the agent the chain had assigned. Recording it
+   * lets the archive be checked against WitnessAssigned. The tribunal does not
+   * yet verify this itself; that would need it to read chain state.
+   */
+  witnessAgent?: { name: string; address: string };
+  /** The claim as drafted. keccak256 of this is what the claimant bonded. */
+  claimText?: string;
+  claimHash?: string;
 }
 
 /**
