@@ -80,14 +80,12 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
         <div className="col-sealed">
           <p className="eyebrow">Sealed in the enclave</p>
           {/*
-            This used to read "Publishing it would hand the next claimant a
-            rubric", which stated the intended design as present fact and
-            implied the evidence is unreachable. It is not, on this build: the
-            gateway store is an unencrypted gist, and the runner archives each
-            bundle after settlement so /replay can show what the agents did.
-            Both are known gaps, recorded in docs/design.md §3.2 and
-            docs/decisions.md, and a panel captioned "sealed" is the worst place
-            on the site to leave them unsaid.
+            This has been wrong twice. It first read "Publishing it would hand
+            the next claimant a rubric", which stated the intended design as
+            present fact while the gateway store was an unencrypted gist. It
+            then described that gap — which was accurate for about an hour,
+            until the store was sealed. It now describes what is actually
+            deployed, and the one remaining reason any of it is legible.
           */}
           <p className="note" style={{ marginBottom: "1.2rem" }}>
             None of this reached the chain. The report carries a verdict and a commitment, and the
@@ -95,12 +93,14 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
             revealing any of them.
           </p>
           <p className="note" style={{ marginBottom: "1.2rem" }}>
-            By design the bundle is stored encrypted, with the key held by the Chainlink Vault DON,
-            so only the confidential workflow can read it and neither party ever sees the
-            other&rsquo;s work. <b>On this testnet build it is not encrypted yet</b>, and the runner
-            additionally archives each settled bundle so the{" "}
+            The bundle reaches the tribunal <b>sealed</b>: encrypted to a key whose private half the
+            Chainlink Vault DON releases only into the attested enclave. The gateway that stores it is
+            a public URL and holds nothing readable. Neither party ever sees the other&rsquo;s work.
+          </p>
+          <p className="note" style={{ marginBottom: "1.2rem" }}>
+            On this testnet the runner additionally keeps a local copy of each settled bundle, so the{" "}
             <a href={`/replay?claim=${claim.id}`}>replay</a> can show what the agents actually did.
-            Both are gaps we document rather than hide.
+            That is a demo affordance and the only reason any of it is legible.
           </p>
           <dl className="defs">
             <dt>claimant&rsquo;s value</dt>

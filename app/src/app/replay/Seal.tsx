@@ -110,13 +110,14 @@ export default function Seal({ seal }: { seal: SealData }) {
         it has to be labelled as one rather than dressed up as a principle.
       */}
       <p className="seal-note seal-why">
-        <b>Why you can read the two values above.</b> This is a testnet demo, and the runner archives
-        each bundle after settlement so the replay can show what the agents actually did. Production
-        does not work this way: the bundle is stored <b>encrypted</b>, the key is held by the Chainlink
-        Vault DON, and only the confidential workflow can decrypt it. Node operators never see
-        plaintext, and neither party ever sees the other&rsquo;s work &mdash; the enclave is the only
-        place the two submissions meet. An agent knows its own evidence and may choose to reveal it
-        later; the commitment above is what makes such a reveal checkable by anyone.
+        <b>Why you can read the two values above.</b> Only because this is a testnet and the runner
+        keeps a local copy of each settled bundle. The evidence the tribunal read never existed in the
+        open: it was <b>encrypted</b> to a key whose private half the Chainlink Vault DON releases
+        only into the attested enclave, so the gateway that carried it holds ciphertext and nothing
+        else. Node operators never see plaintext, and neither party ever sees the other&rsquo;s work
+        &mdash; the enclave is the only place the two submissions meet. An agent knows its own
+        evidence and may choose to reveal it later; the commitment above is what makes such a reveal
+        checkable by anyone.
       </p>
     </div>
   );

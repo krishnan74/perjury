@@ -68,9 +68,10 @@ export default async function ReplayPage({
       {script.archive && (
         <p className="note demo-note">
           <b>Testnet demo.</b> The agents&rsquo; queries and values are readable here because the
-          runner archives each bundle after settlement. In production they are not published: the
-          bundle is stored encrypted, the key is held by the Chainlink Vault DON, and only the
-          confidential workflow can decrypt it. Neither party ever sees the other&rsquo;s work.
+          runner keeps a local copy of each settled bundle. The evidence itself travels sealed: it is
+          encrypted to a key the Chainlink Vault DON releases only into the enclave, so the gateway
+          holds ciphertext and neither party ever sees the other&rsquo;s work. Verify it yourself with{" "}
+          <span className="mono">npx tsx scripts/prove-sealed.ts</span>.
         </p>
       )}
 
