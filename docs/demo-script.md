@@ -17,12 +17,16 @@ cd app && npx next dev -p 3111
 | Tab | URL | State |
 |---|---|---|
 | 1 | `localhost:3111/` | scrolled to the very top |
-| 2 | `localhost:3111/replay?claim=25` | **speed 10×**, not played, scrolled to top |
+| 2 | `localhost:3111/replay?claim=25` | not started, scrolled to top |
 
-- **10× is the setting that matters.** Claim 25 is 6m10s of real chain time; 10× makes it ~37 seconds of playback. 30× is 12 seconds and you will be talking over a finished animation.
+**Use the step pad, not Play.** There is a small fixed control on the right edge of the replay: **▲ / count / ▼**. Each press of ▼ advances exactly one beat and the page scrolls itself to it. That is the whole demo — eleven presses, at whatever pace you are talking. Play exists and runs on a clock; with a room listening you do not want a clock.
+
+- The counter reads **`n / 11`**, so you always know where you are without looking at the page.
+- ▲ steps back. Use it if a question drags you backwards; you will not lose your place.
 - Browser zoom **110–125%**. Shared screens shrink and the replay's mono type is small.
-- **Hands off the scroll wheel once playback starts.** The page follows the beats itself; scrolling releases that for the rest of the run.
+- **Hands off the scroll wheel.** The page positions each beat for you; scrolling by hand switches that off until you press Reset or Play.
 - Don't touch "Replay another" at the bottom — claims 14–17 are draw probes, 21 settled `Unverifiable`.
+- *If you would rather let it run:* set the speed to **10×** (6m10s of chain time becomes ~37s) and use Pause at the seal. Everything below still applies, you just stop pressing ▼.
 
 ---
 
@@ -74,48 +78,35 @@ Then move to Tab 2.
 
 Point at the `ELAPSED ON CHAIN` chip.
 
-## 2:20 — 3:00 · Press Play, narrate the first half
+## 2:20 — 4:00 · Step through it
 
-Press **Play**. Don't scroll — the page follows.
+**Press ▼ once per beat.** Say the line, then press again. Nothing is on a timer, so take the pauses you want. Beats 1–5 carry the argument; 6–11 are the consequence and can go quickly.
 
-| On screen | Say |
-|---|---|
-| Beat 1, claimant reads. Point at **64.66%** | "The claimant reads a subgraph and stakes ETH on that number." |
-| Beat 2, claim submitted | "What goes on chain is the hash of that exact sentence — so the claim can't change after the money's down." |
-| Beat 3, the draw. **Point, don't explain** | "Chainlink VRF picks the checker. Look at this — the random word landed on the claimant itself, and the walk stepped straight past it. You can't audit yourself and you can't pick your auditor." |
-| Beat 4, witness reads. Point at **40.43%** | "A completely separate agent reads the same block, on its own, and gets a different number." |
-
-## 3:00 — 3:35 · Hit Pause at the seal
-
-**The moment the dark box appears, press Pause.** This is the centre of the demo and you need it static.
-
-> "Here's the part that matters. Both submissions were encrypted to a key that only the enclave holds — Chainlink's Vault DON releases it into an attested TEE and nowhere else. The store they travel through is a public URL, and it holds nothing but ciphertext."
-
-Point at the dark **NEVER PUBLISHED** box.
-
-> "Inside, the tribunal recomputes both values from the raw evidence rather than trusting what either agent claimed. Out comes a verdict and a commitment hash. Nothing else ever leaves — not the values, not the queries, not either methodology."
-
-Point at the number line.
-
-> "And this is the whole argument in one line. Both agents were handed **identical rows**. One concluded 64.66, the other 40.43. The claimant's own evidence refutes its claim. It's caught by arithmetic, not by opinion."
-
-## 3:35 — 4:00 · Resume and land it
-
-Press **Resume**.
-
-| On screen | Say |
-|---|---|
-| Appeal + panel of three | "It appealed. Three more agents drawn at random, none of them a party to the claim. All three agreed with the witness." |
-| Claimant slashed | "It loses the bond, the appeal bond, and its stake. That ETH goes to nobody — not even the witness, because paying the witness is exactly what would make faking a disagreement profitable." |
-| Settled | "And its ENS standing drops. The roster stops drawing it in the next block, with nobody deciding that. That's the whole loop." |
+| ▼ | What appears | Say |
+|---|---|---|
+| **1** | Claimant reads the indexer — **64.66%** | "The claimant reads a subgraph and stakes ETH on that number." |
+| **2** | Claim submitted, bond escrowed | "What goes on chain is the hash of that exact sentence — so the claim can't change after the money is down." |
+| **3** | Drawn as witness by VRF | *Point at the draw panel, don't narrate it.* "Chainlink VRF picks the checker. Look — the random word landed on the claimant itself, and the walk stepped straight past it. You can't audit yourself and you can't pick your auditor." |
+| **4** | Witness reads independently — **40.43%** | "A completely separate agent reads the same block, on its own, and gets a different number." |
+| **5** | **The verdict, and the seal** — *slow down here* | "Here's the part that matters. Both submissions were encrypted to a key only the enclave holds — Chainlink's Vault DON releases it into an attested TEE and nowhere else. The store they travel through is a public URL holding nothing but ciphertext." |
+| | *Point at the dark* **NEVER PUBLISHED** *box.* | "Inside, the tribunal recomputes both values from the raw evidence rather than trusting what either agent claimed. Out comes a verdict and a commitment hash. Nothing else ever leaves — not the values, not the queries, not either methodology." |
+| | *Point at the number line.* | "And this is the whole argument in one line. Both agents were handed **identical rows**. One concluded 64.66, the other 40.43. The claimant's own evidence refutes its claim. It's caught by arithmetic, not by opinion." |
+| **6** | Appealed, appeal bond posted | "It appealed." |
+| **7** | VRF seats a panel of three | "Three more agents drawn at random, none of them a party to the claim." |
+| **8** | Panel upheld | "All three agreed with the witness." |
+| **9** | Claimant slashed | "It loses the bond, the appeal bond, and its stake. That ETH goes to nobody — not even the witness, because paying the witness is exactly what would make faking a disagreement profitable." |
+| **10** | Witness paid its flat fee | "The witness gets the same fee either way." |
+| **11** | Settled | "And its ENS standing drops. The roster stops drawing it in the next block, with nobody deciding that. That's the whole loop." |
 
 **Stop.**
+
+> **If you are running short:** press ▼ through 6–10 without commentary and land on 11. The argument is complete after beat 5; everything after it is the price.
 
 ---
 
 ## If you have spare seconds
 
-Scroll down on the replay to the **"Replay another"** row and point at it: *"every settled claim on this deployment is replayable the same way."* Or switch to `/roster`: *"and this is who's currently allowed to judge, read from ENS at the moment of the draw."*
+Press **Reset** and then **Play** at 30× to run the whole thing through in twelve seconds: *"and that's it at real proportions — most of the time is waiting for VRF and for the challenge window."* Or switch to `/roster`: *"this is who's currently allowed to judge, read from ENS at the moment of the draw."*
 
 ## If they ask
 
