@@ -288,7 +288,7 @@ Four changes, each closing a different part of the hole.
 | Witness fee | 0.002 ETH | Paid regardless of verdict, funded by the claimant's submission fee |
 | Appeal bond | 0.02 ETH | Higher than the claim bond, to deter nuisance appeals |
 | Appeal panel | 3 witnesses | Smallest odd number that yields a majority |
-| Challenge window | 1 hour proposed · **30s deployed** | Long enough to appeal, short enough to demo. An hour is right for production and unfilmable — a scene would take an hour to settle. Response window is 600s. Both are constructor parameters, not constants, precisely so this is a deployment choice rather than a code change |
+| Challenge window | 1 hour proposed · **90s deployed** | Long enough to appeal, short enough to demo. At 30s the appeal in scene 2 raced the window and intermittently reverted `WindowClosed`: the gap between a verdict landing and an appeal being mined is one confirmation. An hour is right for production and unfilmable — a scene would take an hour to settle. Response window is 600s. Both are constructor parameters, not constants, precisely so this is a deployment choice rather than a code change |
 
 ---
 
@@ -330,3 +330,82 @@ Single-source reads are recorded as such, not rejected. Plurality is thin across
 - The guarantee is uneven across protocols. Only one of five pinned subjects has a second independent index, so for the rest the original limitation stands and travels with the verdict as `single-source`.
 - It does not touch correlated error upstream of indexing. If the chain data or the protocol itself is misleading, every indexer inherits it.
 - Observed live on the day it shipped: two Morpho Aave V3 deployments, same Messari schema, identical block, 488 bps apart. `npx tsx scripts/prove-corroboration.ts`.
+
+---
+
+## 0009. Archive the agents' evidence after settlement, on testnet only
+
+**Date:** 2026-09-10 · **Status:** Accepted
+
+### Context
+
+Nothing about an agent's work survived a run. `publish-evidence.ts` built an `EvidenceBundle` — each side's query, deployment id, pinned block, raw result, derived value and methodology — published it to a fresh gist, and kept only the newest URL in the CRE config. The chain keeps `claimHash` and `evidenceCommitment`, which are hashes: they prove the evidence existed and show none of it.
+
+So a settled verdict could be proven to have happened and never inspected. `/replay` could say *that* the tribunal ruled and never *how* it was reached, which is the part worth watching and the part that carries the whole thesis: two agents, no channel between them, working the same question.
+
+Two facts made this less of a new disclosure than it first appeared. The gist was already world-readable, and its URL is committed to a public repo in `cre/tribunal/config.staging.json` — so the evidence had been reachable by anyone since the first run, while two pages of the site said it was withheld. And `cre/tribunal/workflow.ts` builds the commitment specifically so a party may later reveal its inputs and have anyone verify the tribunal judged those exact bytes. Disclosure was always an anticipated move; it just had no record.
+
+### Options considered
+
+**Archive nothing; draw the flow as structure.** The replay names the steps and marks every value unavailable. Honest, and communicates roughly what the bullet list it replaces did. Rejected: it fails the only test that matters, which is whether somebody who has never heard of Perjury can explain the mechanism back to you afterwards.
+
+**Archive a redacted subset.** Keep the query, deployment, block and derived value; drop the raw result and the methodology string, preserving the "never emitted" comment on `SealedSubmission.methodology`. Rejected: the methodology *is* the agent's reasoning, and a card that shows a number without it invites the reader to trust the number.
+
+**Archive the full bundle after settlement.** Chosen, for testnet.
+
+### Decision
+
+After settlement the runner writes `evidence-archive/<claimId>.json` and it is committed. This is **demo and testnet tooling**: it lives in `agents/runner/`, no contract knows it exists, and it is not part of the protocol.
+
+Production is unchanged and is specified in [design.md §3.5](design.md): the bundle is stored as an encrypted blob with the key held by the Vault DON, decryptable only inside the confidential workflow. Under that design the evidence stays confidential indefinitely, neither party ever sees the other's work, and any later disclosure is a party's own choice — checkable against the on-chain commitment.
+
+Runs made before this existed were recovered by `scripts/archive-evidence.ts`, which recomputes the tribunal's commitment over each candidate bundle and keeps only exact matches against `VerdictRecorded`. Claim ids reset on every redeploy, so several bundles share an id and the description cannot identify which one a claim was judged against. It verified three settled claims and rejected seven decoys. Nothing is archived on the strength of a matching filename.
+
+### Consequences
+
+- The replay can show what each agent asked, got and concluded, and can state the strongest thing available: on claim 23 both parties were handed identical rows and their conclusions differ by 24.25 points, so the disagreement cannot be blamed on the data.
+- **Two pages of site copy had to change**, because both described withholding as present fact. The claim detail page said publishing would hand the next claimant a rubric; the replay's seal panel briefly justified the archive by inventing a principle — that confidentiality "was never meant to be permanent" — which is not this design. Both now separate what is true on this build from what is designed.
+- The demo therefore discloses more than production will, and that has to be labelled everywhere it is visible rather than explained once in a doc.
+- It did not close the gateway gap, which was a separate matter and is now closed by [ADR 0010](#0010-seal-the-evidence-store-so-only-the-enclave-can-read-it). Writing this decision down is what made that gap impossible to keep deferring: two pages of copy had to be corrected twice in one day, once to admit the store was plaintext and again once it no longer was.
+- Archives are only meaningful next to the deployment that produced them, since claim ids restart. The commitment is the join, not the id.
+
+---
+
+## 0010. Seal the evidence store, so only the enclave can read it
+
+**Date:** 2026-09-10 · **Status:** Accepted
+
+### Context
+
+The gateway was the last plaintext in the system. Transport was already confidential — the enclave fetches over Confidential HTTP, so node operators see neither the request nor the response — but the store itself was a GitHub gist, and a URL is not an access control. Worse, *this repo publishes that URL*: `cre/tribunal/config.staging.json` is committed, so anyone cloning the project could read both parties' evidence for the most recent claim.
+
+[design.md §3.2](design.md) recorded this as a gap and §3.5 specified the fix. It sat unbuilt because it was filed as a nice-to-have. Writing [ADR 0009](#0009-archive-the-agents-evidence-after-settlement-on-testnet-only) is what made it undeferrable: once the disclosure was written down, two pages of site copy had to be corrected to stop claiming the evidence was withheld, and the corrected copy read badly precisely because the underlying claim was weaker than the design.
+
+### Options considered
+
+**Move the store somewhere private.** An authenticated endpoint the enclave has credentials for. Rejected: it replaces a cryptographic property with an operational one, and the credential becomes a thing that leaks. It also does nothing about the operator of the store.
+
+**Encrypt with a symmetric key held in the Vault DON.** Simpler, and the agents would need that key to encrypt. Rejected: every agent holding the decryption key means every agent can read every other agent's evidence, which is the exact property the two-lane design exists to prevent.
+
+**Asymmetric: seal to a public key, open with a Vault-held private key.** Chosen. An agent can seal and cannot open — including its own submission once published.
+
+### Decision
+
+Bundles are sealed with ECIES over secp256k1: ephemeral ECDH, `sha256` as the KDF, XChaCha20-Poly1305 as the AEAD. secp256k1 because the recipient key is then an ordinary 32-byte hex string that a Vault DON secret already knows how to hold and an operator can rotate without new tooling. XChaCha for its 24-byte random nonce, so there is no counter to manage and no reuse to reason about.
+
+Three properties beyond "it is encrypted":
+
+1. **The envelope is bound to its claim id** as the AEAD's associated data. The gateway URL comes from config, which is not a commitment, so without this an attacker able to swap that URL could hand the tribunal a perfectly valid envelope belonging to a different claim. It now fails to open.
+2. **The workflow refuses plaintext** once `envelopeSecretId` is configured, so a downgrade cannot be forced by simply serving an unsealed body.
+3. **The enclave can only open, never seal.** `cre/tribunal/envelope.ts` exports `open` alone. Code that cannot encrypt cannot accidentally publish something it believed it had protected.
+
+`open` is duplicated there because the workflow is a separate project compiled to WASM and cannot resolve `@perjury/*`. Duplication is a drift risk and this repo has been bitten by exactly that — an agent recomposed a GraphQL document instead of recording the one it sent, and archived queries stopped hashing to their own hashes. So a test seals with the shared package and opens with the enclave's copy; divergence fails a test rather than every verdict in production.
+
+### Consequences
+
+- The store can stay a public gist and hold nothing readable. The confidentiality no longer rests on a URL remaining obscure.
+- **Losing the key makes past evidence permanently unreadable.** That is the intended behaviour of an encrypted store rather than a bug to work around, and `scripts/new-envelope-key.ts` refuses to rotate without `--force`.
+- The demo archive is now the *only* reason any evidence is legible, which makes it far easier to label honestly than when the gist was also readable.
+- `scripts/prove-sealed.ts` demonstrates the property against the live gateway instead of asserting it: the body is an envelope, none of the evidence's own field names survive in it, a wrong key fails, another claim's id fails, and the enclave's key opens exactly what was archived locally.
+- Proven end to end on claim 24, which settled `Match` with the gist holding 3831 bytes of ciphertext and nothing else.
+- It does not hide that a claim exists, hide the envelope's size, or stop a party publishing its own plaintext elsewhere. It closes the store, not the world.

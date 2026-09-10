@@ -104,3 +104,10 @@ export function canonicalize(value: unknown): string {
 export function digestOf(provenance: Provenance, assertion: TypedAssertion): string {
   return sha256(canonicalize({ provenance, assertion }));
 }
+
+/**
+ * Sealed envelopes. Re-exported so callers reach them through @perjury/shared
+ * rather than a deep path, and so the workflow's mirror of `open` has one place
+ * to be checked against.
+ */
+export * from "./envelope";

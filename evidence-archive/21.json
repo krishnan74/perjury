@@ -1,0 +1,93 @@
+{
+  "claimId": "21",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "indexedBlock": 25945588,
+        "chainHead": 25945588,
+        "queriedAt": 1789026417322,
+        "queryHash": "b22ebcd086bf0f119fce87e314f32fb69f161de82602d9c2095fb8d05ade7af3",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilisationRatio",
+        "comparator": "gt",
+        "value": 64.7,
+        "unit": "percent",
+        "asOfBlock": 25945588
+      },
+      "digest": "58230f71a0694fb4e1203d83144da00375981fb4b172c90d8e011661fa29b98b"
+    },
+    "methodology": "claimant: Aave v3 via messari-lending; Utilization ratio indicates the proportion of deposits currently borrowed, reflecting protocol capital efficiency and liquidity risk.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "9861658287.168985088508235948752481",
+          "totalDepositBalanceUSD": "24375100357.17212472706355107250215"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "block": {
+          "number": 25945588
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols {\n  totalBorrowBalanceUSD\n  totalDepositBalanceUSD\n} }"
+  },
+  "witness": {
+    "attestation": null,
+    "methodology": "witness: provenance check failed — field utilisationRatio missing or non-numeric",
+    "evidence": null,
+    "unverifiableReason": "no-data"
+  },
+  "witnessAgent": {
+    "name": "panel-2.perjury.eth",
+    "address": "0xeEE49a2a6a8d352862C7283C0e31595780e67fb1"
+  },
+  "claimText": "Aave v3 utilisationRatio is above 64.7%.",
+  "claimHash": "0x3d9f28760c2ff545d10077f954a49a955a43e8130ac9d6128673a5e1bb7d15f1",
+  "panel": [
+    {
+      "member": "seat-a",
+      "submission": {
+        "attestation": null,
+        "methodology": "witness: provenance check failed — field utilisationRatio missing or non-numeric",
+        "evidence": null,
+        "unverifiableReason": "no-data"
+      }
+    },
+    {
+      "member": "seat-b",
+      "submission": {
+        "attestation": null,
+        "methodology": "witness: provenance check failed — field utilisationRatio missing or non-numeric",
+        "evidence": null,
+        "unverifiableReason": "no-data"
+      }
+    },
+    {
+      "member": "seat-c",
+      "submission": {
+        "attestation": null,
+        "methodology": "witness: provenance check failed — field utilisationRatio missing or non-numeric",
+        "evidence": null,
+        "unverifiableReason": "no-data"
+      }
+    }
+  ],
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/cdb6a771d6fe88eb4d67500f09e19408",
+  "archivedAt": "2026-09-10T07:50:58.975Z"
+}

@@ -6,7 +6,7 @@
  * which is what lets it be public without a gate. `GRAPH_STUDIO_KEY` and the RPC
  * URL are read from the environment here and never reach the client bundle.
  */
-import { createPublicClient, http, parseAbiItem, type Address } from "viem";
+import { createPublicClient, http, parseAbiItem, type AbiEvent, type Address, type Log } from "viem";
 import { sepolia } from "viem/chains";
 
 export const EXPLORER = "https://sepolia.etherscan.io";
@@ -102,6 +102,20 @@ export const READER_ABI = [
   },
 ] as const;
 
+/**
+ * How far back the dashboard looks.
+ *
+ * Sepolia runs a block every twelve seconds, so this is about a day. The
+ * previous 2500 was eight hours, which quietly emptied every page whenever the
+ * scenes had not been re-run since breakfast — `/replay` rendered "no settled
+ * claims in range" against a chain that had eleven of them. Overridable so a
+ * deployment can widen it without a code change.
+ */
+export const LOOKBACK = BigInt(process.env.CHAIN_LOOKBACK_BLOCKS ?? 7200);
+
+/** Public RPCs cap `eth_getLogs` spans. Well under the common 10k limit. */
+const CHUNK = 5000n;
+
 /** The events that make up a claim's life, in the order they can occur. */
 export const CLAIM_EVENTS = [
   parseAbiItem("event ClaimSubmitted(uint256 indexed claimId, address indexed claimant, bytes32 subject, uint256 bond)"),
@@ -114,6 +128,29 @@ export const CLAIM_EVENTS = [
   parseAbiItem("event Settled(uint256 indexed claimId, address indexed claimant, uint8 verdict)"),
   parseAbiItem("event ClaimantSlashed(uint256 indexed claimId, address indexed claimant, uint256 bond, uint256 stakeSlashed)"),
   parseAbiItem("event WitnessPaid(uint256 indexed claimId, address indexed witness, uint256 fee)"),
+] as const;
+
+/**
+ * The mechanism underneath the claim lifecycle.
+ *
+ * `ClaimRegistry` says a witness was assigned; the roster says which VRF request
+ * produced that assignment and on what seed, which is the difference between
+ * asserting the draw was random and showing it. `PerjuryStandingWriter` carries
+ * the before and after of every reputation write, so the ENS consequence is read
+ * from the chain rather than recomputed from the verdict.
+ */
+export const ROSTER_EVENTS = [
+  parseAbiItem("event WitnessRequested(uint256 indexed claimId, uint256 indexed requestId)"),
+  parseAbiItem("event WitnessDrawn(uint256 indexed claimId, address indexed witness, uint256 seed)"),
+  parseAbiItem("event NoEligibleWitness(uint256 indexed claimId)"),
+  parseAbiItem("event PanelRequested(uint256 indexed claimId, uint256 indexed requestId)"),
+  parseAbiItem("event PanelDrawn(uint256 indexed claimId, address[] panel)"),
+  parseAbiItem("event AgentFlagged(address indexed agent, uint64 until)"),
+  parseAbiItem("event AgentSlashed(address indexed agent, uint256 amount, uint256 remainingStake)"),
+] as const;
+
+export const WRITER_EVENTS = [
+  parseAbiItem("event StandingUpdated(bytes32 indexed node, int256 oldStanding, int256 newStanding)"),
 ] as const;
 
 export interface ClaimEvent {
@@ -132,13 +169,52 @@ export interface ClaimEvent {
  * slower, and it means the page can only show what actually happened on chain —
  * which for a project about verifiable claims is the right constraint to accept.
  */
-export async function claimEvents(lookback = 2500n): Promise<ClaimEvent[]> {
+export async function claimEvents(lookback = LOOKBACK): Promise<ClaimEvent[]> {
+  return collect([[REGISTRY, CLAIM_EVENTS]], lookback);
+}
+
+/**
+ * Roster and standing-writer events over the same window.
+ *
+ * Kept separate from `claimEvents` on purpose. `claimsIndex` folds its input by
+ * claim id, and roster events also carry a claim id — merging the two streams
+ * would push `WitnessRequested` into every claim's stage list on pages that only
+ * ever meant to show the lifecycle.
+ */
+export async function mechanismEvents(lookback = LOOKBACK): Promise<ClaimEvent[]> {
+  return collect(
+    [
+      [ROSTER, ROSTER_EVENTS],
+      [WRITER, WRITER_EVENTS],
+    ],
+    lookback,
+  );
+}
+
+/** Read several contracts' logs over one window and stamp them with block times. */
+async function collect(
+  sources: readonly (readonly [Address, readonly AbiEvent[]])[],
+  lookback: bigint,
+): Promise<ClaimEvent[]> {
   const head = await pub.getBlockNumber();
   const fromBlock = head > lookback ? head - lookback : 0n;
 
+  // Spans wider than the provider's cap fail whole, not partially, so the window
+  // is split before it is asked for rather than after it errors.
+  const spans: [bigint, bigint][] = [];
+  for (let from = fromBlock; from <= head; from += CHUNK) {
+    const to = from + CHUNK - 1n;
+    spans.push([from, to > head ? head : to]);
+  }
+
   const batches = await Promise.all(
-    CLAIM_EVENTS.map((event) =>
-      pub.getLogs({ address: REGISTRY, event, fromBlock, toBlock: head }).catch(() => []),
+    sources.flatMap(([address, events]) =>
+      events.flatMap((event) =>
+        spans.map(
+          ([from, to]): Promise<Log[]> =>
+            pub.getLogs({ address, event, fromBlock: from, toBlock: to }).catch(() => []),
+        ),
+      ),
     ),
   );
 

@@ -43,8 +43,12 @@ lcov.info
 # node
 node_modules/
 
-# stray screenshots
+# stray screenshots and competitor reference shots
 Screenshot*.png
+ENShell*.png
+
+# evidence staging, between the draft and witness phases
+.evidence/
 
 # local working notes
 docs/sponsor-questions.md
@@ -57,6 +61,9 @@ docs/feedback-session-1.md
 docs/mentorship-post.md
 docs/submission-form.md
 docs/chainlink-discord-message.md
+docs/tldr.md
+docs/checkin-2.md
+docs/software-inventory.csv
 discord-*.md
 
 # next.js generated types

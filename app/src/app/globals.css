@@ -136,6 +136,11 @@ a { color: inherit; }
 /* ── Layout ───────────────────────────────────────────────────────────── */
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
+/* 1180 is a reading measure, chosen for prose. The replay is three columns of
+   dense data and was paying for that measure in wrapped lines — at 1180 the
+   lanes came out 277px wide and an agent's evidence card broke a field name
+   across two lines. Wider here, and only here. */
+.wrap.wide { max-width: 1460px; }
 /* padding-block, NOT the shorthand. `padding: <v> 0` here reset the horizontal
    gutter that .wrap sets, so every section ran edge-to-edge. On desktop the
    auto margins disguised it; on a phone the text touched the screen edge. */
@@ -918,3 +923,1300 @@ body::after {
    they are set as opposites — one on paper, one under a rule of accent. */
 .col-published { border-top: 2px solid var(--ink); padding-top: 1.2rem; }
 .col-sealed { border-top: 2px solid var(--accent); padding-top: 1.2rem; }
+
+
+/* ══ Standing, moved ══════════════════════════════════════════════════════
+   The close of the replay. A verdict costs money once; it costs standing
+   permanently, and the roster stops drawing you — which is the actual
+   deterrent and had only ever appeared as a number in a table.
+
+   There is no threshold marked on this axis. `WitnessRoster.isEligible` does
+   not test the standing value; it tests the cooldown flag, the stake floor and
+   whether the ENS record reads at all. A line here labelled "eligibility"
+   would be drawing a mechanism the deployed contract does not have. */
+
+.standing {
+  margin: 2.4rem 0 0;
+  padding: 1.6rem 1.4rem 1.4rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.standing figcaption { margin-bottom: 1.4rem; }
+
+.standing-row {
+  display: grid;
+  grid-template-columns: 1fr 4.5rem;
+  gap: 1.1rem;
+  align-items: center;
+}
+
+.standing-track {
+  position: relative;
+  height: 2.1rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+}
+/* Zero is the only reference mark the contract justifies drawing. */
+.standing-zero {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--ink);
+  opacity: 0.55;
+}
+.standing-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--match);
+  transition: left 0.9s var(--expo), width 0.9s var(--expo), background-color 0.9s var(--quart);
+}
+.standing[data-dropped="true"] .standing-bar { background: var(--mismatch); }
+
+.standing-num {
+  font-family: var(--serif);
+  font-size: 2.1rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.standing[data-dropped="true"] .standing-num { color: var(--mismatch); }
+
+.standing-scale {
+  position: relative;
+  height: 1rem;
+  margin: 0.45rem 5.6rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.standing-scale .lo { position: absolute; left: 0; }
+.standing-scale .hi { position: absolute; right: 0; }
+/* Sits on the zero mark, not at the midpoint of the row. */
+.standing-scale .mid { position: absolute; transform: translateX(-50%); color: var(--ink-2); }
+
+.standing-record { margin-top: 1.1rem; }
+.standing-consequence { margin-top: 1.1rem; }
+.standing-consequence dt, .standing-consequence dd { padding: 0.55rem 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .standing-bar { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .standing-row { grid-template-columns: 1fr 3.4rem; gap: 0.8rem; }
+  .standing-num { font-size: 1.6rem; }
+  .standing-scale { margin-right: 4.2rem; }
+}
+
+
+/* ══ Replay lanes ═════════════════════════════════════════════════════════
+   Two lanes and a centre spine, replacing the single stage column.
+
+   The one rule this layout must never break: nothing connects the claimant
+   lane to the witness lane. No arrow, no rule crossing the spine, no row that
+   spans both. The two agents cannot reach each other in the protocol, and a
+   connector drawn here would assert otherwise.
+
+   The lanes face the spine — the claimant's rule runs down the right of its
+   column, the witness's down the left of its — so they read as two parties
+   addressing the chain rather than addressing each other. */
+
+.lanes {
+  display: grid;
+  /*
+     Every track is minmax(0, …) so the agent cards cannot force their own
+     column wider than its share. Without the zero minimum the two lanes sized
+     to their content — long deployment ids and unbroken numbers — and squeezed
+     the spine to about 180px, which is where the draw lives.
+
+     The spine keeps a floor because it carries the roster walk, and a walk you
+     have to read one word per line is not showing anybody anything.
+  */
+  /* The spine carries the draw, the seal and the panel — the three densest
+     blocks on the page — so it gets more room than the lanes. Narrow columns
+     buy their width back in wrapped lines, and height is the scarce axis. */
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 1.25fr) minmax(0, 1fr);
+  column-gap: clamp(0.9rem, 2.6vw, 2.2rem);
+  align-items: start;
+  margin-top: 1.6rem;
+}
+
+.lane-head {
+  grid-row: 1;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 0.7rem;
+}
+.lane-head.claimant { grid-column: 1; text-align: right; }
+.lane-head.spine    { grid-column: 2; color: var(--ink-2); }
+.lane-head.witness  { grid-column: 3; }
+
+.lane-rule { width: 1px; background: var(--rule); justify-self: start; height: 100%; }
+.lane-rule.claimant { grid-column: 1; justify-self: end; }
+.lane-rule.spine    { grid-column: 2; background: var(--ink); opacity: 0.28; }
+.lane-rule.witness  { grid-column: 3; }
+
+.lane-beat {
+  position: relative;
+  min-width: 0;
+  padding: 0.55rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  transition: opacity 0.5s var(--quart), color 0.5s var(--quart);
+}
+.lane-beat.claimant { grid-column: 1; text-align: right; padding-right: 1.1rem; }
+.lane-beat.spine    { grid-column: 2; padding-left: 1.1rem; }
+.lane-beat.witness  { grid-column: 3; padding-left: 1.1rem; }
+
+/* The marker sits ON the lane's own rule, never between two lanes. */
+.lane-dot {
+  position: absolute;
+  top: 0.85rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--muted);
+  transition: background-color 0.4s var(--quart), border-color 0.4s var(--quart);
+}
+.lane-beat.claimant .lane-dot { right: -3.5px; }
+.lane-beat.spine .lane-dot,
+.lane-beat.witness .lane-dot { left: -3.5px; }
+
+/* The column headers carry this on desktop; the tag is for the stacked layout. */
+.lane-tag {
+  display: none;
+  font-size: 0.6rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.lane-label { margin: 0; line-height: 1.45; }
+.lane-detail { margin: 0.3rem 0 0; color: var(--muted); line-height: 1.45; }
+.lane-tx {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Idle is muted, never faded. At 0.4 the whole board read as disabled before
+   playback started, which is how a judge first sees the page. The stage list it
+   replaces had already learned this and set colour rather than opacity. */
+.lane-beat[data-state="idle"] { color: var(--muted); }
+.lane-beat[data-state="idle"] .lane-label { color: var(--muted); }
+.lane-beat[data-state="done"] { color: var(--ink); }
+.lane-beat[data-state="done"] .lane-dot { background: var(--accent); border-color: var(--accent); }
+.lane-beat[data-state="active"] { opacity: 1; }
+.lane-beat[data-state="active"] .lane-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-beat, .lane-dot { transition: none; }
+}
+
+/* Under 900px the three columns stack into one, and the lane tag on every card
+   carries the side the layout can no longer show. */
+/* The one interval on this page with no transaction behind it, marked as such.
+   Dashed and hashless on purpose — every other element here links to a tx, and
+   this must not be mistakable for one. */
+.lane-quiet {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--rule);
+  font-size: 0.68rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.lane-offchain {
+  grid-column: 3;
+  align-self: center;
+  margin-left: 1.1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--muted);
+  transition: border-color 0.5s var(--quart);
+}
+.lane-offchain p { margin: 0; }
+.lane-offchain-note { margin-top: 0.35rem !important; opacity: 0.8; }
+.lane-offchain[data-state="done"] { border-color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) { .lane-offchain { transition: none; } }
+
+@media (max-width: 900px) {
+  .lanes { grid-template-columns: 1fr; }
+  .lane-head { display: none; }
+  .lane-rule { display: none; }
+  .lane-beat,
+  .lane-beat.claimant,
+  .lane-beat.spine,
+  .lane-beat.witness {
+    grid-column: 1;
+    grid-row: auto !important;
+    text-align: left;
+    padding: 0.75rem 0 0.75rem 1.1rem;
+    border-left: 1px solid var(--rule);
+  }
+  .lane-beat.spine { border-left-color: var(--ink); }
+  .lane-beat .lane-dot { left: -3.5px; right: auto; top: 1.05rem; }
+  .lane-tag { display: block; }
+  /* Base rule pins this to column 3; without the override the implicit
+     columns it creates survive the stack and squeeze column 1 to nothing. */
+  .lane-offchain {
+    grid-column: 1;
+    grid-row: auto !important;
+    margin: 0.4rem 0 0.4rem 1.1rem;
+  }
+}
+
+
+/* ══ Agents as distinct parties ═══════════════════════════════════════════
+   The site rendered every agent as an interchangeable grey string, and a
+   viewer cannot follow an argument about independence between parties they
+   cannot tell apart.
+
+   Both the mark and the colour are DERIVED — the monogram from the ENS label
+   the agent registered, the hue from its address — so the same agent looks the
+   same everywhere and nothing here is an identity we invented. */
+
+/* Block-level, not inline: as an inline-flex the badge sat mid-sentence and ran
+   straight into the beat label with no space between them. */
+.lane-who {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.lane-beat.claimant .lane-who { justify-content: flex-end; }
+.lane-mono {
+  display: inline-grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 2px;
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  color: #fff;
+  background: hsl(var(--agent-hue, 220) 42% 38%);
+}
+.lane-who-name {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.lane-beat.claimant .lane-who { flex-direction: row-reverse; }
+
+.lane-head em {
+  display: block;
+  font-style: normal;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--ink-2);
+  margin-top: 0.2rem;
+}
+
+/* ── What an agent asked, got and concluded ──────────────────────────────
+   Transcribed from the archived bundle the tribunal actually read. The one
+   computed field is the query check, and it is a check: the archived document
+   either reproduces the hash the guard took at read time or it does not. */
+
+.agent-read {
+  min-width: 0;
+  margin: 0.6rem 0 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-left: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
+  background: var(--paper);
+  text-align: left;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.lane-beat.claimant .agent-read {
+  border-left: 1px solid var(--rule);
+  border-right: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
+}
+
+.agent-read-grid {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr;
+  gap: 0.35rem 0.7rem;
+  margin: 0;
+}
+.agent-read-grid dt {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 0.1rem;
+}
+/* Long unbroken figures were pushing the card past its own column and across
+   the lane rule, which put the claimant's numbers inside the spine. */
+.agent-read-grid dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.agent-read-rows { list-style: none; margin: 0; padding: 0; }
+.agent-read-rows li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 0.8rem;
+  min-width: 0;
+}
+.agent-read-rows b { font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.agent-read-value { font-family: var(--serif); font-size: 1.35rem; font-weight: 400; }
+/* Clamped, not cut: the full sentence is one hover away in the title attribute
+   and the whole methodology is in the archive. Three lines is enough to see what
+   the agent was doing without a paragraph pushing the beat past a screen. */
+.agent-read-why {
+  margin: 0.25rem 0 0;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.agent-read-tag {
+  margin-left: 0.4rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.agent-read-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.6rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.agent-read-toggle {
+  margin-top: 0.55rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.agent-read-query {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.7rem;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  font-size: 0.66rem;
+  line-height: 1.6;
+  /* Long documents scroll inside the card; the page must never scroll sideways. */
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.agent-read-hash { margin: 0.35rem 0 0; font-size: 0.6rem; color: var(--muted); }
+.agent-read-bad { margin: 0; color: var(--mismatch); font-size: 0.72rem; }
+
+@media (max-width: 900px) {
+  /* Stacked, every beat reads left to right, so the claimant's badge stops
+     mirroring toward a spine that is no longer there. */
+  .lane-beat.claimant .lane-who { flex-direction: row; justify-content: flex-start; }
+  .lane-beat.claimant .agent-read {
+    border-left: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
+    border-right: 1px solid var(--rule);
+  }
+}
+@media (max-width: 640px) {
+  .agent-read-grid { grid-template-columns: 1fr; gap: 0.15rem; }
+  .agent-read-grid dt { padding-top: 0.4rem; }
+}
+
+
+/* ══ The draw ═════════════════════════════════════════════════════════════
+   "Randomly assigned" was one line of text, and taking the anti-collusion
+   claim on faith is the thing this project argues nobody should have to do.
+
+   The walk here is derived from the seed and the agent the chain recorded, so
+   it is a replay of the real assignment rather than an illustration of the
+   idea of one. The claimant is marked whether or not the walk reached it,
+   because `cand != claimant` is structural, not an outcome of this draw. */
+
+.draw-slot { grid-column: 2; align-self: start; min-width: 0; }
+
+.draw {
+  margin-left: 1.1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.draw-head {
+  margin: 0 0 0.4rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.draw-note { margin: 0 0 0.7rem; color: var(--muted); line-height: 1.55; }
+.draw-foot { margin: 0.7rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--rule); }
+
+.draw-list { list-style: none; margin: 0; padding: 0; }
+.draw-list li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: baseline;
+  padding: 0.3rem 0.35rem;
+  color: var(--muted);
+}
+.draw-idx { text-align: right; opacity: 0.6; }
+.draw-mark { font-size: 0.63rem; letter-spacing: 0.04em; text-align: right; }
+
+/* Where the random word landed, before the walk moves. */
+.draw-list li[data-start="true"] { box-shadow: inset 2px 0 0 var(--ink); }
+
+.draw-list li[data-role="drawn"] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.draw-list li[data-role="drawn"] .draw-mark { color: var(--accent); }
+/* Struck through, because it was never a candidate rather than merely passed. */
+.draw-list li[data-role="claimant"] .draw-name { text-decoration: line-through; opacity: 0.75; }
+.draw-list li[data-role="passed"] .draw-name { opacity: 0.8; }
+
+.draw-rule {
+  margin: 0.55rem 0 0;
+  font-size: 0.63rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.draw-seed {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.63rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.draw-seed-k { letter-spacing: 0.12em; text-transform: uppercase; }
+
+.draw-txs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.draw[data-empty="true"] { border-style: dashed; }
+
+@media (max-width: 900px) {
+  .draw-slot { grid-column: 1; grid-row: auto !important; }
+  .draw { margin: 0.5rem 0 0.5rem 1.1rem; }
+}
+
+
+/* ══ The seal ═════════════════════════════════════════════════════════════
+   The one place the two lanes are allowed to meet, and they meet inside a box
+   that does not open. We are not showing what happens in the enclave, and
+   refusing to is more honest than a fabricated x-ray of a computation nobody
+   watched. What this shows is the boundary: two full inputs in, one thin thing
+   out. */
+
+.seal {
+  margin: 0.7rem 0 0.2rem;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+.seal-head,
+.seal-out-head {
+  margin: 0;
+  padding: 0.5rem 0.85rem 0.3rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.seal-in {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+  margin: 0;
+  padding: 0 0.85rem 0.5rem;
+}
+.seal-in dt { grid-row: 1; }
+.seal-in dd { grid-row: 2; }
+
+.seal-out {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem 0.8rem;
+  margin: 0;
+  padding: 0 0.85rem 0.55rem;
+}
+.seal-in dt,
+.seal-out dt { color: var(--muted); }
+.seal-in dd,
+.seal-out dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.seal-in dd { font-family: var(--serif); font-size: 1.5rem; line-height: 1.1; text-align: left; }
+
+/* The strongest sentence on the page, so it is given the accent and nothing
+   else on this card is. */
+.seal-point {
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+.seal-point b { color: var(--accent); font-weight: 600; }
+
+/* The box itself. Deliberately the darkest thing on the page. */
+.seal-box {
+  background: var(--seal);
+  color: var(--paper);
+  padding: 0.6rem 0.85rem;
+  line-height: 1.35;
+}
+.seal-box-head {
+  margin: 0 0 0.5rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8b887c;
+}
+/* Two columns: six one-line rows stacked vertically cost more height than the
+   beat can afford, and they read no better for it. */
+.seal-box dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  column-gap: 1.1rem;
+}
+/* The label takes what it needs and the bar takes the rest.
+   With the bar column sized to content, a 34ch bar squeezed the label until it
+   wrapped and then sat on top of it — "methodologies" rendered as
+   "methodologie" with a black bar through it. */
+.seal-box dl > div {
+  display: grid;
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.1rem 0;
+}
+.seal-box dt { color: #8b887c; font-size: 0.66rem; }
+.seal-box dd { margin: 0; }
+/* Against the dark ground the bars need to read as removals, not as gaps.
+   The arbitrary widths are kept where they fit and clamped where they do not —
+   they exist so a bar looks like a redaction, and must never encode the length
+   of the value they cover. */
+.seal-box .redacted { background: #2a2a22; width: min(var(--w, 12ch), 100%); }
+
+/* The chip's border reads as a form field inside this card, where the verdict
+   is a value in a list rather than a badge on a page. */
+.seal-out dd.verdict { font-size: 0.8rem; letter-spacing: 0.1em; border: 0; padding: 0; }
+
+.seal-note {
+  margin: 0;
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+.seal-why { background: var(--paper-2); }
+
+
+/* The one caveat a viewer needs before the replay starts, rather than after. */
+.demo-note {
+  margin: 0 0 1.6rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  border-left: 2px solid var(--accent);
+}
+
+
+/* A7 — the sentence under each beat. Muted and narrow: it explains the beat to
+   a reader who arrived without a narrator, and must never compete with the
+   beat's own label. */
+/* Two lines. The narrator carries the rest, and a third line was the difference
+   between the verdict beat fitting a 1280x800 laptop and overflowing it. */
+.lane-note {
+  margin: 0.35rem 0 0;
+  max-width: 46ch;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.68rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.lane-beat.claimant .lane-note { margin-left: auto; }
+
+
+/* ══ B2 — the number line ═════════════════════════════════════════════════
+   "Mismatch" needs a sentence; two marks and a band need about half a second.
+
+   The band drawn here is the exact set of values the tribunal accepts, not a
+   symmetric approximation: its test is |a-b| / max(|a|,|b|) <= bps/10000, so a
+   claimant below the witness passes down to w(1-t) and one above passes up to
+   w/(1-t). Drawing it symmetrically would show a passing range the contract
+   does not have. */
+
+.numberline {
+  padding: 0.55rem 0.85rem 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+.numberline-head { margin: 0 0 0.9rem; font-size: 0.68rem; color: var(--muted); }
+.numberline-head b { color: var(--ink-2); font-weight: 600; }
+
+.numberline-track {
+  position: relative;
+  height: 2px;
+  margin: 0 0.5rem;
+  background: var(--rule);
+}
+.numberline-band {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  min-width: 2px;
+  background: color-mix(in srgb, var(--match) 30%, transparent);
+  border-left: 1px solid var(--match);
+  border-right: 1px solid var(--match);
+}
+.numberline-mark {
+  position: absolute;
+  top: -6px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+}
+.numberline-mark.witness { background: var(--ink); }
+.numberline-mark.claimant { background: var(--mismatch); }
+.numberline[data-inside="true"] .numberline-mark.claimant { background: var(--match); }
+
+/* Labels sit under their own mark rather than in a legend, so the eye never has
+   to match a colour to a key. */
+.numberline-labels {
+  position: relative;
+  height: 2.2rem;
+  margin: 0.5rem 0.5rem 0;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+}
+.numberline-labels span {
+  position: absolute;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.numberline-labels .witness { top: 0; color: var(--ink-2); }
+.numberline-labels .claimant { top: 1.25rem; color: var(--mismatch); }
+.numberline[data-inside="true"] .numberline-labels .claimant { color: var(--match); }
+
+.numberline-foot {
+  margin: 0.2rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+
+/* ══ A4 — the appeal fork ═════════════════════════════════════════════════
+   The best moment in the best scene used to be one line reading "VRF seated a
+   panel of three".
+
+   The three seats are drawn as three columns that do not touch, obeying the
+   same rule as the two lanes: they share a claim and a block and nothing else.
+   Separate processes, separate keys, deliberately different models. */
+
+.panel-fork {
+  margin: 0.7rem 0 0.2rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.panel-head {
+  margin: 0 0 0.4rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.panel-note { margin: 0 0 0.8rem; color: var(--muted); line-height: 1.55; }
+
+/* Three columns with a gap and no connector — the fork is the argument. */
+.panel-seats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.panel-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.55rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--rule);
+  background: var(--paper-2);
+  min-width: 0;
+}
+.panel-seat[data-agrees="true"] { border-top-color: var(--match); }
+.panel-seat[data-agrees="false"] { border-top-color: var(--mismatch); }
+
+.panel-mono {
+  display: inline-grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 2px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #fff;
+  background: hsl(var(--agent-hue, 220) 42% 38%);
+}
+.panel-seat-name { font-size: 0.62rem; color: var(--muted); overflow-wrap: anywhere; }
+.panel-seat-value { font-family: var(--serif); font-size: 1.15rem; }
+.panel-seat-mark { font-size: 0.6rem; letter-spacing: 0.06em; color: var(--muted); }
+.panel-seat[data-agrees="true"] .panel-seat-mark { color: var(--match); }
+.panel-seat[data-agrees="false"] .panel-seat-mark { color: var(--mismatch); }
+.panel-seat-bad { font-size: 0.62rem; color: var(--unverifiable); }
+.panel-seat-muted { font-size: 0.6rem; color: var(--muted); }
+
+.panel-unbound { margin: 0.7rem 0 0; }
+
+.panel-outcome {
+  margin: 0.8rem 0 0;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--rule);
+  line-height: 1.55;
+}
+.panel-outcome[data-outcome="upheld"] b { color: var(--mismatch); }
+.panel-outcome[data-outcome="overturned"] b { color: var(--match); }
+.panel-txs { margin: 0.45rem 0 0; font-size: 0.65rem; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .panel-seats { grid-template-columns: 1fr; }
+}
+
+
+/* ══ A6 — the scrub bar ═══════════════════════════════════════════════════
+   A time axis, not a progress bar. Beats sit at the second they happened, so
+   the ninety-second challenge window takes ninety seconds of width and the
+   waiting is visible as distance. For recording you drag to the interesting
+   eight seconds rather than sitting through it. */
+
+.scrub {
+  position: relative;
+  height: 26px;
+  margin: 0 0 0.4rem;
+  cursor: pointer;
+  touch-action: none;
+}
+.scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.scrub-track,
+.scrub-fill {
+  position: absolute;
+  top: 12px;
+  height: 2px;
+}
+.scrub-track { left: 0; right: 0; background: var(--rule); }
+.scrub-fill { left: 0; background: var(--accent); }
+
+.scrub-beat {
+  position: absolute;
+  top: 7px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  background: var(--rule);
+  transition: background-color 0.3s var(--quart);
+}
+.scrub-beat[data-done="true"] { background: var(--accent); }
+/* The three beats a viewer actually navigates to. */
+.scrub-beat[data-kind="draw"],
+.scrub-beat[data-kind="verdict"],
+.scrub-beat[data-kind="settle"] { top: 4px; height: 18px; }
+
+.scrub-head {
+  position: absolute;
+  top: 3px;
+  width: 3px;
+  height: 20px;
+  margin-left: -1.5px;
+  background: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) { .scrub-beat { transition: none; } }
+
+
+/* ══ B1 — the two documents, side by side ═════════════════════════════════
+   The corroboration claim is that two agents composed their reads
+   independently. A queryHash cannot show that to anybody; the documents can.
+
+   Collapsed by default because it is the densest thing on the page, and marked
+   at token level because both documents are a single line — a line diff would
+   mark everything and communicate nothing. */
+
+.qdiff { border-top: 1px solid var(--rule); }
+.qdiff-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.66rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-align: left;
+}
+.qdiff-toggle:hover { color: var(--ink); }
+.qdiff-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+
+.qdiff-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.7rem;
+  padding: 0 0.85rem 0.2rem;
+}
+.qdiff-who {
+  margin: 0 0 0.3rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.qdiff pre {
+  margin: 0;
+  padding: 0.55rem 0.6rem;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  font-size: 0.63rem;
+  line-height: 1.7;
+  /* Wide documents scroll inside their own column; the page never scrolls. */
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* The single emphasis in this block, so the eye lands on what differs. */
+.qdiff-hit {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 1px;
+}
+.qdiff-note {
+  margin: 0.55rem 0 0;
+  padding: 0 0.85rem 0.7rem;
+  font-size: 0.66rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+
+/* ══ Tracking the playback ════════════════════════════════════════════════
+   The page follows the beats down while playing, so the eye has to be told
+   two things at speed: where "now" is, and what just appeared.
+
+   Every animation here is a reveal that fires once as its element mounts.
+   Nothing loops, nothing pulses forever, and nothing moves while paused — a
+   page that keeps twitching while a viewer is reading is worse than a static
+   one. All of it stops under prefers-reduced-motion. */
+
+@keyframes beat-land {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The blocks that mount as a beat lands. Each is the payload of its beat, so
+   they arrive rather than blink. */
+@media (scripting: enabled) {
+  .agent-read,
+  .draw,
+  .seal,
+  .panel-fork,
+  .lane-quiet,
+  .standing {
+    animation: beat-land 0.5s var(--expo) both;
+  }
+  /* The panel's three seats arrive together but not simultaneously: a stagger
+     reads as three parties answering, which is what happened. */
+  .panel-seat { animation: beat-land 0.45s var(--expo) both; }
+  .panel-seat:nth-child(2) { animation-delay: 0.09s; }
+  .panel-seat:nth-child(3) { animation-delay: 0.18s; }
+}
+
+/* Where "now" is. The active beat is marked on its own lane edge, never with a
+   rule that crosses into another lane. */
+.lane-beat[data-state="active"] .lane-label { color: var(--ink); }
+.lane-beat.claimant[data-state="active"] { box-shadow: inset -2px 0 0 var(--accent); }
+.lane-beat.spine[data-state="active"],
+.lane-beat.witness[data-state="active"] { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* A single ring on the active dot, so the marker reads as live without a
+   permanent pulse competing with the content beside it. */
+@keyframes dot-land {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  to   { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (scripting: enabled) {
+  .lane-beat[data-state="done"] .lane-dot { animation: dot-land 0.7s var(--quart) both; }
+}
+
+/* The scrub head tracks continuously, so it gets a transition rather than a
+   keyframe — it moves between two known positions on every beat. */
+.scrub-fill,
+.scrub-head { transition: left 0.6s var(--expo), width 0.6s var(--expo); }
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-read,
+  .draw,
+  .seal,
+  .panel-fork,
+  .lane-quiet,
+  .standing,
+  .panel-seat,
+  .lane-beat[data-state="done"] .lane-dot { animation: none; }
+  .scrub-fill,
+  .scrub-head { transition: none; }
+}
+
+
+/* ══ The agent fleet ══════════════════════════════════════════════════════
+   A registry, not a leaderboard. Status leads, because the protocol's only
+   question about an agent is whether it may be drawn — and the reason it may
+   not travels in the same cell as the answer.
+
+   Laid out as a real grid rather than a table element so the columns collapse
+   into stacked cards on a phone without a horizontal scrollbar. */
+
+.fleet-stats { margin: 0 0 2.2rem; }
+
+.fleet {
+  border-top: 1px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.fleet-head,
+.fleet-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.35fr) minmax(0, 1.1fr) 5.5rem minmax(0, 1.4fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 0.2rem;
+  border-bottom: 1px solid var(--rule);
+}
+.fleet-head {
+  padding-block: 0.55rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fleet-row:hover { background: var(--paper-2); }
+/* The excluded agent is the news on this page, so it is marked rather than
+   greyed — a faded row reads as "inactive", which is the wrong idea entirely. */
+.fleet-row[data-eligible="false"] { box-shadow: inset 3px 0 0 var(--mismatch); }
+
+.fleet-agent { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.fleet-mono {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 2px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #fff;
+  background: hsl(var(--agent-hue, 220) 42% 38%);
+}
+.fleet-name { display: block; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.fleet-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.fleet-addr { display: block; font-size: 0.66rem; color: var(--muted); }
+
+.fleet-status { min-width: 0; }
+.fleet-chip {
+  display: inline-block;
+  padding: 0.18rem 0.45rem;
+  border: 1px solid currentColor;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--match);
+}
+.fleet-chip[data-eligible="false"] { color: var(--mismatch); }
+.fleet-why { display: block; margin-top: 0.3rem; font-size: 0.65rem; color: var(--muted); }
+
+.fleet-standing { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.fleet-standing b { font-family: var(--serif); font-size: 1.15rem; font-weight: 400; }
+.fleet-standing b[data-down="true"] { color: var(--mismatch); }
+
+.fleet-bar {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 3rem;
+  height: 6px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+}
+/* Zero is the only reference the contract justifies marking. */
+.fleet-bar-zero {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ink);
+  opacity: 0.5;
+}
+.fleet-bar-fill { position: absolute; top: 0; bottom: 0; background: var(--match); }
+.fleet-bar-fill[data-down="true"] { background: var(--mismatch); }
+
+.fleet-strikes { display: inline-flex; gap: 0.28rem; align-items: center; }
+.fleet-strikes span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+}
+.fleet-strikes span[data-on="true"] { background: var(--mismatch); border-color: var(--mismatch); }
+.fleet-strikes b { font-size: 0.62rem; color: var(--mismatch); font-weight: 500; }
+
+.fleet-last { min-width: 0; font-size: 0.7rem; }
+.fleet-last a { color: var(--ink-2); text-decoration: none; }
+.fleet-last a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.fleet-when { display: block; font-size: 0.63rem; color: var(--muted); }
+
+/* Stacked cards rather than a table that scrolls sideways. Each cell keeps the
+   header it lost, because a bare bar in a stack means nothing. */
+@media (max-width: 860px) {
+  .fleet-head { display: none; }
+  .fleet-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    padding: 1rem 0.2rem 1.1rem;
+  }
+  .fleet-standing::before,
+  .fleet-strikes-cell::before,
+  .fleet-last::before {
+    font-size: 0.6rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .fleet-standing::before { content: "Standing"; }
+  .fleet-strikes-cell::before { content: "Strikes seen "; }
+  .fleet-last::before { content: "Last · "; }
+  .fleet-strikes-cell { display: flex; align-items: center; gap: 0.6rem; }
+}
+
+
+/* ══ Beat hierarchy ═══════════════════════════════════════════════════════
+   Every beat used to be a label and a muted detail line, which made a verdict
+   look exactly like a fee payment. Each step now has one thing the eye lands
+   on — the sentence that was bonded, who was drawn, the word the tribunal
+   returned — and everything else is support beneath it. */
+
+.lane-lead {
+  margin: 0.3rem 0 0;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  line-height: 1.25;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+/* The verdict is the only beat allowed the accent, so it stays the loudest
+   thing on the page rather than one shout among several. */
+.lane-beat[data-kind="verdict"] .lane-lead,
+.lane-beat[data-kind="panel"] .lane-lead { color: var(--accent); }
+.lane-beat[data-kind="payout"] .lane-lead { font-size: 1.2rem; color: var(--mismatch); }
+.lane-beat[data-kind="read"] .lane-lead { font-size: 1.7rem; }
+/* Idle beats keep the hierarchy but lose the emphasis, so the eye follows
+   playback rather than jumping ahead to whatever is largest. */
+.lane-beat[data-state="idle"] .lane-lead { color: var(--muted); }
+
+.lane-detail { font-size: 0.72rem; }
+
+/* ── Partner marks ────────────────────────────────────────────────────────
+   Simplified geometry drawn inline, not official brand assets. Brand colour
+   appears at mark size only: three coloured glyphs at 13px read as
+   identifiers, not as a second palette competing with --accent. */
+
+.pmark { display: block; flex: 0 0 auto; }
+
+.pchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin-top: 0.5rem;
+  padding: 0.16rem 0.42rem 0.16rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--pcolour) 32%, transparent);
+  background: color-mix(in srgb, var(--pcolour) 7%, transparent);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pcolour) 72%, var(--ink));
+}
+.lane-beat.claimant .pchip { flex-direction: row-reverse; }
+
+/* ── The partners section ─────────────────────────────────────────────── */
+
+.partners { margin-top: 2.4rem; border-top: 1px solid var(--rule); }
+.partner {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 14rem) minmax(0, 1fr);
+  gap: 1.4rem;
+  align-items: start;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+  color: inherit;
+}
+.partner:hover { background: var(--paper-2); }
+.partner-mark { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; }
+.partner-id b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.partner-layer {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.partner-blurb { font-size: 0.9rem; line-height: 1.65; color: var(--ink-2); max-width: 60ch; }
+
+@media (max-width: 780px) {
+  .partner {
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+    gap: 0.9rem 1rem;
+    padding: 1.2rem 0;
+  }
+  .partner-mark { width: 2.6rem; height: 2.6rem; }
+  .partner-blurb { grid-column: 2; }
+}
+
+/* Optical sizing for the partner marks.
+   Each brand insets its mark differently inside its own viewBox — The Graph's
+   logomark occupies about 56% of a 64px box where the other two nearly fill
+   theirs — so equal boxes render unequal marks. Scaling the box is a
+   presentation correction, not a change to the artwork. */
+.pmark[src$="graph.svg"] { transform: scale(1.3); }
+
+
+/* ══ Step pad ═════════════════════════════════════════════════════════════
+   Playback runs on a clock, which is wrong when somebody is talking over it —
+   you either race the animation or pause mid-sentence. These step one beat at
+   a time and the lanes follow, so the page arrives where the speaker is.
+
+   Fixed to the viewport because the point is reaching it without hunting while
+   the page has scrolled somewhere else. */
+
+.steppad {
+  position: fixed;
+  right: clamp(0.6rem, 1.6vw, 1.4rem);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-radius: 3px;
+  box-shadow: 0 2px 14px rgb(16 15 11 / 0.07);
+}
+
+.steppad-btn {
+  width: 2.6rem;
+  height: 2.4rem;
+  border: 0;
+  background: none;
+  font-size: 0.7rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s var(--quart), color 0.2s var(--quart);
+}
+.steppad-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.steppad-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+.steppad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.steppad-count {
+  display: block;
+  padding: 0.3rem 0;
+  border-block: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  line-height: 1.15;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.steppad-count b { display: block; font-weight: 600; color: var(--ink); }
+.steppad-count i { display: block; font-style: normal; font-size: 0.58rem; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .steppad-btn { transition: none; } }
+
+/* On a phone the right edge is thumb territory and the lanes are already
+   stacked full-width, so it sits bottom-right instead of mid-edge. */
+@media (max-width: 640px) {
+  .steppad {
+    top: auto;
+    bottom: 1rem;
+    transform: none;
+    flex-direction: row;
+  }
+  .steppad-count { border-block: 0; border-inline: 1px solid var(--rule); padding: 0 0.5rem; align-self: center; }
+}

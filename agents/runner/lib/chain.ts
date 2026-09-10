@@ -146,12 +146,91 @@ export function runTribunal(kind: "verdict" | "panel" = "verdict"): string {
   return m ? VERDICT[Number(m[1])] ?? "?" : "?";
 }
 
-/** Publish real agent submissions and point the tribunal at them. */
-export function publishEvidence(claimId: string, honesty: "honest" | "false", panel = false): string {
-  const args = ["tsx", "agents/runner/publish-evidence.ts", claimId, honesty];
-  if (panel) args.push("--panel");
-  const out = execFileSync("npx", args, { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 });
-  return out;
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+/**
+ * Wait for VRF to assign, and refuse to continue if it has not.
+ *
+ * `waitFor` returns false on timeout rather than throwing, and scenes 1 and 2
+ * ignored that. A slow round therefore let a scene carry on with an unassigned
+ * witness: claim 18 recorded the zero address as its drawn witness, VRF landed
+ * afterwards, and the scene still reported success. A binding recorded from a
+ * claim that had not been assigned yet is worse than no binding, so this throws.
+ */
+export async function awaitWitness(
+  claimId: bigint,
+  waitFor: (label: string, check: () => Promise<boolean>) => Promise<boolean>,
+): Promise<Address> {
+  const ok = await waitFor(
+    "waiting for VRF",
+    async () => (await claim(claimId)).witness !== ZERO_ADDRESS,
+  );
+  const c = await claim(claimId);
+  if (!ok || c.witness === ZERO_ADDRESS) {
+    throw new Error(
+      `VRF did not assign a witness for claim ${claimId} within the wait. ` +
+      "Check the subscription balance and consumer registration before recording.",
+    );
+  }
+  return c.witness as Address;
+}
+
+/**
+ * Phase one: the claimant drafts, before any bond is posted.
+ *
+ * Returns the claim text and the keccak hash of it. The scene bonds THAT hash,
+ * so what is at stake is a specific sentence rather than a placeholder constant
+ * that meant the same thing on every run.
+ */
+export function draftEvidence(
+  claimId: string,
+  honesty: "honest" | "false",
+): { out: string; text: string; claimHash: `0x${string}` } {
+  const out = execFileSync(
+    "npx",
+    ["tsx", "agents/runner/publish-evidence.ts", "draft", claimId, honesty],
+    { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
+  );
+  const text = out.match(/^CLAIM_TEXT (.*)$/m)?.[1]?.trim();
+  const claimHash = out.match(/^CLAIM_HASH (0x[0-9a-fA-F]{64})$/m)?.[1];
+  if (!text || !claimHash) throw new Error(`draft phase produced no claim hash:\n${out}`);
+  return { out, text, claimHash: claimHash as `0x${string}` };
+}
+
+/**
+ * Phase two: the drawn witness derives its own answer, then both are published.
+ *
+ * Takes the agent VRF drew so the submission is attributable. Runs only after
+ * assignment, which is the order the protocol actually specifies.
+ */
+export function witnessEvidence(claimId: string, witnessName: string, witnessAddr: string): string {
+  return execFileSync(
+    "npx",
+    ["tsx", "agents/runner/publish-evidence.ts", "witness", claimId, witnessName, witnessAddr],
+    { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
+  );
+}
+
+/**
+ * Phase three: seat the panel over the submissions already judged.
+ *
+ * Deliberately does not re-run the witness. Re-deriving here overwrote the
+ * archive with a read taken minutes later, so the record showed the witness
+ * reading after the panel had been seated — and an appeal reviews what the
+ * tribunal actually read, not a fresh answer to the same question.
+ */
+export function panelEvidence(claimId: string, seats: { name: string; address: string }[]): string {
+  return execFileSync(
+    "npx",
+    [
+      "tsx",
+      "agents/runner/publish-evidence.ts",
+      "panel",
+      claimId,
+      seats.map((s) => `${s.name}=${s.address}`).join(","),
+    ],
+    { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
+  );
 }
 
 /**
@@ -161,17 +240,43 @@ export function publishEvidence(claimId: string, honesty: "honest" | "false", pa
  * reverts with NotEligible() — which is the mechanism working, but reads as a
  * crash mid-demo. Better to say so before the camera is rolling.
  */
-export async function preflight(claimantName: string, claimantAddr: Address, needEligible = 2) {
+export async function preflight(
+  claimantName: string,
+  claimantAddr: Address,
+  needEligible = 2,
+  /**
+   * Wei the claimant must hold, beyond gas, for every value-bearing call in the
+   * scene. Checked because settlement is PULL-payment: a returned bond is
+   * credited in the registry and does not reappear in the wallet, so an agent
+   * that has run several scenes looks solvent on paper and is not.
+   *
+   * Scene 2 hit this mid-run — the tribunal had already ruled Mismatch and the
+   * appeal reverted OutOfFunds, which is the crash preflight exists to catch
+   * before a camera is rolling.
+   */
+  needBalance = 0n,
+) {
   const eligible = (await rosterSnapshot()).filter((r) => r.eligible);
-  const claimantOk = await pub.readContract({
-    address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [claimantAddr],
-  });
+  const [claimantOk, balance, owed] = await Promise.all([
+    pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [claimantAddr] }),
+    pub.getBalance({ address: claimantAddr }),
+    pub.readContract({
+      address: REGISTRY, abi: REGISTRY_ABI, functionName: "withdrawable", args: [claimantAddr],
+    }).catch(() => 0n),
+  ]);
   const problems: string[] = [];
   if (!claimantOk) {
     problems.push(`${claimantName} is not eligible — it was slashed in an earlier run, which is the mechanism working.`);
   }
   if (eligible.length < needEligible) {
     problems.push(`only ${eligible.length} eligible agents; this scene needs ${needEligible}.`);
+  }
+  if (needBalance > 0n && balance < needBalance) {
+    problems.push(
+      `${claimantName} holds ${fmtEth(balance)} ETH and this scene needs ${fmtEth(needBalance)} ` +
+      `for bonds alone, plus gas.` +
+      (owed > 0n ? ` It is owed ${fmtEth(owed)} ETH in the registry — withdraw() moves it to the wallet.` : ""),
+    );
   }
   if (problems.length) {
     console.log("\n  Cannot run this scene from the current state:");
@@ -181,6 +286,8 @@ export async function preflight(claimantName: string, claimantAddr: Address, nee
     process.exit(1);
   }
 }
+
+const fmtEth = (wei: bigint) => (Number(wei) / 1e18).toFixed(4);
 
 export const BOND = parseEther("0.012");
 export const APPEAL_BOND = parseEther("0.02");

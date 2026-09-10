@@ -1,2 +1,10 @@
-{ "name": "@perjury/gateway", "version": "0.0.0", "type": "module", "main": "src/index.ts",
-  "dependencies": { "@perjury/tribunal": "*" } }
+{
+  "name": "@perjury/gateway",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@perjury/tribunal": "*",
+    "@perjury/shared": "*"
+  }
+}

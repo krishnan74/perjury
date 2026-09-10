@@ -79,9 +79,28 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
         */}
         <div className="col-sealed">
           <p className="eyebrow">Sealed in the enclave</p>
+          {/*
+            This has been wrong twice. It first read "Publishing it would hand
+            the next claimant a rubric", which stated the intended design as
+            present fact while the gateway store was an unencrypted gist. It
+            then described that gap — which was accurate for about an hour,
+            until the store was sealed. It now describes what is actually
+            deployed, and the one remaining reason any of it is legible.
+          */}
           <p className="note" style={{ marginBottom: "1.2rem" }}>
-            None of this reached the chain. Publishing it would hand the next claimant a rubric — if
-            you know what gets checked, you can tailor a claim to pass it.
+            None of this reached the chain. The report carries a verdict and a commitment, and the
+            commitment is a hash &mdash; it proves the tribunal judged these exact inputs without
+            revealing any of them.
+          </p>
+          <p className="note" style={{ marginBottom: "1.2rem" }}>
+            The bundle reaches the tribunal <b>sealed</b>: encrypted to a key whose private half the
+            Chainlink Vault DON releases only into the attested enclave. The gateway that stores it is
+            a public URL and holds nothing readable. Neither party ever sees the other&rsquo;s work.
+          </p>
+          <p className="note" style={{ marginBottom: "1.2rem" }}>
+            On this testnet the runner additionally keeps a local copy of each settled bundle, so the{" "}
+            <a href={`/replay?claim=${claim.id}`}>replay</a> can show what the agents actually did.
+            That is a demo affordance and the only reason any of it is legible.
           </p>
           <dl className="defs">
             <dt>claimant&rsquo;s value</dt>

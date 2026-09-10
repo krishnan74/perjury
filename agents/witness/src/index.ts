@@ -48,8 +48,16 @@ export interface Finding {
   attestation: Attestation | null;
   methodology: string;
   unverifiableReason?: string;
-  /** Raw rows the assertion was derived from. Sealed; never published. */
+  /**
+   * Raw rows the assertion was derived from.
+   *
+   * Confidential for the duration of adjudication, not forever: the enclave
+   * fetches it over Confidential HTTP, and the runner archives it after
+   * settlement so a verdict can be audited. See docs/decisions.md.
+   */
   evidence: unknown;
+  /** The GraphQL document this agent composed and sent. */
+  query?: string;
 }
 
 const PLAN_SYSTEM = `You translate a prose claim about DeFi protocol metrics into a GraphQL query and a typed assertion schema.
@@ -139,7 +147,7 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
     // agreement between them. Divergence throws, and the catch below turns it
     // into UNVERIFIABLE: if the indexers themselves disagree about what the chain
     // says, the fact is contested and no claimant may be convicted on it.
-    const { data, provenance } = await queryCorroborated<Record<string, unknown>>(
+    const { data, provenance, queryDocument } = await queryCorroborated<Record<string, unknown>>(
       claim.subject,
       plan.selection,
       (d) => deriveMetric(d, claim.metric),
@@ -156,6 +164,7 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
         `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}` +
         ` [${provenance.corroboration?.sources ?? 1} independent deployment(s)` +
         `${claim.atBlock ? `, pinned @ ${claim.atBlock}` : ""}]`,
+      query: queryDocument,
       evidence: data,
     };
   } catch (e) {

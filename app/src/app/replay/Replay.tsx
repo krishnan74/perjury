@@ -2,13 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export interface Step {
-  label: string;
-  detail: string;
-  tx: string;
-  /** Seconds between this step and the previous one, as they actually happened. */
-  gap: number;
-}
+import type { ReplayScript } from "@/lib/replay";
+import Lanes from "./Lanes";
+import Standing from "./Standing";
 
 const EXPLORER = "https://sepolia.etherscan.io";
 
@@ -21,7 +17,8 @@ const EXPLORER = "https://sepolia.etherscan.io";
  * wall clock. The elapsed counter always shows the REAL elapsed time, so speeding
  * the playback never misrepresents how long the protocol took.
  */
-export default function Replay({ steps, claimId }: { steps: Step[]; claimId: string }) {
+export default function Replay({ script }: { script: ReplayScript }) {
+  const steps = script.beats;
   const [at, setAt] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(30);
@@ -53,20 +50,60 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
 
   const elapsed = steps.slice(0, at).reduce((sum, s) => sum + s.gap, 0);
   const total = steps.reduce((sum, s) => sum + s.gap, 0);
+
+  // Standing is written at settlement, not at adjudication, so the bar moves on
+  // the Settled beat and not a moment before it.
+  const settleAt = steps.findIndex((s) => s.kind === "settle");
   const fmt = (s: number) => (s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`);
+
+  /*
+   * A6 — a time axis rather than a progress bar.
+   *
+   * Beats are positioned by the seconds that actually elapsed, so the ninety
+   * seconds of challenge window occupies ninety seconds of width. That is the
+   * point: the waiting is visible as distance, and you can drag straight to the
+   * interesting eight seconds instead of sitting through it. The counter still
+   * reports true elapsed time at every speed — a replay of a verification
+   * protocol that misrepresents its own timing defeats itself.
+   */
+  const cumulative = steps.reduce<number[]>((acc, b) => [...acc, (acc[acc.length - 1] ?? 0) + b.gap], []);
+  const atFraction = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+
+  /** The beat a point on the axis lands on. */
+  const seek = (fraction: number) => {
+    const t = Math.max(0, Math.min(1, fraction)) * total;
+    let i = 0;
+    while (i < cumulative.length && (cumulative[i] ?? 0) <= t) i++;
+    clear();
+    setPlaying(false);
+    setAt(Math.max(0, Math.min(i, steps.length)));
+  };
+
+  const fromPointer = (el: HTMLElement, clientX: number) => {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0) return;
+    seek((clientX - r.left) / r.width);
+  };
+
+  /*
+   * Stepping, for narrating at your own pace.
+   *
+   * Playback is on a clock, which is wrong when someone is talking over it —
+   * you end up racing the animation or pausing mid-sentence. A step pauses
+   * whatever is running and moves exactly one beat, and the lanes follow it,
+   * so the page arrives where the speaker already is.
+   */
+  const step = (delta: number) => {
+    clear();
+    setPlaying(false);
+    setAt((i) => Math.max(0, Math.min(i + delta, steps.length)));
+  };
 
   return (
     <>
       <div className="actions" style={{ marginTop: 0, marginBottom: "1.6rem", alignItems: "center" }}>
         <button className="btn" onClick={() => (at >= steps.length ? reset() : setPlaying((p) => !p))}>
           {at >= steps.length ? "Replay" : playing ? "Pause" : at === 0 ? "Play" : "Resume"}
-        </button>
-        <button
-          className="btn ghost"
-          onClick={() => { clear(); setPlaying(false); setAt((i) => Math.min(i + 1, steps.length)); }}
-          disabled={at >= steps.length}
-        >
-          Step
         </button>
         <button className="btn ghost" onClick={reset} disabled={at === 0}>Reset</button>
         <span className="chip" role="group" aria-label="Playback speed">
@@ -95,35 +132,97 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
         </span>
       </div>
 
-      <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length}
-           aria-valuenow={at} aria-label="Replay progress">
-        <span style={{ transform: `scaleX(${steps.length ? at / steps.length : 0})` }} />
+      {/*
+        Draggable, keyboard-operable, and labelled in seconds rather than steps,
+        because "step 6 of 11" tells a viewer nothing about where the protocol
+        actually spends its time.
+      */}
+      <div
+        className="scrub"
+        role="slider"
+        tabIndex={0}
+        aria-label="Scrub the replay, in elapsed seconds on chain"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={elapsed}
+        aria-valuetext={`${fmt(elapsed)} of ${fmt(total)}`}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          fromPointer(e.currentTarget, e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) fromPointer(e.currentTarget, e.clientX);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") { clear(); setPlaying(false); setAt((i) => Math.min(i + 1, steps.length)); }
+          else if (e.key === "ArrowLeft") { clear(); setPlaying(false); setAt((i) => Math.max(i - 1, 0)); }
+          else if (e.key === "Home") reset();
+          else if (e.key === "End") { clear(); setPlaying(false); setAt(steps.length); }
+          else return;
+          e.preventDefault();
+        }}
+      >
+        <span className="scrub-track" aria-hidden="true" />
+        <span className="scrub-fill" style={{ width: `${atFraction(elapsed)}%` }} aria-hidden="true" />
+        {steps.map((b, i) => (
+          <span
+            key={b.key}
+            className="scrub-beat"
+            data-done={i < at}
+            data-kind={b.kind}
+            style={{ left: `${atFraction(cumulative[i] ?? 0)}%` }}
+            title={`${fmt(cumulative[i] ?? 0)} — ${b.label}`}
+            aria-hidden="true"
+          />
+        ))}
+        <span className="scrub-head" style={{ left: `${atFraction(elapsed)}%` }} aria-hidden="true" />
       </div>
 
-      <div className="stages">
-        {steps.map((s, i) => {
-          const state = i < at ? "done" : i === at ? (playing ? "active" : "idle") : "idle";
-          return (
-            <div className="stage" data-state={state} key={`${s.label}-${i}`}>
-              <span className="dot" aria-hidden="true">{i < at ? "●" : "○"}</span>
-              <span>
-                {s.label}
-                {s.detail && <span className="muted"> &mdash; {s.detail}</span>}
-              </span>
-              {i < at ? (
-                <a className="when" href={`${EXPLORER}/tx/${s.tx}`} target="_blank" rel="noreferrer">
-                  +{s.gap}s &middot; {s.tx.slice(0, 10)}&hellip;
-                </a>
-              ) : (
-                <span className="when">&nbsp;</span>
-              )}
-            </div>
-          );
-        })}
+      <Lanes script={script} at={at} playing={playing} />
+
+      {/*
+        Rendered whenever the chain recorded a standing write for this claim. A
+        Match or Unverifiable verdict leaves the record untouched and the writer
+        emits nothing, so there is nothing here to show and nothing is drawn —
+        rather than a bar sitting flat at its current value, which would read as
+        "the tribunal considered it and left it alone".
+      */}
+      {script.standing && (
+        <Standing move={script.standing} moved={settleAt >= 0 && at > settleAt} />
+      )}
+
+      {/*
+        Fixed to the viewport rather than in the flow: the whole point is that it
+        is reachable without hunting for it while you are mid-sentence and the
+        page has scrolled somewhere else.
+      */}
+      <div className="steppad" role="group" aria-label="Step through the replay">
+        <button
+          className="steppad-btn"
+          onClick={() => step(-1)}
+          disabled={at === 0}
+          aria-label="Previous step"
+          title="Previous step"
+        >
+          <span aria-hidden="true">&#9650;</span>
+        </button>
+        <span className="steppad-count" aria-live="polite">
+          <b>{at}</b>
+          <i>/{steps.length}</i>
+        </span>
+        <button
+          className="steppad-btn"
+          onClick={() => step(1)}
+          disabled={at >= steps.length}
+          aria-label="Next step"
+          title="Next step"
+        >
+          <span aria-hidden="true">&#9660;</span>
+        </button>
       </div>
 
       <p className="note" style={{ marginTop: "1.4rem" }}>
-        Claim #{claimId}, replayed from its own transactions. The gaps are what actually elapsed: about
+        Claim #{script.claimId}, replayed from its own transactions. The gaps are what actually elapsed: about
         a minute for VRF to fulfil, and ninety seconds of challenge window during which the verdict
         could still be appealed. Playback speed compresses the waiting; the elapsed counter does not.
       </p>

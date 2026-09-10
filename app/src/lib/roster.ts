@@ -15,6 +15,11 @@ export interface Agent {
   address: Address;
   /** Decoded from the DNS-encoded name the agent registered with. */
   name: string;
+  /**
+   * The ENS node the agent registered under. `StandingUpdated` is indexed by
+   * node and carries no address, so this is the only join back to an agent.
+   */
+  ensNode: `0x${string}`;
   standing: number;
   /** False when the ENS record could not be read at all — which fails closed. */
   standingReadable: boolean;
@@ -74,6 +79,7 @@ export async function rosterSnapshot(): Promise<Agent[]> {
       return {
         address,
         name: decodeDnsName(dnsName) || address,
+        ensNode,
         standing,
         standingReadable,
         stake,

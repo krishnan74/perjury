@@ -22,6 +22,8 @@ export interface ClaimDraft {
   methodology: string;
   evidence: unknown;
   unverifiableReason?: string;
+  /** The GraphQL document this agent composed and sent. */
+  query?: string;
   /** True when the agent was instructed to misstate its finding. */
   fabricated: boolean;
 }
@@ -101,7 +103,7 @@ export async function draftClaim(
     // Corroborated like the witness's read: the claimant is held to the same
     // data standard it will be judged against, so a contested reading is caught
     // before a bond is ever posted rather than after.
-    const { data, provenance } = await queryCorroborated<Record<string, unknown>>(
+    const { data, provenance, queryDocument } = await queryCorroborated<Record<string, unknown>>(
       subject,
       p.selection,
       (d) => deriveMetric(d, metric),
@@ -132,6 +134,9 @@ export async function draftClaim(
       assertion,
       attestation: { provenance, assertion, digest: digestOf(provenance, assertion) },
       methodology: `claimant: ${pinned.protocolName} via ${pinned.schema}; ${p.reasoning}`,
+      // The document the client actually sent, so it hashes to the queryHash in
+      // provenance. Recomposing it here did not reliably reproduce that string.
+      query: queryDocument,
       evidence: data,
       fabricated,
     };

@@ -13,7 +13,9 @@ import { keccak256, toBytes } from "viem";
 import * as p from "./lib/present";
 import {
   AGENTS, APPEAL_BOND, BOND, REGISTRY, REGISTRY_ABI, ROSTER, ROSTER_ABI, account, addressOf,
-  claim, claimantFor, op, preflight, pub, publishEvidence, rosterSnapshot, runTribunal, standingOf, walletFor,
+  awaitWitness, claim, claimantFor, draftEvidence, op, preflight, pub, rosterSnapshot, runTribunal,
+  panelEvidence, standingOf,
+  walletFor, witnessEvidence,
 } from "./lib/chain";
 
 // Which agent makes the claim. Scene 2 slashes it, so pass a different one
@@ -24,16 +26,22 @@ const signer = walletFor(who.pk);
 p.scene(2, "A false claim, and an appeal that fails",
   "Lying should cost the bond, the stake, the standing, and the right to judge others.");
 
-await preflight(CLAIMANT, who.address, 5);
+await preflight(CLAIMANT, who.address, 5, BOND + APPEAL_BOND);
 
 const beforeStanding = await standingOf(CLAIMANT);
 const beforeStake = await pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "stakeOf", args: [who.address] });
 const claimId = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "nextClaimId" });
 
-p.step("The claimant posts a claim it cannot support");
+p.step("The claimant reads live data, then states something it does not support");
+p.note("It reads honestly and overstates deliberately. Nothing is bonded yet.");
+const draft = draftEvidence(String(claimId), "false");
+p.assertion("CLAIMANT", draft.text, `${round2(draft.out.match(/asserts ([\d.]+)%/)?.[1])}%`, p.c.red);
+
+p.step("The claimant posts that exact claim, and bonds it");
+p.line("claimHash", `${draft.claimHash.slice(0, 18)}…  = keccak256 of the sentence above`);
 const submitHash = await signer.writeContract({
   address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
-  args: [keccak256(toBytes("aave-v3-ethereum:utilization")), keccak256(toBytes("utilization far above reality"))],
+  args: [keccak256(toBytes("aave-v3-ethereum:utilization")), draft.claimHash],
   value: BOND,
 });
 await pub.waitForTransactionReceipt({ hash: submitHash });
@@ -42,14 +50,14 @@ p.line("bond at risk", "0.010 ETH");
 p.line("stake at risk", `${Number(beforeStake) / 1e18} ETH`);
 
 p.step("VRF assigns a witness the claimant cannot influence");
-await p.waitFor("waiting for VRF", async () => (await claim(claimId)).witness !== "0x0000000000000000000000000000000000000000");
+await awaitWitness(claimId, p.waitFor);
 const c = await claim(claimId);
 const wa = AGENTS.find((a) => addressOf(a).toLowerCase() === c.witness.toLowerCase());
 p.line("witness drawn", `${wa?.name ?? c.witness}  ${c.witness.slice(0, 12)}…`, p.c.cyan);
 
-p.step("Both derive from live data. They disagree.");
-const out = publishEvidence(String(claimId), "false");
-p.assertion("CLAIMANT", out.match(/CLAIMANT.*?: "(.*?)"/)?.[1] ?? "", `${round2(out.match(/asserts ([\d.]+)%/)?.[1])}%`, p.c.red);
+p.step("The drawn witness derives from the same block. They disagree.");
+const out = witnessEvidence(String(claimId), wa?.name ?? "unknown", c.witness);
+p.assertion("CLAIMANT", draft.text, `${round2(draft.out.match(/asserts ([\d.]+)%/)?.[1])}%`, p.c.red);
 p.assertion("WITNESS", "independently re-derived from Aave v3", `${round2(out.match(/derives ([\d.]+)/)?.[1])}%`, p.c.magenta);
 
 p.step("The tribunal rules");
@@ -72,7 +80,13 @@ for (const seat of ap.panel) {
 p.note("Neither party is on the panel, and the seats run different models.");
 
 p.step("The panel re-derives, independently of the first witness");
-publishEvidence(String(claimId), "false", true);
+panelEvidence(
+  String(claimId),
+  ap.panel.map((seat) => ({
+    name: AGENTS.find((a) => addressOf(a).toLowerCase() === seat.toLowerCase())?.name ?? seat,
+    address: seat,
+  })),
+);
 p.verdict(runTribunal("panel"), "Three independent derivations, majority stands.");
 
 p.step("Settlement");
