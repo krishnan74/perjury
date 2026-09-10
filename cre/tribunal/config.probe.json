@@ -5,7 +5,7 @@
   "secretId": "COMMITMENT_SALT",
   "envelopeSecretId": "ENVELOPE_KEY",
   "toleranceBps": 50,
-  "verdictSinkAddress": "0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3",
+  "verdictSinkAddress": "0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF",
   "chainSelector": "16015286601757825753",
   "pinnedDeployments": [
     "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",

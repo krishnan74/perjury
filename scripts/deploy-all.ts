@@ -227,7 +227,14 @@ async function main() {
   for (const f of ["cre/tribunal/config.staging.json", "cre/tribunal/config.production.json"]) {
     const cfg = JSON.parse(readFileSync(f, "utf8"));
     cfg.verdictSinkAddress = sink.VerdictSink;
-    cfg.reportKind = "verdict";
+    // The workflow reads this to find what still needs adjudicating, so it has
+    // to follow the cascade like every other address here.
+    cfg.claimRegistryAddress = core.ClaimRegistry;
+    // Both are pins for reproducing one past run. A cascade makes every claim id
+    // meaningless, so clear them rather than leave the workflow pointed at a
+    // claim that no longer exists.
+    delete cfg.pinnedClaimId;
+    delete cfg.pinnedReportKind;
     cfg.pinnedDeployments = pinnedIds;
     cfg.freshnessSeconds = FRESHNESS_SECONDS;
     writeFileSync(f, `${JSON.stringify(cfg, null, 2)}\n`);

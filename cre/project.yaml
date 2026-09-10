@@ -8,3 +8,12 @@ production-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
+
+# Throwaway target used once to measure the Forwarder address that a real DON
+# deployment reports from. Points at ScratchSink, which accepts any sender.
+probe-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-mainnet
+      url: https://ethereum-rpc.publicnode.com

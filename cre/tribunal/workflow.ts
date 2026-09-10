@@ -1,18 +1,39 @@
 import {
 	cre,
+	encodeCallMsg,
 	hexToBase64,
 	ok,
 	text,
 	type TeeRuntime,
 } from '@chainlink/cre-sdk'
-import { encodeAbiParameters, keccak256, parseAbiParameters, toHex } from 'viem'
+import {
+	bytesToHex,
+	decodeAbiParameters,
+	encodeAbiParameters,
+	encodeFunctionData,
+	keccak256,
+	parseAbiParameters,
+	toHex,
+	zeroAddress,
+	type Address,
+} from 'viem'
 import { z } from 'zod'
 import { isSealedEnvelope, open as openEnvelope } from './envelope'
 
 // ─── Config ─────────────────────────────────────────────────
 export const configSchema = z.object({
 	schedule: z.string(),
-	evidenceGatewayUrl: z.string(),
+	/**
+	 * Where a claim's sealed evidence lives. The claim id is appended, so one
+	 * deployed workflow can reach evidence that did not exist when it was built.
+	 *
+	 * This used to be a single fixed URL, which was only workable because the
+	 * claim was fixed too. A workflow that finds its own work cannot be told a
+	 * new URL, so the address has to be derivable from the claim id alone.
+	 */
+	evidenceGatewayBaseUrl: z.string(),
+	/** ClaimRegistry. Read once per tick to find what still needs adjudicating. */
+	claimRegistryAddress: z.string(),
 	secretId: z.string(),
 	/**
 	 * Vault DON secret holding the private half of the evidence envelope key.
@@ -40,15 +61,42 @@ export const configSchema = z.object({
 	pinnedDeployments: z.array(z.string()).default([]),
 	/** Seconds of index lag tolerated, converted per chain. Mirrors graph-client. */
 	freshnessSeconds: z.number().default(600),
-	/** 'verdict' for an initial adjudication, 'panel' for an appeal. */
-	reportKind: z.enum(['verdict', 'panel']).default('verdict'),
-	/** Claim under adjudication. */
-	claimId: z.string().default('1'),
+	/**
+	 * Pin the workflow to one claim, ignoring what the registry says is pending.
+	 *
+	 * Kept only for reproducing a past run against a known claim. In normal
+	 * operation both of these are absent and both facts come from chain, which
+	 * is what makes a claim submitted a minute ago adjudicable at all. Setting
+	 * the claim without the kind is a mistake worth failing on rather than
+	 * guessing: judging an appeal by the witness rule reaches a real verdict
+	 * from the wrong evidence.
+	 */
+	pinnedClaimId: z.string().optional(),
+	pinnedReportKind: z.enum(['verdict', 'panel']).optional(),
 
 	verdictSinkAddress: z.string(),
 	chainSelector: z.string(), // CCIP chain selector; string because JSON has no bigint
 })
 type Config = z.infer<typeof configSchema>
+
+/**
+ * The one thing this workflow reads from chain.
+ *
+ * Deliberately not the whole registry ABI: the workflow has no business calling
+ * anything else, and a narrow binding says so better than a comment.
+ */
+const PENDING_ABI = [
+	{
+		type: 'function',
+		name: 'pendingForTribunal',
+		stateMutability: 'view',
+		inputs: [],
+		outputs: [
+			{ name: 'claimId', type: 'uint256' },
+			{ name: 'kind', type: 'uint8' },
+		],
+	},
+] as const
 
 // ─── Types mirrored from packages/tribunal ──────────────────
 // Duplicated rather than imported: the workflow compiles to a standalone WASM
@@ -289,6 +337,52 @@ const adjudicatePanel = (
 export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	const config = runtime.config
 
+	// ── Find the work, out on the DON ──
+	//
+	// This read has to happen on the DON runtime rather than in here: the EVM
+	// capability takes a Runtime and TeeRuntime is not one. That costs nothing.
+	// The claim id and its status are public values on a public chain, so a node
+	// operator watching this request learns only what anyone reading the registry
+	// already knows. Nothing that reaches the enclave later travels this way.
+	//
+	// Crossing out for one call does not end the handler's confidentiality. The
+	// TeeRuntime is still the runtime for the secret and for the evidence fetch
+	// below, and those are the two calls that carry anything worth hiding.
+	const donRuntime = runtime.usingTheDons()
+	const evmClient = new cre.capabilities.EVMClient(BigInt(config.chainSelector))
+
+	let claimId: string
+	let reportKind: 'verdict' | 'panel'
+
+	if (config.pinnedClaimId) {
+		if (!config.pinnedReportKind) {
+			throw new Error('pinnedClaimId requires pinnedReportKind — see the config schema')
+		}
+		claimId = config.pinnedClaimId
+		reportKind = config.pinnedReportKind
+	} else {
+		const call = evmClient
+			.callContract(donRuntime, {
+				call: encodeCallMsg({
+					from: zeroAddress,
+					to: config.claimRegistryAddress as Address,
+					data: encodeFunctionData({ abi: PENDING_ABI, functionName: 'pendingForTribunal' }),
+				}),
+			})
+			.result()
+
+		const [pendingId, pendingKind] = decodeAbiParameters(
+			parseAbiParameters('uint256, uint8'),
+			bytesToHex(call.data),
+		)
+
+		// Nothing outstanding. Most ticks end here, having done one read.
+		if (pendingId === 0n) return 'idle'
+
+		claimId = pendingId.toString()
+		reportKind = pendingKind === 1 ? 'panel' : 'verdict'
+	}
+
 	// The salt is released by the Vault DON directly into the attested enclave.
 	// It binds the evidence commitment so the published hash cannot be
 	// brute-forced back to the sealed evidence.
@@ -302,10 +396,17 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// other's work — the bundle is the only place the two meet, and it meets
 	// inside the TEE.
 	const response = new cre.capabilities.HTTPClient()
-		.sendRequest(runtime, { url: config.evidenceGatewayUrl, method: 'GET' })
+		.sendRequest(runtime, { url: `${config.evidenceGatewayBaseUrl}/${claimId}`, method: 'GET' })
 		.result()
 
+	// A witness is assigned the moment the VRF draw fulfils, which is before it
+	// has read anything or published anything. So a claim can be the tribunal's
+	// work and have no evidence yet, and that is a normal state rather than a
+	// failure — the next tick will find it again. Throwing here would turn every
+	// ordinary claim into a run of errors during the window between the draw and
+	// the witness finishing.
 	if (!ok(response)) {
+		if (response.statusCode === 404) return `waiting for evidence on claim ${claimId}`
 		throw new Error(`Evidence fetch failed with status: ${response.statusCode}`)
 	}
 
@@ -348,9 +449,16 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		panel?: { member: string; submission: SealedSubmission }[]
 	}
 
+	// The envelope already refuses to open under the wrong claim id, so this is
+	// belt and braces rather than the binding itself. It costs one comparison and
+	// it catches a gateway that serves a well-formed bundle for the wrong claim.
+	if (bundle.claimId !== claimId) {
+		throw new Error(`gateway served claim ${bundle.claimId}, asked for ${claimId}`)
+	}
+
 	// On an appeal the panel's majority decides, not the original witness.
 	const { verdict, confidence } =
-		config.reportKind === 'panel' && bundle.panel && bundle.panel.length > 0
+		reportKind === 'panel' && bundle.panel && bundle.panel.length > 0
 			? adjudicatePanel(
 					bundle.claim,
 					bundle.panel,
@@ -381,14 +489,14 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// Anything passed to a capability call on donRuntime executes on Workflow DON
 	// nodes and is NO LONGER confidential. We cross over the verdict, the
 	// confidence bucket, and a hash — never evidence, methodology, or values.
-	const donRuntime = runtime.usingTheDons()
+	// donRuntime and evmClient were made at the top, for the registry read.
 
 	// A Forwarder only ever calls onReport, so the report kind travels in the
 	// payload rather than in the choice of entry point.
-	const kind = config.reportKind === 'panel' ? 1 : 0
+	const kind = reportKind === 'panel' ? 1 : 0
 	const encodedPayload = encodeAbiParameters(
 		parseAbiParameters('uint8 kind, uint256 claimId, uint8 verdict, bytes32 evidenceCommitment'),
-		[kind, BigInt(bundle.claimId), verdict, evidenceCommitment],
+		[kind, BigInt(claimId), verdict, evidenceCommitment],
 	)
 
 	const report = donRuntime
@@ -401,9 +509,8 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		.result()
 
 	// Deliver the signed report on-chain. The receiving contract sees a specific
-	// msg.sender, and VerdictSink.CRE_REPORT_WRITER is immutable — so that address
-	// is measured from a real transaction, never guessed.
-	const evmClient = new cre.capabilities.EVMClient(BigInt(config.chainSelector))
+	// msg.sender, and the sink's authorised writers are immutable — so those
+	// addresses are read from the tenant's own chain list, never guessed.
 	evmClient
 		.writeReport(donRuntime, {
 			receiver: config.verdictSinkAddress,
@@ -411,7 +518,7 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		})
 		.result()
 
-	return `verdict=${verdict} confidence=${confidence}`
+	return `claim=${claimId} kind=${reportKind} verdict=${verdict} confidence=${confidence}`
 }
 
 // ─── Workflow init ──────────────────────────────────────────

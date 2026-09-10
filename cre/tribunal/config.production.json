@@ -1,14 +1,12 @@
 {
   "schedule": "0 */1 * * * *",
-  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/0f0e6d7204d7f1c35472bf752aae41b9",
+  "evidenceGatewayBaseUrl": "https://perjury.vercel.app/api/evidence",
+  "claimRegistryAddress": "0x8CDa96E615E96f97073C19Cc2167E4D242487A88",
   "secretId": "COMMITMENT_SALT",
   "envelopeSecretId": "ENVELOPE_KEY",
   "toleranceBps": 50,
   "verdictSinkAddress": "0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3",
   "chainSelector": "16015286601757825753",
-  "reportKind": "panel",
-  "claimId": "25",
-  "fixtureWitnessValue": 400000,
   "pinnedDeployments": [
     "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
     "QmdwBHGxokamYsLfMVk6fXfry3Ss9emEiTy6wptd1ecysG",
