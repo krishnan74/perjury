@@ -113,6 +113,27 @@ export interface Seal {
   adjudicationSeconds: number;
   /** Labels and bar widths for what went in and did not come out. */
   withheld: { label: string; ch: number }[];
+  /**
+   * The two values that went in, from the archive.
+   *
+   * Visible here only because the runner archives the bundle AFTER settlement.
+   * Neither figure appears in any transaction, which is the point the panel is
+   * making — so the component has to say why it can show them at all.
+   */
+  claimantValue: number | null;
+  witnessValue: number | null;
+  unit: string | null;
+  /** Absolute distance between the two, in the assertion's own unit. */
+  divergence: number | null;
+  /**
+   * Whether both parties' archived rows are byte-identical.
+   *
+   * When they are, a disagreement cannot be blamed on the data: the two agents
+   * were handed the same numbers and did not reach the same conclusion. That is
+   * the strongest thing this page can say, and it is a comparison of archived
+   * values rather than an interpretation of them.
+   */
+  identicalEvidence: boolean | null;
 }
 
 export interface StandingMove {
@@ -203,7 +224,7 @@ export function buildScript(
     appealed: claim.appealed,
     beats,
     draw: buildDraw(claim, mine, roster),
-    seal: buildSeal(claim),
+    seal: buildSeal(claim, archive),
     standing: buildStanding(claim, mechanism, roster),
     totalSeconds: beats.reduce((sum, b) => sum + b.gap, 0),
   };
@@ -495,14 +516,31 @@ function buildDraw(claim: ClaimRow, mine: ClaimEvent[], roster: Agent[]): Draw |
   };
 }
 
-function buildSeal(claim: ClaimRow): Seal | null {
+function buildSeal(claim: ClaimRow, archive: Archive | null): Seal | null {
   const recorded = claim.events.find((e) => e.name === "VerdictRecorded");
   if (!recorded) return null;
   const assigned = claim.events.find((e) => e.name === "WitnessAssigned");
 
   const commitment = String(recorded.args.evidenceCommitment ?? "");
 
+  const cv = archive?.claim.attestation?.assertion.value ?? null;
+  const wv = archive?.witness.attestation?.assertion.value ?? null;
+
+  // Compared as rendered rows rather than as raw objects, so key order and
+  // formatting cannot make identical readings look different.
+  let identical: boolean | null = null;
+  if (archive?.claim.evidence && archive?.witness.evidence) {
+    const a = JSON.stringify(evidenceRows(archive.claim));
+    const b = JSON.stringify(evidenceRows(archive.witness));
+    identical = a === b;
+  }
+
   return {
+    claimantValue: cv,
+    witnessValue: wv,
+    unit: archive?.claim.attestation?.assertion.unit ?? null,
+    divergence: cv !== null && wv !== null ? Math.abs(cv - wv) : null,
+    identicalEvidence: identical,
     tx: recorded.tx,
     block: String(recorded.block),
     verdict: (VERDICT[Number(recorded.args.verdict)] ?? "None") as VerdictName,

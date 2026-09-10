@@ -1422,3 +1422,100 @@ body::after {
   .draw-slot { grid-column: 1; grid-row: auto !important; }
   .draw { margin: 0.5rem 0 0.5rem 1.1rem; }
 }
+
+
+/* ══ The seal ═════════════════════════════════════════════════════════════
+   The one place the two lanes are allowed to meet, and they meet inside a box
+   that does not open. We are not showing what happens in the enclave, and
+   refusing to is more honest than a fabricated x-ray of a computation nobody
+   watched. What this shows is the boundary: two full inputs in, one thin thing
+   out. */
+
+.seal {
+  margin: 0.7rem 0 0.2rem;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+.seal-head,
+.seal-out-head {
+  margin: 0;
+  padding: 0.6rem 0.85rem 0.35rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.seal-in,
+.seal-out {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.8rem;
+  margin: 0;
+  padding: 0 0.85rem 0.6rem;
+}
+.seal-in dt,
+.seal-out dt { color: var(--muted); }
+.seal-in dd,
+.seal-out dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.seal-in dd { font-family: var(--serif); font-size: 1.15rem; }
+
+/* The strongest sentence on the page, so it is given the accent and nothing
+   else on this card is. */
+.seal-point {
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+.seal-point b { color: var(--accent); font-weight: 600; }
+
+/* The box itself. Deliberately the darkest thing on the page. */
+.seal-box {
+  background: var(--seal);
+  color: var(--paper);
+  padding: 0.75rem 0.85rem;
+}
+.seal-box-head {
+  margin: 0 0 0.5rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8b887c;
+}
+.seal-box dl { margin: 0; }
+/* The label takes what it needs and the bar takes the rest.
+   With the bar column sized to content, a 34ch bar squeezed the label until it
+   wrapped and then sat on top of it — "methodologies" rendered as
+   "methodologie" with a black bar through it. */
+.seal-box dl > div {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.16rem 0;
+}
+.seal-box dt { color: #8b887c; font-size: 0.66rem; }
+.seal-box dd { margin: 0; }
+/* Against the dark ground the bars need to read as removals, not as gaps.
+   The arbitrary widths are kept where they fit and clamped where they do not —
+   they exist so a bar looks like a redaction, and must never encode the length
+   of the value they cover. */
+.seal-box .redacted { background: #2a2a22; width: min(var(--w, 12ch), 100%); }
+
+/* The chip's border reads as a form field inside this card, where the verdict
+   is a value in a list rather than a badge on a page. */
+.seal-out dd.verdict { font-size: 0.8rem; letter-spacing: 0.1em; border: 0; padding: 0; }
+
+.seal-note {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+.seal-why { background: var(--paper-2); }

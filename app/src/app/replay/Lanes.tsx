@@ -4,6 +4,7 @@ import type { ReplayScript } from "@/lib/replay";
 import { ROLE_LABEL } from "@/lib/identity";
 import AgentRead from "./AgentRead";
 import Draw from "./Draw";
+import Seal from "./Seal";
 
 const EXPLORER = "https://sepolia.etherscan.io";
 
@@ -126,6 +127,10 @@ export default function Lanes({
               </p>
             )}
             {b.read && i < at && <AgentRead read={b.read} who={b.who} />}
+            {/* The convergence lives inside the verdict beat rather than in a
+                slot of its own: both occupy the spine at this row, and two grid
+                items in one cell overlap. */}
+            {b.kind === "verdict" && i < at && script.seal && <Seal seal={script.seal} />}
             {b.tx ? (
               i < at ? (
                 <a className="lane-tx" href={`${EXPLORER}/tx/${b.tx}`} target="_blank" rel="noreferrer">
