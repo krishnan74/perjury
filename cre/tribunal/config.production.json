@@ -1,13 +1,13 @@
 {
   "schedule": "0 */1 * * * *",
-  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/cbd98ee8fbd512c2bff5815da35d99f5",
+  "evidenceGatewayUrl": "https://gist.githubusercontent.com/raw/0f0e6d7204d7f1c35472bf752aae41b9",
   "secretId": "COMMITMENT_SALT",
   "envelopeSecretId": "ENVELOPE_KEY",
   "toleranceBps": 50,
   "verdictSinkAddress": "0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3",
   "chainSelector": "16015286601757825753",
-  "reportKind": "verdict",
-  "claimId": "24",
+  "reportKind": "panel",
+  "claimId": "25",
   "fixtureWitnessValue": 400000,
   "pinnedDeployments": [
     "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",

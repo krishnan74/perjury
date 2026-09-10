@@ -178,7 +178,7 @@ The issuance record is a different EAC key from the standing record, and the tri
 
 <!-- BEGIN GENERATED LEDGER — npx tsx scripts/collect-evidence.ts --write -->
 
-*Generated 2026-09-10 from Sepolia blocks 11665227–11674227. 24 claims, 167 events. Rebuild with `npx tsx scripts/collect-evidence.ts --write`.*
+*Generated 2026-09-10 from Sepolia blocks 11665414–11674414. 25 claims, 181 events. Rebuild with `npx tsx scripts/collect-evidence.ts --write`.*
 
 Claim ids restart with each deployment, so these are the claims of the deployment currently in `.env`.
 
@@ -468,5 +468,24 @@ Claim ids restart with each deployment, so these are the claims of the deploymen
 | 11674145 | `VerdictRecorded` | [`0x108ebe2f1684…`](https://sepolia.etherscan.io/tx/0x108ebe2f16844e1cbd2e9dd81e2c1e39768a38586f01973f32dc5649fbf84286) | verdict=1 evidenceCommitment=0x0037fb4412ad84d0e51662bee20a6d721216118e4e9bbb107cbe4d007446498b |
 | 11674154 | `Settled` | [`0x77acd4d3d625…`](https://sepolia.etherscan.io/tx/0x77acd4d3d6258ced0a7de16c53ceba9ad0483757e4620c97489521caa0e444e5) | claimant=0xDcbe075a907960951Cd4df379BB21461097eEa91 verdict=1 |
 | 11674154 | `WitnessPaid` | [`0x77acd4d3d625…`](https://sepolia.etherscan.io/tx/0x77acd4d3d6258ced0a7de16c53ceba9ad0483757e4620c97489521caa0e444e5) | witness=0x407E1437890E460c8027f4C94ebf05f6a7917e13 fee=2000000000000000 |
+
+#### Claim 25 — Mismatch
+
+| Block | Event | Tx | Detail |
+|---|---|---|---|
+| 11674381 | `ClaimSubmitted` | [`0x31410a2f1e57…`](https://sepolia.etherscan.io/tx/0x31410a2f1e57b8fb0d70a992a6a62eace9a7038461ac8e9448c2e0aa79d804b9) | claimant=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 subject=0x04e817a09791e480d31fd4d0cbe7288855680ae0cf9cad600e4cfb274bfd6dd7 bond=12000000000000000 |
+| 11674381 | `WitnessRequested` | [`0x31410a2f1e57…`](https://sepolia.etherscan.io/tx/0x31410a2f1e57b8fb0d70a992a6a62eace9a7038461ac8e9448c2e0aa79d804b9) | requestId=32713716843014205240958746561256619572242314247699372814552490519077811462808 |
+| 11674386 | `WitnessAssigned` | [`0x1b0ec1be12c2…`](https://sepolia.etherscan.io/tx/0x1b0ec1be12c23d52daa036e310f0e28399213fd984ee16617ec233fe91a07b51) | witness=0xDcB350AC72184BBE9528Dd3123f0e270887B203f |
+| 11674386 | `WitnessDrawn` | [`0x1b0ec1be12c2…`](https://sepolia.etherscan.io/tx/0x1b0ec1be12c23d52daa036e310f0e28399213fd984ee16617ec233fe91a07b51) | witness=0xDcB350AC72184BBE9528Dd3123f0e270887B203f seed=36469139057195790325796589636163128227113367793316177469880717774972756413083 |
+| 11674393 | `VerdictRecorded` | [`0x14b736482d9a…`](https://sepolia.etherscan.io/tx/0x14b736482d9a873a81c8e9ae80fd96ae5745dee9594c10dcb004625fc5e542a4) | verdict=2 evidenceCommitment=0x0471c4aeb5eb1eeed4468b319560e3369e069b8fd1110bf77ab79c68924bf152 |
+| 11674394 | `Appealed` | [`0x3586efd77727…`](https://sepolia.etherscan.io/tx/0x3586efd7772738b5d9ac96e91a38168148f884ccd1edce2cf534800b6a4df92e) | appellant=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 bond=20000000000000000 |
+| 11674394 | `PanelRequested` | [`0x3586efd77727…`](https://sepolia.etherscan.io/tx/0x3586efd7772738b5d9ac96e91a38168148f884ccd1edce2cf534800b6a4df92e) | requestId=115589252505674553077330623706158705816789096195863599314650189452604198189023 |
+| 11674399 | `PanelSeated` | [`0xcb7124d0d4c0…`](https://sepolia.etherscan.io/tx/0xcb7124d0d4c04bf9cceecdcbdfc4b0906d855eda958141ef53eb966872b2bda3) | panel=0xDcbe075a907960951Cd4df379BB21461097eEa91 0x407E1437890E460c8027f4C94ebf05f6a7917e13 0x51Dce343aA4D470e2E6cAaDd781C60C1f1516eb9 |
+| 11674399 | `PanelDrawn` | [`0xcb7124d0d4c0…`](https://sepolia.etherscan.io/tx/0xcb7124d0d4c04bf9cceecdcbdfc4b0906d855eda958141ef53eb966872b2bda3) | panel=0xDcbe075a907960951Cd4df379BB21461097eEa91 0x407E1437890E460c8027f4C94ebf05f6a7917e13 0x51Dce343aA4D470e2E6cAaDd781C60C1f1516eb9 |
+| 11674407 | `PanelUpheld` | [`0x2a9e78c2b506…`](https://sepolia.etherscan.io/tx/0x2a9e78c2b506936356b0f08135d1ab21ad85f4292d6801accdf0aedee56a76a1) | verdict=2 |
+| 11674409 | `Settled` | [`0x621415186b7f…`](https://sepolia.etherscan.io/tx/0x621415186b7ffb83fa96eb3278f795ec8c557c4b90ee41724f9a5ca41605ecde) | claimant=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 verdict=2 |
+| 11674409 | `ClaimantSlashed` | [`0x621415186b7f…`](https://sepolia.etherscan.io/tx/0x621415186b7ffb83fa96eb3278f795ec8c557c4b90ee41724f9a5ca41605ecde) | claimant=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 bond=10000000000000000 stakeSlashed=10000000000000000 |
+| 11674409 | `WitnessPaid` | [`0x621415186b7f…`](https://sepolia.etherscan.io/tx/0x621415186b7ffb83fa96eb3278f795ec8c557c4b90ee41724f9a5ca41605ecde) | witness=0xDcB350AC72184BBE9528Dd3123f0e270887B203f fee=2000000000000000 |
+| 11674409 | `AgentSlashed` | [`0x621415186b7f…`](https://sepolia.etherscan.io/tx/0x621415186b7ffb83fa96eb3278f795ec8c557c4b90ee41724f9a5ca41605ecde) | agent=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 amount=10000000000000000 remainingStake=0 |
 
 <!-- END GENERATED LEDGER -->
