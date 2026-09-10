@@ -1020,7 +1020,16 @@ body::after {
 
 .lanes {
   display: grid;
-  grid-template-columns: 1fr minmax(0, 1.2fr) 1fr;
+  /*
+     Every track is minmax(0, …) so the agent cards cannot force their own
+     column wider than its share. Without the zero minimum the two lanes sized
+     to their content — long deployment ids and unbroken numbers — and squeezed
+     the spine to about 180px, which is where the draw lives.
+
+     The spine keeps a floor because it carries the roster walk, and a walk you
+     have to read one word per line is not showing anybody anything.
+  */
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 1fr) minmax(0, 1fr);
   column-gap: clamp(0.9rem, 2.6vw, 2.2rem);
   align-items: start;
   margin-top: 1.6rem;
@@ -1046,6 +1055,7 @@ body::after {
 
 .lane-beat {
   position: relative;
+  min-width: 0;
   padding: 0.55rem 0 1.25rem;
   font-family: var(--mono);
   font-size: 0.78rem;
@@ -1109,8 +1119,17 @@ body::after {
 /* Under 900px the three columns stack into one, and the lane tag on every card
    carries the side the layout can no longer show. */
 /* The one interval on this page with no transaction behind it, marked as such.
-   Dashed, dotless and hashless on purpose — every other element here links to a
-   tx, and this must not be mistakable for one. */
+   Dashed and hashless on purpose — every other element here links to a tx, and
+   this must not be mistakable for one. */
+.lane-quiet {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--rule);
+  font-size: 0.68rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 .lane-offchain {
   grid-column: 3;
   align-self: center;
@@ -1209,6 +1228,7 @@ body::after {
    either reproduces the hash the guard took at read time or it does not. */
 
 .agent-read {
+  min-width: 0;
   margin: 0.6rem 0 0.2rem;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--rule);
@@ -1236,10 +1256,18 @@ body::after {
   color: var(--muted);
   padding-top: 0.1rem;
 }
-.agent-read-grid dd { margin: 0; }
+/* Long unbroken figures were pushing the card past its own column and across
+   the lane rule, which put the claimant's numbers inside the spine. */
+.agent-read-grid dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
 .agent-read-rows { list-style: none; margin: 0; padding: 0; }
-.agent-read-rows li { display: flex; justify-content: space-between; gap: 0.8rem; }
+.agent-read-rows li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 0.8rem;
+  min-width: 0;
+}
 .agent-read-rows b { font-variant-numeric: tabular-nums; font-weight: 500; }
 
 .agent-read-value { font-family: var(--serif); font-size: 1.35rem; font-weight: 400; }
@@ -1294,7 +1322,9 @@ body::after {
 .agent-read-bad { margin: 0; color: var(--mismatch); font-size: 0.72rem; }
 
 @media (max-width: 900px) {
-  .lane-beat.claimant .lane-who { flex-direction: row; }
+  /* Stacked, every beat reads left to right, so the claimant's badge stops
+     mirroring toward a spine that is no longer there. */
+  .lane-beat.claimant .lane-who { flex-direction: row; justify-content: flex-start; }
   .lane-beat.claimant .agent-read {
     border-left: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
     border-right: 1px solid var(--rule);
@@ -1303,4 +1333,92 @@ body::after {
 @media (max-width: 640px) {
   .agent-read-grid { grid-template-columns: 1fr; gap: 0.15rem; }
   .agent-read-grid dt { padding-top: 0.4rem; }
+}
+
+
+/* ══ The draw ═════════════════════════════════════════════════════════════
+   "Randomly assigned" was one line of text, and taking the anti-collusion
+   claim on faith is the thing this project argues nobody should have to do.
+
+   The walk here is derived from the seed and the agent the chain recorded, so
+   it is a replay of the real assignment rather than an illustration of the
+   idea of one. The claimant is marked whether or not the walk reached it,
+   because `cand != claimant` is structural, not an outcome of this draw. */
+
+.draw-slot { grid-column: 2; align-self: start; min-width: 0; }
+
+.draw {
+  margin-left: 1.1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.draw-head {
+  margin: 0 0 0.4rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.draw-note { margin: 0 0 0.7rem; color: var(--muted); line-height: 1.55; }
+.draw-foot { margin: 0.7rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--rule); }
+
+.draw-list { list-style: none; margin: 0; padding: 0; }
+.draw-list li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: baseline;
+  padding: 0.3rem 0.35rem;
+  color: var(--muted);
+}
+.draw-idx { text-align: right; opacity: 0.6; }
+.draw-mark { font-size: 0.63rem; letter-spacing: 0.04em; text-align: right; }
+
+/* Where the random word landed, before the walk moves. */
+.draw-list li[data-start="true"] { box-shadow: inset 2px 0 0 var(--ink); }
+
+.draw-list li[data-role="drawn"] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.draw-list li[data-role="drawn"] .draw-mark { color: var(--accent); }
+/* Struck through, because it was never a candidate rather than merely passed. */
+.draw-list li[data-role="claimant"] .draw-name { text-decoration: line-through; opacity: 0.75; }
+.draw-list li[data-role="passed"] .draw-name { opacity: 0.8; }
+
+.draw-rule {
+  margin: 0.55rem 0 0;
+  font-size: 0.63rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.draw-seed {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.63rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.draw-seed-k { letter-spacing: 0.12em; text-transform: uppercase; }
+
+.draw-txs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.draw[data-empty="true"] { border-style: dashed; }
+
+@media (max-width: 900px) {
+  .draw-slot { grid-column: 1; grid-row: auto !important; }
+  .draw { margin: 0.5rem 0 0.5rem 1.1rem; }
 }
