@@ -85,6 +85,20 @@ export default function Replay({ script }: { script: ReplayScript }) {
     seek((clientX - r.left) / r.width);
   };
 
+  /*
+   * Stepping, for narrating at your own pace.
+   *
+   * Playback is on a clock, which is wrong when someone is talking over it —
+   * you end up racing the animation or pausing mid-sentence. A step pauses
+   * whatever is running and moves exactly one beat, and the lanes follow it,
+   * so the page arrives where the speaker already is.
+   */
+  const step = (delta: number) => {
+    clear();
+    setPlaying(false);
+    setAt((i) => Math.max(0, Math.min(i + delta, steps.length)));
+  };
+
   return (
     <>
       <div className="actions" style={{ marginTop: 0, marginBottom: "1.6rem", alignItems: "center" }}>
@@ -176,6 +190,36 @@ export default function Replay({ script }: { script: ReplayScript }) {
       {script.standing && (
         <Standing move={script.standing} moved={settleAt >= 0 && at > settleAt} />
       )}
+
+      {/*
+        Fixed to the viewport rather than in the flow: the whole point is that it
+        is reachable without hunting for it while you are mid-sentence and the
+        page has scrolled somewhere else.
+      */}
+      <div className="steppad" role="group" aria-label="Step through the replay">
+        <button
+          className="steppad-btn"
+          onClick={() => step(-1)}
+          disabled={at === 0}
+          aria-label="Previous step"
+          title="Previous step"
+        >
+          <span aria-hidden="true">&#9650;</span>
+        </button>
+        <span className="steppad-count" aria-live="polite">
+          <b>{at}</b>
+          <i>/{steps.length}</i>
+        </span>
+        <button
+          className="steppad-btn"
+          onClick={() => step(1)}
+          disabled={at >= steps.length}
+          aria-label="Next step"
+          title="Next step"
+        >
+          <span aria-hidden="true">&#9660;</span>
+        </button>
+      </div>
 
       <p className="note" style={{ marginTop: "1.4rem" }}>
         Claim #{script.claimId}, replayed from its own transactions. The gaps are what actually elapsed: about

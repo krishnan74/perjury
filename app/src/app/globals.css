@@ -2154,3 +2154,69 @@ body::after {
    theirs — so equal boxes render unequal marks. Scaling the box is a
    presentation correction, not a change to the artwork. */
 .pmark[src$="graph.svg"] { transform: scale(1.3); }
+
+
+/* ══ Step pad ═════════════════════════════════════════════════════════════
+   Playback runs on a clock, which is wrong when somebody is talking over it —
+   you either race the animation or pause mid-sentence. These step one beat at
+   a time and the lanes follow, so the page arrives where the speaker is.
+
+   Fixed to the viewport because the point is reaching it without hunting while
+   the page has scrolled somewhere else. */
+
+.steppad {
+  position: fixed;
+  right: clamp(0.6rem, 1.6vw, 1.4rem);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-radius: 3px;
+  box-shadow: 0 2px 14px rgb(16 15 11 / 0.07);
+}
+
+.steppad-btn {
+  width: 2.6rem;
+  height: 2.4rem;
+  border: 0;
+  background: none;
+  font-size: 0.7rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s var(--quart), color 0.2s var(--quart);
+}
+.steppad-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.steppad-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+.steppad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.steppad-count {
+  display: block;
+  padding: 0.3rem 0;
+  border-block: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  line-height: 1.15;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.steppad-count b { display: block; font-weight: 600; color: var(--ink); }
+.steppad-count i { display: block; font-style: normal; font-size: 0.58rem; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .steppad-btn { transition: none; } }
+
+/* On a phone the right edge is thumb territory and the lanes are already
+   stacked full-width, so it sits bottom-right instead of mid-edge. */
+@media (max-width: 640px) {
+  .steppad {
+    top: auto;
+    bottom: 1rem;
+    transform: none;
+    flex-direction: row;
+  }
+  .steppad-count { border-block: 0; border-inline: 1px solid var(--rule); padding: 0 0.5rem; align-self: center; }
+}

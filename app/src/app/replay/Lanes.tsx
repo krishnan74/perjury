@@ -92,10 +92,26 @@ export default function Lanes({
     };
   }, []);
 
-  // A fresh run re-arms following, so taking over once does not disable it for good.
+  /*
+   * Re-arm on anything the reader did on purpose.
+   *
+   * Pressing play or resume, stepping while paused, scrubbing, or resetting are
+   * all "take me along". A beat arriving mid-playback is not — that is the
+   * machine advancing, and if the reader has scrolled away it should stay away.
+   *
+   * This exists because the listener above moved from "only while playing" to
+   * "on mount", which meant scrolling down the page to reach the Play button
+   * switched following off before it was ever pressed. Re-arming only at
+   * `at === 0` did not help: that had already happened, on mount.
+   *
+   * Declared BEFORE the scroll effect so it runs first on a shared `at` change.
+   */
+  const wasPlaying = useRef(false);
   useEffect(() => {
-    if (at === 0) following.current = true;
-  }, [at]);
+    const started = playing && !wasPlaying.current;
+    wasPlaying.current = playing;
+    if (started || at === 0 || !playing) following.current = true;
+  }, [at, playing]);
 
   useEffect(() => {
     /*
