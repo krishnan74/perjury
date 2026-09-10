@@ -1813,3 +1813,71 @@ body::after {
   line-height: 1.55;
   color: var(--muted);
 }
+
+
+/* ══ Tracking the playback ════════════════════════════════════════════════
+   The page follows the beats down while playing, so the eye has to be told
+   two things at speed: where "now" is, and what just appeared.
+
+   Every animation here is a reveal that fires once as its element mounts.
+   Nothing loops, nothing pulses forever, and nothing moves while paused — a
+   page that keeps twitching while a viewer is reading is worse than a static
+   one. All of it stops under prefers-reduced-motion. */
+
+@keyframes beat-land {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The blocks that mount as a beat lands. Each is the payload of its beat, so
+   they arrive rather than blink. */
+@media (scripting: enabled) {
+  .agent-read,
+  .draw,
+  .seal,
+  .panel-fork,
+  .lane-quiet,
+  .standing {
+    animation: beat-land 0.5s var(--expo) both;
+  }
+  /* The panel's three seats arrive together but not simultaneously: a stagger
+     reads as three parties answering, which is what happened. */
+  .panel-seat { animation: beat-land 0.45s var(--expo) both; }
+  .panel-seat:nth-child(2) { animation-delay: 0.09s; }
+  .panel-seat:nth-child(3) { animation-delay: 0.18s; }
+}
+
+/* Where "now" is. The active beat is marked on its own lane edge, never with a
+   rule that crosses into another lane. */
+.lane-beat[data-state="active"] .lane-label { color: var(--ink); }
+.lane-beat.claimant[data-state="active"] { box-shadow: inset -2px 0 0 var(--accent); }
+.lane-beat.spine[data-state="active"],
+.lane-beat.witness[data-state="active"] { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* A single ring on the active dot, so the marker reads as live without a
+   permanent pulse competing with the content beside it. */
+@keyframes dot-land {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  to   { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (scripting: enabled) {
+  .lane-beat[data-state="done"] .lane-dot { animation: dot-land 0.7s var(--quart) both; }
+}
+
+/* The scrub head tracks continuously, so it gets a transition rather than a
+   keyframe — it moves between two known positions on every beat. */
+.scrub-fill,
+.scrub-head { transition: left 0.6s var(--expo), width 0.6s var(--expo); }
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-read,
+  .draw,
+  .seal,
+  .panel-fork,
+  .lane-quiet,
+  .standing,
+  .panel-seat,
+  .lane-beat[data-state="done"] .lane-dot { animation: none; }
+  .scrub-fill,
+  .scrub-head { transition: none; }
+}

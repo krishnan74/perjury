@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
+import { cancelSmoothScroll, scrollIntoViewSmooth } from "../SmoothScroll";
 import type { ReplayScript } from "@/lib/replay";
 import { ROLE_LABEL } from "@/lib/identity";
 import AgentRead from "./AgentRead";
@@ -42,6 +45,58 @@ export default function Lanes({
 
   const assignedRow = beats.findIndex((b) => b.kind === "draw");
   const verdictRow = beats.findIndex((b) => b.kind === "verdict");
+
+  /*
+   * Follow the playback down the page.
+   *
+   * The beats are spread over several screens, so during playback the
+   * interesting one is usually off-screen and the viewer is scrolling by hand
+   * while trying to read. The page follows instead.
+   *
+   * It follows the beat that JUST landed (`at - 1`) rather than the pending one,
+   * because that is where the new content is — the read card, the draw, the
+   * seal. Scrolling to the next thing would put the thing you were reading
+   * behind you.
+   *
+   * Two things it must not do. It must not move while paused, because then it is
+   * fighting a reader who is studying something. And once the reader scrolls, it
+   * stops following for the rest of that run: a page that drags you back after
+   * you have deliberately looked away is scroll-jacking, whatever it is called.
+   */
+  const beatRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const following = useRef(true);
+
+  useEffect(() => {
+    if (!playing) return;
+    // Wheel, touch and keys are unambiguous reader intent. Scroll events are
+    // not: our own scrolling fires those too.
+    const stop = () => {
+      following.current = false;
+      // Stopping at the next beat is not enough: the scroll already in flight
+      // would finish and haul the reader back to where it was heading.
+      cancelSmoothScroll();
+    };
+    const opts = { passive: true } as const;
+    window.addEventListener("wheel", stop, opts);
+    window.addEventListener("touchstart", stop, opts);
+    window.addEventListener("keydown", stop);
+    return () => {
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("keydown", stop);
+    };
+  }, [playing]);
+
+  // A fresh run re-arms following, so taking over once does not disable it for good.
+  useEffect(() => {
+    if (at === 0) following.current = true;
+  }, [at]);
+
+  useEffect(() => {
+    if (!playing || !following.current || at === 0) return;
+    const el = beatRefs.current[at - 1];
+    if (el) scrollIntoViewSmooth(el);
+  }, [at, playing]);
 
   return (
     <div className="lanes" role="list" aria-label="Claim timeline, claimant and witness lanes">
@@ -93,6 +148,9 @@ export default function Lanes({
             data-state={state}
             data-kind={b.kind}
             key={b.key}
+            ref={(el) => {
+              beatRefs.current[i] = el;
+            }}
             style={{ gridRow: i + 2, order: i * 2 }}
           >
             <span className="lane-dot" aria-hidden="true" />
