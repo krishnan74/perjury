@@ -918,3 +918,89 @@ body::after {
    they are set as opposites — one on paper, one under a rule of accent. */
 .col-published { border-top: 2px solid var(--ink); padding-top: 1.2rem; }
 .col-sealed { border-top: 2px solid var(--accent); padding-top: 1.2rem; }
+
+
+/* ══ Standing, moved ══════════════════════════════════════════════════════
+   The close of the replay. A verdict costs money once; it costs standing
+   permanently, and the roster stops drawing you — which is the actual
+   deterrent and had only ever appeared as a number in a table.
+
+   There is no threshold marked on this axis. `WitnessRoster.isEligible` does
+   not test the standing value; it tests the cooldown flag, the stake floor and
+   whether the ENS record reads at all. A line here labelled "eligibility"
+   would be drawing a mechanism the deployed contract does not have. */
+
+.standing {
+  margin: 2.4rem 0 0;
+  padding: 1.6rem 1.4rem 1.4rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.standing figcaption { margin-bottom: 1.4rem; }
+
+.standing-row {
+  display: grid;
+  grid-template-columns: 1fr 4.5rem;
+  gap: 1.1rem;
+  align-items: center;
+}
+
+.standing-track {
+  position: relative;
+  height: 2.1rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+}
+/* Zero is the only reference mark the contract justifies drawing. */
+.standing-zero {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--ink);
+  opacity: 0.55;
+}
+.standing-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--match);
+  transition: left 0.9s var(--expo), width 0.9s var(--expo), background-color 0.9s var(--quart);
+}
+.standing[data-dropped="true"] .standing-bar { background: var(--mismatch); }
+
+.standing-num {
+  font-family: var(--serif);
+  font-size: 2.1rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.standing[data-dropped="true"] .standing-num { color: var(--mismatch); }
+
+.standing-scale {
+  position: relative;
+  height: 1rem;
+  margin: 0.45rem 5.6rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.standing-scale .lo { position: absolute; left: 0; }
+.standing-scale .hi { position: absolute; right: 0; }
+/* Sits on the zero mark, not at the midpoint of the row. */
+.standing-scale .mid { position: absolute; transform: translateX(-50%); color: var(--ink-2); }
+
+.standing-record { margin-top: 1.1rem; }
+.standing-consequence { margin-top: 1.1rem; }
+.standing-consequence dt, .standing-consequence dd { padding: 0.55rem 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .standing-bar { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .standing-row { grid-template-columns: 1fr 3.4rem; gap: 0.8rem; }
+  .standing-num { font-size: 1.6rem; }
+  .standing-scale { margin-right: 4.2rem; }
+}

@@ -2,13 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export interface Step {
-  label: string;
-  detail: string;
-  tx: string;
-  /** Seconds between this step and the previous one, as they actually happened. */
-  gap: number;
-}
+import type { ReplayScript } from "@/lib/replay";
+import Standing from "./Standing";
 
 const EXPLORER = "https://sepolia.etherscan.io";
 
@@ -21,7 +16,8 @@ const EXPLORER = "https://sepolia.etherscan.io";
  * wall clock. The elapsed counter always shows the REAL elapsed time, so speeding
  * the playback never misrepresents how long the protocol took.
  */
-export default function Replay({ steps, claimId }: { steps: Step[]; claimId: string }) {
+export default function Replay({ script }: { script: ReplayScript }) {
+  const steps = script.beats;
   const [at, setAt] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(30);
@@ -53,6 +49,10 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
 
   const elapsed = steps.slice(0, at).reduce((sum, s) => sum + s.gap, 0);
   const total = steps.reduce((sum, s) => sum + s.gap, 0);
+
+  // Standing is written at settlement, not at adjudication, so the bar moves on
+  // the Settled beat and not a moment before it.
+  const settleAt = steps.findIndex((s) => s.kind === "settle");
   const fmt = (s: number) => (s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`);
 
   return (
@@ -104,7 +104,7 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
         {steps.map((s, i) => {
           const state = i < at ? "done" : i === at ? (playing ? "active" : "idle") : "idle";
           return (
-            <div className="stage" data-state={state} key={`${s.label}-${i}`}>
+            <div className="stage" data-state={state} key={s.key}>
               <span className="dot" aria-hidden="true">{i < at ? "●" : "○"}</span>
               <span>
                 {s.label}
@@ -122,8 +122,19 @@ export default function Replay({ steps, claimId }: { steps: Step[]; claimId: str
         })}
       </div>
 
+      {/*
+        Rendered whenever the chain recorded a standing write for this claim. A
+        Match or Unverifiable verdict leaves the record untouched and the writer
+        emits nothing, so there is nothing here to show and nothing is drawn —
+        rather than a bar sitting flat at its current value, which would read as
+        "the tribunal considered it and left it alone".
+      */}
+      {script.standing && (
+        <Standing move={script.standing} moved={settleAt >= 0 && at > settleAt} />
+      )}
+
       <p className="note" style={{ marginTop: "1.4rem" }}>
-        Claim #{claimId}, replayed from its own transactions. The gaps are what actually elapsed: about
+        Claim #{script.claimId}, replayed from its own transactions. The gaps are what actually elapsed: about
         a minute for VRF to fulfil, and ninety seconds of challenge window during which the verdict
         could still be appealed. Playback speed compresses the waiting; the elapsed counter does not.
       </p>
