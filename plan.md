@@ -52,7 +52,7 @@ In priority order:
 4. **Deploy the site** — built and merged, deliberately not deployed yet. Judges are told it is live, so this has to happen before submitting.
 5. **ENS follow-up:** `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 
-Open gap, documented rather than hidden: evidence reaches the enclave over Confidential HTTP, but the store itself is a secret gist and is not encrypted at rest.
+The last open gap closed on Sep 10: the evidence store is now sealed. Bundles are encrypted to the tribunal's public key before publishing, the Vault DON releases the private half only into the attested enclave, and the envelope is bound to its claim id so a swapped gateway URL cannot supply another claim's evidence. Proven against the live gateway with `npx tsx scripts/prove-sealed.ts` — see [ADR 0010](docs/decisions.md).
 
 ## ⏱ Reality check
 
@@ -300,7 +300,7 @@ All six original risks are resolved. Kept as a record of what was actually feare
 ## Open questions — all closed
 
 1. **Claim domain.** ✅ Messari standardized lending schema, mainnet-indexed, settlement on Sepolia. Now five protocols behind one query pattern.
-2. **Where sealed evidence lives.** ✅ Published to a gateway and fetched into the enclave over Confidential HTTP. Known gap: the store is a secret gist and is not encrypted at rest.
+2. **Where sealed evidence lives.** ✅ Sealed to the tribunal's public key, published to a gateway, and opened inside the enclave with a key the Vault DON releases there and nowhere else. The store is a public gist and holds only ciphertext.
 3. **Bond size.** ✅ 0.01 bond, 0.002 witness fee, 0.02 appeal bond, 0.01 registration stake.
 4. **Standing scale.** ✅ Match `+1`, Mismatch `−3`, ineligible below zero. One mismatch flips an agent ineligible, which is what makes scene 2 legible in under a minute. The aggression is intended.
 5. **Roster size.** ✅ Five agents.

@@ -36,6 +36,8 @@ npx tsx scripts/deploy-all.ts               # whole deployment cascade, one comm
 npx tsx scripts/collect-evidence.ts         # rebuild docs/TX_HASHES.md from chain
 npx tsx scripts/verify-pinned.ts            # one query pattern vs all pinned deployments — RUN BEFORE RECORDING
 npx tsx scripts/prove-corroboration.ts      # independent deployments must agree, else Unverifiable
+npx tsx scripts/prove-sealed.ts             # the evidence store holds ciphertext, openable only in the enclave
+npx tsx scripts/archive-evidence.ts         # recover past bundles, verified against the on-chain commitment
 
 npx tsx agents/runner/duel.ts honest compound-v3-ethereum   # any pinned subject; no code change per protocol
 
@@ -51,7 +53,7 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 ## Environment
 
 - Root `.env` (gitignored): `OPERATOR_PRIVATE_KEY`, `SEPOLIA_RPC_URL`, `GRAPH_STUDIO_KEY`, `VRF_*`. **`OPERATOR_PRIVATE_KEY` has no `0x` prefix** — `cast` tolerates it, `vm.envUint` does not. Forge scripts take the key via `--private-key` after shell-normalising it.
-- `cre/.env` (gitignored): `CRE_ETH_PRIVATE_KEY` (64 hex, no `0x`), `PERJURY_COMMITMENT_SALT`.
+- `cre/.env` (gitignored): `CRE_ETH_PRIVATE_KEY` (64 hex, no `0x`), `PERJURY_COMMITMENT_SALT`, `PERJURY_ENVELOPE_KEY`. The root `.env` holds the matching `PERJURY_ENVELOPE_PUBKEY`, which the agents seal with. Generate both with `npx tsx scripts/new-envelope-key.ts`; rotating makes every sealed bundle unreadable, so it needs `--force`.
 - Never print the private key. Derive the address with `cast wallet address --private-key`.
 
 ## Live on-chain (Sepolia)
@@ -136,6 +138,6 @@ UI notes worth not relearning: reveal animations are gated on `@media (scripting
 3. **Human-written limitations section** — the last unmet reserved component in `docs/ai-usage.md` §0.6.
 4. **Deploy the site.**
 5. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
-6. **Open gap:** gateway evidence storage is confidential in transport but the store itself is a secret gist, not encrypted at rest. Documented, not hidden.
+6. ~~Open gap: gateway storage not encrypted at rest.~~ **Closed Sep 10** — bundles are sealed to the tribunal's key before publishing, the Vault DON releases the private half into the enclave alone, and the envelope is bound to its claim id. `npx tsx scripts/prove-sealed.ts`. [ADR 0010](docs/decisions.md).
 
 Enclave execution still requires confidential-DON deploy access (requested, not received). The simulator path is the shipping path.

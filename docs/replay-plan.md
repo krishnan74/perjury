@@ -1,6 +1,8 @@
 # Replay — making the protocol visible
 
-> **Status: planned, not built.** This is the spec for the next work session on `app/src/app/replay/`. Everything in [Tier A](#tier-a--chain-data-only) can be built from data already on chain. [Tier B](#tier-b--needs-the-evidence-archive) needs one small change to `publish-evidence.ts` first.
+> **Status: Tier A built, plus B0 and B1.** *Updated Sep 10.* A1, A2, A3 and A5 are on `/replay`, along with the evidence archive (B0) and each agent's query and derived value (B1, as a distilled card with the query behind a toggle). What remains is A4, A6, A7, B2 and B3 — all additive, none of them holes.
+>
+> Two things in this spec turned out to be wrong and were built differently. **A5 asked for a standing bar dropping below an eligibility threshold; there is no such threshold.** `WitnessRoster.isEligible` gates on the cooldown flag, the stake floor and whether the ENS record reads at all — gating on the standing value was deliberately removed because it made exclusion permanent. The bar moves between the real `StandingUpdated` values and the exclusion is stated in the roster's own terms. **B0's framing of the disclosure was also wrong**, and is corrected in [ADR 0009](decisions.md): the archive is testnet tooling, not a statement that confidentiality expires.
 
 ## The problem
 
@@ -33,7 +35,7 @@ Two lanes that never meet is not decoration, it is the anti-collusion claim draw
 
 Buildable immediately from `claimEvents()` / `claimsIndex()` in `app/src/lib/perjury.ts` and `rosterSnapshot()` in `app/src/lib/roster.ts`. No new data sources.
 
-### A1. Two-lane timeline
+### A1. Two-lane timeline ✅
 
 Replace the single `.stages` column with claimant lane / centre spine / witness lane. Events map to lanes by which address they concern; protocol events (`ClaimSubmitted`, `WitnessAssigned`, `VerdictRecorded`, `Settled`) sit on the spine.
 
@@ -41,13 +43,13 @@ The lanes must be **visibly parallel and visibly unconnected** — no arrow, no 
 
 Collapses to a single column under ~900px, with each step tagged by lane.
 
-### A2. VRF as visible chance
+### A2. VRF as visible chance ✅
 
 `WitnessAssigned` is currently one line of text, so "randomly assigned" has to be taken on faith. Instead: show all registered agents from `rosterSnapshot()`, grey the claimant out first (structurally excluded — `_assign` skips `cand == claimant`), then let the draw land on one, with the real request and fulfil tx hashes attached.
 
 Agents excluded for standing should be visibly excluded here too, for the same reason — it is the ENS mechanism doing work on camera.
 
-### A3. The sealing beat
+### A3. The sealing beat ✅
 
 On convergence, both lanes' contents move into the box, redact using the existing `.redacted` treatment, and the box closes. Only `verdict + confidence` emerges below it.
 
@@ -59,7 +61,7 @@ Non-negotiable, inherited from the existing component: redaction bars stay **emp
 
 Scene 2 is the best scene and its most dramatic moment is currently a single line reading `PanelSeated`. The spine should **fork into three parallel lanes** which then vote, and visibly re-converge into `PanelUpheld` / `PanelOverturned`. Panel members come from `appealOf(claimId).panel`.
 
-### A5. Standing bars that move
+### A5. Standing bars that move ✅ *(built without the threshold line — see the status note)*
 
 Listed as cut in [`plan.md`](../plan.md) T6; it is the ENS payoff and it is currently invisible. On `Settled`, the loser's standing bar drops below the eligibility threshold line and their roster row flips to `excluded`.
 
@@ -75,7 +77,7 @@ One sentence of plain English under each step, so the page carries itself when a
 
 ## Tier B — needs the evidence archive
 
-### B0. Archive the bundle *(prerequisite for everything below)*
+### B0. Archive the bundle ✅ *(prerequisite for everything below)*
 
 **Nothing about the agents' work survives a scene today.** `publish-evidence.ts` builds an `EvidenceBundle` — each agent's query, deployment ID, block, `queryHash`, raw result, derived value, methodology string — hands it to `publishBundle()`, and the **next run overwrites the gist**. The chain keeps only `claimHash` and `evidenceCommitment`, which are hashes: they prove the evidence existed, they do not show it.
 
@@ -83,7 +85,7 @@ Fix: alongside `publishBundle(bundle)`, write `evidence-archive/<claimId>.json` 
 
 **Decide before doing this.** Writing the bundle to a public file after settlement is a deliberate disclosure and should be recorded as a decision in [`decisions.md`](decisions.md), not slipped in. The argument for: confidentiality is a property of the *adjudication window*, not of eternity, and a verdict nobody can audit afterwards is worth less than one they can. The argument against: the project uses the word "sealed" a great deal and a reviewer should not have to work out which sense we mean. Whichever way it goes, say so on the page.
 
-### B1. The two queries, side by side
+### B1. The two queries, side by side ◐ *(each query is shown in its own lane behind a toggle; not yet side by side with differing lines marked)*
 
 **This is the money shot and it is completely absent today.** Two different GraphQL documents, composed independently by two LLM agents, against different deployment IDs, arriving at the same number. Show them in the lanes as they are written, with the differing lines marked.
 
@@ -110,8 +112,10 @@ Both lanes stamped with the same block height, sourced from the attestation. It 
 
 ## Suggested order
 
-`A1 → A2 → A3 → A5` is the coherent minimum: two lanes, a visible draw, the sealing beat, and the standing drop. That tells the whole story from chain data alone and is enough to record against.
+`A1 → A2 → A3 → A5` was the coherent minimum and is done, as are `B0` and most of `B1`. The page now runs from the claimant's first read to the standing drop.
 
-Then `B0 → B1 → B2` if there is time, which adds the strongest single piece of evidence the project has.
+`B2` (the number line) is the strongest remaining addition: the two values are already on the seal panel as figures, and plotting them against the tolerance band would let the geometry carry what the word `Mismatch` currently has to explain.
 
-`A4`, `A6`, `A7`, `B3` are additive and can be dropped without leaving a hole.
+`A4`, `A6`, `A7`, `B3` remain additive and can be dropped without leaving a hole.
+
+**One thing this spec did not anticipate.** Building it surfaced six defects in the runner, because drawing the flow honestly meant the data had to be honest first: the claim was bonded to a hardcoded hash rather than to what the agent said, the claimant drafted *after* bonding, the witness submission was not tied to the drawn agent, the panel phase re-derived the witness and corrupted the record, archived queries did not hash to their own `queryHash`, and scenes carried on when VRF had not assigned. All are fixed. A visualisation that refuses to draw anything it cannot source turns out to be a decent test harness.
