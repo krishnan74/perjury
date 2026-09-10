@@ -26,7 +26,7 @@ const signer = walletFor(who.pk);
 
 p.scene(1, "A true claim, challenged anyway", "Honest claims should cost nothing and earn standing.");
 
-await preflight(CLAIMANT, who.address, 2);
+await preflight(CLAIMANT, who.address, 2, BOND);
 
 p.step("The roster, before anything happens");
 p.agentTable(await rosterSnapshot());

@@ -2,9 +2,10 @@
  * Run the agents for real and publish their sealed submissions for the tribunal.
  *
  *   npx tsx agents/runner/publish-evidence.ts draft   <claimId> [honest|false]
- *   npx tsx agents/runner/publish-evidence.ts witness <claimId> <witnessName> <witnessAddr> [--panel]
+ *   npx tsx agents/runner/publish-evidence.ts witness <claimId> <witnessName> <witnessAddr>
+ *   npx tsx agents/runner/publish-evidence.ts panel   <claimId>
  *
- * Two phases, because the order matters and used to be wrong.
+ * Three phases, because the order matters and used to be wrong.
  *
  * The claimant used to draft AFTER its bond was already posted, and the scenes
  * bonded a hardcoded placeholder hash — the same bytes on every run — so the
@@ -16,7 +17,8 @@
  * scene bonds THAT hash, so the money is attached to a specific sentence before
  * anyone knows who will check it. `witness` then runs after VRF has drawn, and
  * records which agent was drawn, so the submission is attributable rather than
- * anonymous.
+ * anonymous. `panel` seats an appeal over the submissions already published,
+ * without re-deriving either of them.
  *
  * The claimant and witness still run as separate derivations that never see each
  * other's work; the gateway is the only place the two meet, and they meet inside
@@ -35,9 +37,10 @@ const phase = process.argv[2];
 const claimId = process.argv[3] ?? "1";
 const llm = new ClaudeCodeClient();
 
-/** Between the two phases. Gitignored: the committed artifact is the archive. */
+/** Between phases. Gitignored: the committed artifact is the archive. */
 const STAGING = ".evidence";
 const stagingPath = `${STAGING}/${claimId}.draft.json`;
+const witnessPath = `${STAGING}/${claimId}.witness.json`;
 
 const seal = (
   a: {
@@ -94,10 +97,10 @@ if (phase === "draft") {
   console.log(`  asserts ${claim.assertion.value}%`);
   console.log(`CLAIM_TEXT ${claim.text}`);
   console.log(`CLAIM_HASH ${claimHash}`);
-} else if (phase === "witness") {
+} else if (phase === "witness" || phase === "panel") {
   const witnessName = process.argv[4] ?? "unknown";
   const witnessAddr = process.argv[5] ?? "";
-  const withPanel = process.argv.includes("--panel");
+  const withPanel = phase === "panel";
 
   const draft = JSON.parse(readFileSync(stagingPath, "utf8")) as {
     text: string;
@@ -123,17 +126,43 @@ if (phase === "draft") {
     atBlock: draft.atBlock,
   };
 
-  const w = await witness(asClaim, llm);
-  console.log(`WITNESS: derives ${w.attestation?.assertion.value ?? w.unverifiableReason}%`);
+  /*
+   * The witness derives ONCE.
+   *
+   * The panel phase used to re-run it, which meant an appeal overwrote the
+   * archive with a second read taken minutes later — so the record showed the
+   * witness reading after the panel had already been seated, which is not what
+   * happened and not what the first verdict was based on. The panel reviews the
+   * same submission the tribunal originally read.
+   */
+  let witnessSealed: SealedSubmission;
+  let drawn = { name: witnessName, address: witnessAddr };
+  if (phase === "witness") {
+    const w = await witness(asClaim, llm);
+    console.log(`WITNESS: derives ${w.attestation?.assertion.value ?? w.unverifiableReason}%`);
+    witnessSealed = seal(w);
+    writeFileSync(
+      witnessPath,
+      `${JSON.stringify({ submission: witnessSealed, drawn }, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2)}\n`,
+    );
+  } else {
+    const staged = JSON.parse(readFileSync(witnessPath, "utf8")) as {
+      submission: SealedSubmission;
+      drawn: { name: string; address: string };
+    };
+    witnessSealed = staged.submission;
+    drawn = staged.drawn;
+    console.log(`WITNESS: reusing the submission the tribunal already read (${drawn.name})`);
+  }
 
   const bundle: EvidenceBundle = {
     claimId,
     claim: draft.submission,
-    witness: seal(w),
+    witness: witnessSealed,
     // Who the chain drew. The submission used to be anonymous, so nothing
     // connected the evidence the tribunal read to the agent VRF had actually
     // assigned; the archive can now be checked against WitnessAssigned.
-    witnessAgent: { name: witnessName, address: witnessAddr },
+    witnessAgent: drawn,
     claimText: draft.text,
     claimHash: draft.claimHash,
   };
@@ -185,7 +214,8 @@ if (phase === "draft") {
   }
   console.log("cre config updated — the tribunal will now judge these submissions");
 } else {
-  console.error("usage: publish-evidence.ts draft <claimId> [honest|false]");
-  console.error("       publish-evidence.ts witness <claimId> <witnessName> <witnessAddr> [--panel]");
+  console.error("usage: publish-evidence.ts draft   <claimId> [honest|false]");
+  console.error("       publish-evidence.ts witness <claimId> <witnessName> <witnessAddr>");
+  console.error("       publish-evidence.ts panel   <claimId>");
   process.exit(1);
 }

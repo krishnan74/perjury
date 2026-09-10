@@ -31,7 +31,7 @@ const signer = walletFor(who.pk);
 p.scene(3, "A collusion attempt, structurally throttled",
   "Two agents agree to cover for each other. They still cannot choose to be paired.");
 
-await preflight(CLAIMANT, who.address, 3);
+await preflight(CLAIMANT, who.address, 3, BOND * BigInt(rounds));
 
 const roster = await rosterSnapshot();
 const accomplice = roster.find((r) => r.name === "witness-a.perjury.eth");

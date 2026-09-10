@@ -203,15 +203,28 @@ export function draftEvidence(
  * Takes the agent VRF drew so the submission is attributable. Runs only after
  * assignment, which is the order the protocol actually specifies.
  */
-export function witnessEvidence(
-  claimId: string,
-  witnessName: string,
-  witnessAddr: string,
-  panel = false,
-): string {
-  const args = ["tsx", "agents/runner/publish-evidence.ts", "witness", claimId, witnessName, witnessAddr];
-  if (panel) args.push("--panel");
-  return execFileSync("npx", args, { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 });
+export function witnessEvidence(claimId: string, witnessName: string, witnessAddr: string): string {
+  return execFileSync(
+    "npx",
+    ["tsx", "agents/runner/publish-evidence.ts", "witness", claimId, witnessName, witnessAddr],
+    { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
+  );
+}
+
+/**
+ * Phase three: seat the panel over the submissions already judged.
+ *
+ * Deliberately does not re-run the witness. Re-deriving here overwrote the
+ * archive with a read taken minutes later, so the record showed the witness
+ * reading after the panel had been seated — and an appeal reviews what the
+ * tribunal actually read, not a fresh answer to the same question.
+ */
+export function panelEvidence(claimId: string): string {
+  return execFileSync(
+    "npx",
+    ["tsx", "agents/runner/publish-evidence.ts", "panel", claimId],
+    { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
+  );
 }
 
 /**
@@ -221,17 +234,43 @@ export function witnessEvidence(
  * reverts with NotEligible() — which is the mechanism working, but reads as a
  * crash mid-demo. Better to say so before the camera is rolling.
  */
-export async function preflight(claimantName: string, claimantAddr: Address, needEligible = 2) {
+export async function preflight(
+  claimantName: string,
+  claimantAddr: Address,
+  needEligible = 2,
+  /**
+   * Wei the claimant must hold, beyond gas, for every value-bearing call in the
+   * scene. Checked because settlement is PULL-payment: a returned bond is
+   * credited in the registry and does not reappear in the wallet, so an agent
+   * that has run several scenes looks solvent on paper and is not.
+   *
+   * Scene 2 hit this mid-run — the tribunal had already ruled Mismatch and the
+   * appeal reverted OutOfFunds, which is the crash preflight exists to catch
+   * before a camera is rolling.
+   */
+  needBalance = 0n,
+) {
   const eligible = (await rosterSnapshot()).filter((r) => r.eligible);
-  const claimantOk = await pub.readContract({
-    address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [claimantAddr],
-  });
+  const [claimantOk, balance, owed] = await Promise.all([
+    pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [claimantAddr] }),
+    pub.getBalance({ address: claimantAddr }),
+    pub.readContract({
+      address: REGISTRY, abi: REGISTRY_ABI, functionName: "withdrawable", args: [claimantAddr],
+    }).catch(() => 0n),
+  ]);
   const problems: string[] = [];
   if (!claimantOk) {
     problems.push(`${claimantName} is not eligible — it was slashed in an earlier run, which is the mechanism working.`);
   }
   if (eligible.length < needEligible) {
     problems.push(`only ${eligible.length} eligible agents; this scene needs ${needEligible}.`);
+  }
+  if (needBalance > 0n && balance < needBalance) {
+    problems.push(
+      `${claimantName} holds ${fmtEth(balance)} ETH and this scene needs ${fmtEth(needBalance)} ` +
+      `for bonds alone, plus gas.` +
+      (owed > 0n ? ` It is owed ${fmtEth(owed)} ETH in the registry — withdraw() moves it to the wallet.` : ""),
+    );
   }
   if (problems.length) {
     console.log("\n  Cannot run this scene from the current state:");
@@ -241,6 +280,8 @@ export async function preflight(claimantName: string, claimantAddr: Address, nee
     process.exit(1);
   }
 }
+
+const fmtEth = (wei: bigint) => (Number(wei) / 1e18).toFixed(4);
 
 export const BOND = parseEther("0.012");
 export const APPEAL_BOND = parseEther("0.02");

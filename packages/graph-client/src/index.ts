@@ -199,7 +199,13 @@ export function deriveMetric(data: unknown, metric: string): number {
 
   // Ratios are computed from their components rather than read, so a party
   // cannot assert a ratio its own evidence does not reproduce.
-  if (/utilization/i.test(metric)) {
+  //
+  // Both spellings, because the metric name is free text an LLM wrote. A
+  // claimant that said "utilisationRatio" fell through to a literal field
+  // lookup, found nothing, and the witness returned Unverifiable — fail-closed
+  // and correct, but the two agents had not actually disagreed about anything.
+  // A spelling variant is not a provenance failure.
+  if (/utili[sz]ation/i.test(metric)) {
     const deposits = num("totalDepositBalanceUSD");
     if (deposits === 0) throw new UnverifiableError("no-data", "zero deposits — utilization undefined");
     return (num("totalBorrowBalanceUSD") / deposits) * 100;

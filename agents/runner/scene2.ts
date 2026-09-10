@@ -14,7 +14,7 @@ import * as p from "./lib/present";
 import {
   AGENTS, APPEAL_BOND, BOND, REGISTRY, REGISTRY_ABI, ROSTER, ROSTER_ABI, account, addressOf,
   awaitWitness, claim, claimantFor, draftEvidence, op, preflight, pub, rosterSnapshot, runTribunal,
-  standingOf,
+  panelEvidence, standingOf,
   walletFor, witnessEvidence,
 } from "./lib/chain";
 
@@ -26,7 +26,7 @@ const signer = walletFor(who.pk);
 p.scene(2, "A false claim, and an appeal that fails",
   "Lying should cost the bond, the stake, the standing, and the right to judge others.");
 
-await preflight(CLAIMANT, who.address, 5);
+await preflight(CLAIMANT, who.address, 5, BOND + APPEAL_BOND);
 
 const beforeStanding = await standingOf(CLAIMANT);
 const beforeStake = await pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "stakeOf", args: [who.address] });
@@ -80,7 +80,7 @@ for (const seat of ap.panel) {
 p.note("Neither party is on the panel, and the seats run different models.");
 
 p.step("The panel re-derives, independently of the first witness");
-witnessEvidence(String(claimId), wa?.name ?? "unknown", c.witness, true);
+panelEvidence(String(claimId));
 p.verdict(runTribunal("panel"), "Three independent derivations, majority stands.");
 
 p.step("Settlement");
