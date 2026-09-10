@@ -7,12 +7,22 @@ import {
 } from '@chainlink/cre-sdk'
 import { encodeAbiParameters, keccak256, parseAbiParameters, toHex } from 'viem'
 import { z } from 'zod'
+import { isSealedEnvelope, open as openEnvelope } from './envelope'
 
 // ─── Config ─────────────────────────────────────────────────
 export const configSchema = z.object({
 	schedule: z.string(),
 	evidenceGatewayUrl: z.string(),
 	secretId: z.string(),
+	/**
+	 * Vault DON secret holding the private half of the evidence envelope key.
+	 *
+	 * Optional so a plaintext gateway still works during a migration, but once
+	 * set the enclave becomes the only party that can read the evidence at all.
+	 * The public half is generated alongside it and lives in the agents' config;
+	 * publishing it is safe and necessary.
+	 */
+	envelopeSecretId: z.string().optional(),
 	toleranceBps: z.number(),
 	/**
 	 * Deployment ids the tribunal will accept evidence from.
@@ -299,7 +309,39 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		throw new Error(`Evidence fetch failed with status: ${response.statusCode}`)
 	}
 
-	const bundle = JSON.parse(text(response)) as {
+	/*
+	 * Open the envelope, in here and nowhere else.
+	 *
+	 * Confidential HTTP already hid the request and the response from node
+	 * operators, but the store itself was a public gist and a URL is not an
+	 * access control — anyone who had it could read both parties' evidence. Now
+	 * the body is a ciphertext sealed to a key whose private half the Vault DON
+	 * releases only into this attested enclave, so the store holds nothing
+	 * readable and the confidentiality no longer rests on a URL staying obscure.
+	 *
+	 * The envelope is bound to its claim id as AEAD associated data, so swapping
+	 * the gateway URL for a valid envelope from a DIFFERENT claim fails to open
+	 * rather than adjudicating the wrong evidence. That matters here because the
+	 * URL comes from config, which is not a commitment.
+	 */
+	const body = JSON.parse(text(response)) as unknown
+	let raw: string
+	if (isSealedEnvelope(body)) {
+		if (!config.envelopeSecretId) {
+			throw new Error('evidence is sealed but no envelopeSecretId is configured')
+		}
+		const envelopeKey = runtime.getSecret({ id: config.envelopeSecretId }).result().value
+		raw = openEnvelope(body, envelopeKey)
+	} else {
+		if (config.envelopeSecretId) {
+			// Configured for sealed evidence and handed plaintext: refuse rather
+			// than silently accept a downgrade someone could have forced.
+			throw new Error('expected a sealed envelope, got plaintext')
+		}
+		raw = text(response)
+	}
+
+	const bundle = JSON.parse(raw) as {
 		claimId: string
 		claim: SealedSubmission
 		witness: SealedSubmission

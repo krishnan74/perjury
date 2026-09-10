@@ -177,8 +177,24 @@ if (phase === "draft") {
     }
   }
 
-  const url = publishBundle(bundle);
-  console.log(`\ngateway: ${url}`);
+  /*
+   * Seal before publishing.
+   *
+   * The gateway is a public gist, and a URL is not an access control. Sealing
+   * the bundle to the tribunal's public key means the store holds ciphertext and
+   * the enclave is the only thing that can read it — which is what design.md
+   * §3.5 always specified and what the site copy had been claiming.
+   *
+   * Publishing plaintext still works when no public key is set, so the fallback
+   * is a deliberate choice rather than a forgotten flag, and the workflow
+   * refuses plaintext once it is configured for envelopes.
+   */
+  const envelopeKey = process.env.PERJURY_ENVELOPE_PUBKEY;
+  if (!envelopeKey) {
+    console.warn("PERJURY_ENVELOPE_PUBKEY unset — publishing PLAINTEXT evidence to the gateway");
+  }
+  const url = publishBundle(bundle, envelopeKey);
+  console.log(`\ngateway: ${url}${envelopeKey ? "  (sealed)" : "  (plaintext)"}`);
 
   /*
    * Keep the agents' work.

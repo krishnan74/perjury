@@ -1,0 +1,105 @@
+{
+  "claimId": "24",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "indexedBlock": 25946168,
+        "chainHead": 25946169,
+        "queriedAt": 1789033441545,
+        "queryHash": "54653e21ed2a3949df04aca90aeb6e86e5356b16b4c3212f1e642707ebfda684",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilization",
+        "comparator": "gt",
+        "value": 40.45,
+        "unit": "percent",
+        "asOfBlock": 25946168
+      },
+      "digest": "471372f4b154c2dec9d5f12c87636b147a7be317225adf8c0e2e0495b52bffcf"
+    },
+    "methodology": "claimant: Aave v3 via messari-lending; Utilization ratio (borrowed ÷ deposited) quantifies how much of Aave's liquidity is actively lent, indicating protocol efficiency and capital allocation.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "9866255156.832533840832471213242046",
+          "totalDepositBalanceUSD": "24379075865.67718062431874028024414"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "block": {
+          "number": 25946168
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witness": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "indexedBlock": 25946168,
+        "chainHead": 25946177,
+        "queriedAt": 1789033540382,
+        "queryHash": "50a1ba74141883215088638b55558e054622226b360cf8a545aec8553b42cc54",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilization",
+        "comparator": "gt",
+        "value": 40.45,
+        "unit": "percent",
+        "asOfBlock": 25946168
+      },
+      "digest": "92d155ea57653aef6974f5bf381a3bec7284fcd565b42e1fa1ed54844db21c89"
+    },
+    "methodology": "witness: Aave v3 via messari-lending; Utilization is calculated as (totalBorrowBalanceUSD / totalDepositBalanceUSD) × 100, so these two metrics enable independent computation of the utilization percentage. [1 independent deployment(s), pinned @ 25946168]",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "9866255156.832533840832471213242046",
+          "totalDepositBalanceUSD": "24379075865.67718062431874028024414"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "block": {
+          "number": 25946168
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta(block: {number: 25946168}) { deployment block { number } hasIndexingErrors } lendingProtocols(block: {number: 25946168}) { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witnessAgent": {
+    "name": "witness-a.perjury.eth",
+    "address": "0x407E1437890E460c8027f4C94ebf05f6a7917e13"
+  },
+  "claimText": "Aave v3 utilization is above 38.42%.",
+  "claimHash": "0x232906e9bbf5578f3eaae218af93e2dee3a4b50f65caf99d8c3c7ed455956d37",
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/cbd98ee8fbd512c2bff5815da35d99f5",
+  "archivedAt": "2026-09-10T09:45:50.801Z"
+}

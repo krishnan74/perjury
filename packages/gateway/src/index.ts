@@ -5,11 +5,13 @@
 // sealed submission here; the enclave fetches the pair over Confidential HTTP,
 // which keeps the request and response hidden from node operators.
 //
-// ⚠ Storage is not yet encrypted at rest. The design (§3.5) is an encrypted blob
-// with the key held by the Vault DON, so the store is public and the contents are
-// not. Today the transport is confidential and the store is not, which is a real
-// gap and is documented as one rather than glossed.
+// Storage IS now encrypted at rest, which closes the gap this comment used to
+// record. The bundle is sealed to the tribunal's public key before it is
+// published, so the store can stay a public gist and hold nothing readable. The
+// private half lives in the Vault DON and is released only into the attested
+// enclave. See packages/shared/src/envelope.ts and design.md §3.5.
 import { execFileSync } from "node:child_process";
+import { isSealedEnvelope, open, seal } from "@perjury/shared";
 import type { SealedSubmission } from "@perjury/tribunal";
 
 export interface EvidenceBundle {
@@ -38,9 +40,18 @@ export interface EvidenceBundle {
  * Uses a GitHub gist because it needs no infrastructure and is a real HTTPS
  * endpoint reachable from the enclave — the point is that the tribunal reads the
  * agents' actual work rather than a fixture compiled into its own binary.
+ *
+ * The body is SEALED to `publicKey` before it goes anywhere. A gist URL is not
+ * an access control, and the store was the last plaintext in the system: the
+ * fetch was confidential and the thing being fetched was not. Passing no key
+ * publishes plaintext, which is retained only so an operator can reproduce the
+ * old behaviour deliberately rather than by forgetting a flag.
  */
-export function publishBundle(bundle: EvidenceBundle): string {
-  const body = JSON.stringify(bundle, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2);
+export function publishBundle(bundle: EvidenceBundle, publicKey?: string): string {
+  const plaintext = JSON.stringify(bundle, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2);
+  const body = publicKey
+    ? JSON.stringify(seal(plaintext, publicKey, bundle.claimId), null, 2)
+    : plaintext;
   const out = execFileSync(
     "gh",
     ["gist", "create", "--filename", `perjury-claim-${bundle.claimId}.json`, "--desc",
@@ -54,9 +65,22 @@ export function publishBundle(bundle: EvidenceBundle): string {
   return `https://gist.githubusercontent.com/raw/${id}`;
 }
 
-/** Read a bundle back, for verification outside the enclave. */
-export async function fetchBundle(url: string): Promise<EvidenceBundle> {
+/**
+ * Read a bundle back, for verification outside the enclave.
+ *
+ * Takes the private key because a sealed store is only useful if the thing
+ * holding the key is the only thing that can read it. Without a key this can
+ * still read a plaintext publish, and refuses an envelope rather than returning
+ * something unusable.
+ */
+export async function fetchBundle(url: string, privateKey?: string): Promise<EvidenceBundle> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`gateway fetch ${res.status}`);
-  return (await res.json()) as EvidenceBundle;
+  const body = (await res.json()) as unknown;
+
+  if (isSealedEnvelope(body)) {
+    if (!privateKey) throw new Error("bundle is sealed and no private key was supplied");
+    return JSON.parse(open(body, privateKey)) as EvidenceBundle;
+  }
+  return body as EvidenceBundle;
 }
