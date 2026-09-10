@@ -11,6 +11,11 @@
  */
 import { VERDICT, type ClaimEvent, type ClaimRow, type VerdictName } from "./perjury";
 import type { Agent } from "./roster";
+import { identityOf, type Identity } from "./identity";
+import {
+  evidenceRows, queryVerified, reasoning,
+  type Archive, type ArchivedSubmission,
+} from "./evidence";
 
 /**
  * The roster walk is bounded at 32 in `WitnessRoster.sol`, recorded in
@@ -26,15 +31,47 @@ export interface Beat {
   key: string;
   lane: Lane;
   /** Anchors the panels — the draw hangs off `draw`, the seal off `seal`. */
-  kind: "claim" | "request" | "draw" | "verdict" | "appeal" | "panel" | "settle" | "payout";
+  kind: "claim" | "request" | "draw" | "verdict" | "appeal" | "panel" | "settle" | "payout" | "read";
   label: string;
   detail: string;
   /** One sentence of plain English, so the page carries itself without narration. */
   note: string;
+  /** Empty for a beat that is not a transaction — see `AgentRead`. */
   tx: string;
   block: string;
   /** Seconds between this beat and the one before it, as they actually happened. */
   gap: number;
+  /** Present on `read` beats: what the agent asked, got and concluded. */
+  read?: AgentRead;
+  /** Whose beat this is, where a party owns it. */
+  who?: Identity;
+}
+
+/**
+ * One agent's trip to the indexer.
+ *
+ * Every field is transcribed from the archive. `queryOk` is the one computed
+ * value, and it is a check rather than a claim: the archived document either
+ * hashes to the hash the guard recorded at read time or it does not.
+ */
+export interface AgentRead {
+  role: "claimant" | "witness";
+  deploymentId: string;
+  block: number;
+  chainHead: number;
+  queriedAt: number;
+  queryHash: string;
+  query: string | null;
+  /** null when no query was archived. Never defaults to true. */
+  queryOk: boolean | null;
+  sources: number;
+  corroborated: boolean;
+  hasIndexingErrors: boolean;
+  rows: { label: string; value: string }[];
+  reasoning: string;
+  asserted: number | null;
+  unit: string;
+  unverifiableReason?: string;
 }
 
 export interface DrawCandidate {
@@ -95,6 +132,13 @@ export interface StandingMove {
 
 export interface ReplayScript {
   claimId: string;
+  /** Null when this claim has no archived bundle. The page says so. */
+  archive: Archive | null;
+  /** The drafted sentence, and whether it hashes to the bonded claimHash. */
+  claimText: string | null;
+  claimTextOk: boolean | null;
+  /** The agent the archive says derived the witness half, and whether the chain agrees. */
+  witnessBindingOk: boolean | null;
   verdict: VerdictName;
   claimant: { address: string; name: string };
   witness: { address: string; name: string } | null;
@@ -127,6 +171,8 @@ export function buildScript(
   claim: ClaimRow,
   mechanism: ClaimEvent[],
   roster: Agent[],
+  archive: Archive | null = null,
+  claimTextOk: boolean | null = null,
 ): ReplayScript {
   const named = (addr: string | null | undefined) => ({
     address: String(addr ?? ""),
@@ -134,10 +180,23 @@ export function buildScript(
   });
 
   const mine = mechanism.filter((e) => e.claimId === claim.id);
-  const beats = buildBeats(claim, roster);
+  const beats = buildBeats(claim, roster, archive);
+
+  // The archive names the agent that produced the witness half; the chain names
+  // the agent VRF drew. They are recorded independently, so they can disagree —
+  // and if they do, the page must not quietly show one of them.
+  const archivedWitness = archive?.witnessAgent?.address?.toLowerCase();
+  const witnessBindingOk =
+    archivedWitness && claim.witness
+      ? archivedWitness === claim.witness.toLowerCase()
+      : null;
 
   return {
     claimId: claim.id,
+    archive,
+    claimText: archive?.claimText ?? null,
+    claimTextOk,
+    witnessBindingOk,
     verdict: claim.verdict,
     claimant: named(claim.claimant),
     witness: claim.witness ? named(claim.witness) : null,
@@ -254,23 +313,80 @@ const ORDER = [
   "Settled",
 ];
 
-function buildBeats(claim: ClaimRow, roster: Agent[]): Beat[] {
+/**
+ * Turn one archived submission into a read beat.
+ *
+ * Returns null when the agent could not verify — an Unverifiable submission has
+ * no provenance and no value, and a card full of dashes would imply the read
+ * happened and came back empty rather than that it never completed.
+ */
+function readBeat(
+  s: ArchivedSubmission | undefined,
+  role: "claimant" | "witness",
+  who: Identity,
+): { beat: Omit<Beat, "gap">; at: number } | null {
+  if (!s?.attestation) return null;
+  const p = s.attestation.provenance;
+
+  const read: AgentRead = {
+    role,
+    deploymentId: p.deploymentId,
+    block: p.indexedBlock,
+    chainHead: p.chainHead,
+    queriedAt: Math.floor(p.queriedAt / 1000),
+    queryHash: p.queryHash,
+    query: s.query ?? null,
+    queryOk: queryVerified(s),
+    sources: p.corroboration?.sources ?? 1,
+    corroborated: p.corroboration?.corroborated ?? false,
+    hasIndexingErrors: p.hasIndexingErrors,
+    rows: evidenceRows(s),
+    reasoning: reasoning(s),
+    asserted: s.attestation.assertion.value,
+    unit: s.attestation.assertion.unit,
+    unverifiableReason: s.unverifiableReason,
+  };
+
+  return {
+    at: read.queriedAt,
+    beat: {
+      key: `read-${role}-${p.queryHash.slice(0, 12)}`,
+      lane: role,
+      kind: "read",
+      label: role === "claimant" ? "Read the indexer, then drafted a claim" : "Read the indexer, independently",
+      detail: "",
+      note:
+        role === "claimant"
+          ? "Before anything is bonded. The agent decides what it is willing to stake on, and only then stakes it."
+          : "A separate process with its own key and no channel to the claimant. It replays against the block the claimant read.",
+      // Not a transaction. Nothing about this reached the chain.
+      tx: "",
+      block: String(p.indexedBlock),
+      read,
+      who,
+    },
+  };
+}
+
+function buildBeats(claim: ClaimRow, roster: Agent[], archive: Archive | null): Beat[] {
+  const claimantId = identityOf(nameOf(roster, claim.claimant), claim.claimant, "claimant");
+  const witnessId = claim.witness
+    ? identityOf(nameOf(roster, claim.witness), claim.witness, "witness")
+    : null;
+
   const ordered = [...claim.events].sort(
     (a, b) =>
       Number(a.block - b.block) ||
       (ORDER.indexOf(a.name) + 1 || 99) - (ORDER.indexOf(b.name) + 1 || 99),
   );
-  let previous = ordered[0]?.timestamp ?? 0;
 
-  return ordered.map((e, i) => {
+  const chainBeats = ordered.map((e): { at: number; beat: Omit<Beat, "gap"> } => {
     const spec = SCRIPT[e.name] ?? {
       lane: "spine" as Lane,
       kind: "settle" as Beat["kind"],
       label: e.name,
       note: "",
     };
-    const gap = Math.max(0, e.timestamp - previous);
-    previous = e.timestamp;
 
     let detail = "";
     if (e.name === "WitnessAssigned") detail = nameOf(roster, String(e.args.witness));
@@ -280,16 +396,38 @@ function buildBeats(claim: ClaimRow, roster: Agent[]): Beat[] {
     else if (e.name === "ClaimSubmitted") detail = nameOf(roster, String(e.args.claimant));
 
     return {
-      key: `${e.name}-${e.tx}-${i}`,
-      lane: spec.lane,
-      kind: spec.kind,
-      label: spec.label,
-      detail,
-      note: spec.note,
-      tx: e.tx,
-      block: String(e.block),
-      gap,
+      at: e.timestamp,
+      beat: {
+        key: `${e.name}-${e.tx}`,
+        lane: spec.lane,
+        kind: spec.kind,
+        label: spec.label,
+        detail,
+        note: spec.note,
+        tx: e.tx,
+        block: String(e.block),
+        who: spec.lane === "claimant" ? claimantId : spec.lane === "witness" ? witnessId ?? undefined : undefined,
+      },
     };
+  });
+
+  // The two off-chain reads are placed by the timestamp the guard recorded, not
+  // by where the story would like them. On the current runner the claimant reads
+  // before it bonds and the witness reads after it is drawn, which is the order
+  // the protocol specifies — and if a future run breaks that, this will show it
+  // rather than hide it.
+  const reads = [
+    readBeat(archive?.claim, "claimant", claimantId),
+    witnessId ? readBeat(archive?.witness, "witness", witnessId) : null,
+  ].filter((r): r is { beat: Omit<Beat, "gap">; at: number } => r !== null);
+
+  const all = [...chainBeats, ...reads].sort((a, b) => a.at - b.at);
+
+  let previous = all[0]?.at ?? 0;
+  return all.map(({ at, beat }) => {
+    const gap = Math.max(0, at - previous);
+    previous = at;
+    return { ...beat, gap };
   });
 }
 

@@ -1154,3 +1154,153 @@ body::after {
     margin: 0.4rem 0 0.4rem 1.1rem;
   }
 }
+
+
+/* ══ Agents as distinct parties ═══════════════════════════════════════════
+   The site rendered every agent as an interchangeable grey string, and a
+   viewer cannot follow an argument about independence between parties they
+   cannot tell apart.
+
+   Both the mark and the colour are DERIVED — the monogram from the ENS label
+   the agent registered, the hue from its address — so the same agent looks the
+   same everywhere and nothing here is an identity we invented. */
+
+/* Block-level, not inline: as an inline-flex the badge sat mid-sentence and ran
+   straight into the beat label with no space between them. */
+.lane-who {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.lane-beat.claimant .lane-who { justify-content: flex-end; }
+.lane-mono {
+  display: inline-grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 2px;
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  color: #fff;
+  background: hsl(var(--agent-hue, 220) 42% 38%);
+}
+.lane-who-name {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.lane-beat.claimant .lane-who { flex-direction: row-reverse; }
+
+.lane-head em {
+  display: block;
+  font-style: normal;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--ink-2);
+  margin-top: 0.2rem;
+}
+
+/* ── What an agent asked, got and concluded ──────────────────────────────
+   Transcribed from the archived bundle the tribunal actually read. The one
+   computed field is the query check, and it is a check: the archived document
+   either reproduces the hash the guard took at read time or it does not. */
+
+.agent-read {
+  margin: 0.6rem 0 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-left: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
+  background: var(--paper);
+  text-align: left;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.lane-beat.claimant .agent-read {
+  border-left: 1px solid var(--rule);
+  border-right: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
+}
+
+.agent-read-grid {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr;
+  gap: 0.35rem 0.7rem;
+  margin: 0;
+}
+.agent-read-grid dt {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 0.1rem;
+}
+.agent-read-grid dd { margin: 0; }
+
+.agent-read-rows { list-style: none; margin: 0; padding: 0; }
+.agent-read-rows li { display: flex; justify-content: space-between; gap: 0.8rem; }
+.agent-read-rows b { font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.agent-read-value { font-family: var(--serif); font-size: 1.35rem; font-weight: 400; }
+.agent-read-why { margin: 0.25rem 0 0; color: var(--ink-2); }
+
+.agent-read-tag {
+  margin-left: 0.4rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.agent-read-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.6rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.agent-read-toggle {
+  margin-top: 0.55rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.agent-read-query {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.7rem;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  font-size: 0.66rem;
+  line-height: 1.6;
+  /* Long documents scroll inside the card; the page must never scroll sideways. */
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.agent-read-hash { margin: 0.35rem 0 0; font-size: 0.6rem; color: var(--muted); }
+.agent-read-bad { margin: 0; color: var(--mismatch); font-size: 0.72rem; }
+
+@media (max-width: 900px) {
+  .lane-beat.claimant .lane-who { flex-direction: row; }
+  .lane-beat.claimant .agent-read {
+    border-left: 2px solid hsl(var(--agent-hue, 220) 42% 45%);
+    border-right: 1px solid var(--rule);
+  }
+}
+@media (max-width: 640px) {
+  .agent-read-grid { grid-template-columns: 1fr; gap: 0.15rem; }
+  .agent-read-grid dt { padding-top: 0.4rem; }
+}

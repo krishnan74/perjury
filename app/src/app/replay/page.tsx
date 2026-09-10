@@ -1,6 +1,7 @@
-import { claimEvents, claimsIndex, mechanismEvents } from "@/lib/perjury";
+import { REGISTRY, REGISTRY_ABI, claimEvents, claimsIndex, mechanismEvents, pub } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
 import { buildScript } from "@/lib/replay";
+import { claimTextVerified, readArchive } from "@/lib/evidence";
 import Replay from "./Replay";
 
 export const revalidate = 30;
@@ -36,7 +37,18 @@ export default async function ReplayPage({
     );
   }
 
-  const script = buildScript(chosen, mechanism, roster);
+  // The archive is a record of a run, not a source of truth about the chain.
+  // Everything it asserts that CAN be checked against chain is checked here.
+  const archive = readArchive(chosen.id);
+  // claimHash is storage, not an event field — ClaimSubmitted carries only the
+  // subject and the bond — so it is read from the registry.
+  const stored = await pub
+    .readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "claimOf", args: [BigInt(chosen.id)] })
+    .catch(() => null);
+  const claimTextOk =
+    archive && stored ? claimTextVerified(archive, stored.claimHash) : null;
+
+  const script = buildScript(chosen, mechanism, roster, archive, claimTextOk);
 
   return (
     <main className="wrap section">

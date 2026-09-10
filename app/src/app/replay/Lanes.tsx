@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReplayScript } from "@/lib/replay";
+import { ROLE_LABEL } from "@/lib/identity";
+import AgentRead from "./AgentRead";
 
 const EXPLORER = "https://sepolia.etherscan.io";
 
@@ -43,9 +45,15 @@ export default function Lanes({
 
   return (
     <div className="lanes" role="list" aria-label="Claim timeline, claimant and witness lanes">
-      <p className="lane-head claimant" aria-hidden="true">Claimant</p>
+      <p className="lane-head claimant" aria-hidden="true">
+        Claimant
+        {script.claimant.name && <em>{script.claimant.name}</em>}
+      </p>
       <p className="lane-head spine" aria-hidden="true">On chain</p>
-      <p className="lane-head witness" aria-hidden="true">Witness</p>
+      <p className="lane-head witness" aria-hidden="true">
+        Witness
+        {script.witness?.name && <em>{script.witness.name}</em>}
+      </p>
 
       {/*
         One continuous rule per lane, drawn as its own element rather than as a
@@ -101,15 +109,32 @@ export default function Lanes({
               {/* Shown only once the lanes stack into a single column, where the
                   layout can no longer say which side a beat belongs to. */}
               <span className="lane-tag">{b.lane === "spine" ? "on chain" : b.lane}</span>
+              {b.who && (
+                <span
+                  className="lane-who"
+                  style={{ ["--agent-hue" as string]: String(b.who.hue) }}
+                  title={`${ROLE_LABEL[b.who.role]} — ${b.who.name}`}
+                >
+                  <span className="lane-mono" aria-hidden="true">{b.who.monogram}</span>
+                  <span className="lane-who-name">{b.who.name}</span>
+                </span>
+              )}
               {b.label}
             </p>
             {b.detail && <p className="lane-detail">{b.detail}</p>}
-            {i < at ? (
-              <a className="lane-tx" href={`${EXPLORER}/tx/${b.tx}`} target="_blank" rel="noreferrer">
-                +{b.gap}s · {b.tx.slice(0, 10)}…
-              </a>
+            {b.read && i < at && <AgentRead read={b.read} who={b.who} />}
+            {b.tx ? (
+              i < at ? (
+                <a className="lane-tx" href={`${EXPLORER}/tx/${b.tx}`} target="_blank" rel="noreferrer">
+                  +{b.gap}s · {b.tx.slice(0, 10)}…
+                </a>
+              ) : (
+                <span className="lane-tx" aria-hidden="true">&nbsp;</span>
+              )
             ) : (
-              <span className="lane-tx" aria-hidden="true">&nbsp;</span>
+              /* A read is not a transaction and gets no hash, only its elapsed
+                 gap once it has happened. */
+              <span className="lane-tx">{i < at ? `+${b.gap}s · off chain` : "\u00a0"}</span>
             )}
           </div>
         );
