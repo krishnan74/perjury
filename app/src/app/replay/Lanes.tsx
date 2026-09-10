@@ -68,9 +68,15 @@ export default function Lanes({
   const following = useRef(true);
 
   useEffect(() => {
-    if (!playing) return;
-    // Wheel, touch and keys are unambiguous reader intent. Scroll events are
-    // not: our own scrolling fires those too.
+    /*
+     * Wheel and touch are unambiguous "I am driving now". Scroll events are
+     * not, because our own scrolling fires those too.
+     *
+     * Keyboard is deliberately NOT in this list. Arrow keys on the scrub bar
+     * step between beats, which is navigation rather than taking over the
+     * scroll — treating it as intervention meant that stepping through the
+     * replay to talk over it turned the following off at the first press.
+     */
     const stop = () => {
       following.current = false;
       // Stopping at the next beat is not enough: the scroll already in flight
@@ -80,13 +86,11 @@ export default function Lanes({
     const opts = { passive: true } as const;
     window.addEventListener("wheel", stop, opts);
     window.addEventListener("touchstart", stop, opts);
-    window.addEventListener("keydown", stop);
     return () => {
       window.removeEventListener("wheel", stop);
       window.removeEventListener("touchstart", stop);
-      window.removeEventListener("keydown", stop);
     };
-  }, [playing]);
+  }, []);
 
   // A fresh run re-arms following, so taking over once does not disable it for good.
   useEffect(() => {
@@ -94,7 +98,13 @@ export default function Lanes({
   }, [at]);
 
   useEffect(() => {
-    if (!playing || !following.current || at === 0) return;
+    /*
+     * Follows whether playing or paused. It used to require `playing`, which
+     * meant stepping through with the arrow keys — the way you would actually
+     * narrate this to a room — left you scrolling by hand to find the beat you
+     * had just revealed.
+     */
+    if (!following.current || at === 0) return;
     const el = beatRefs.current[at - 1];
     if (!el) return;
 
@@ -109,7 +119,7 @@ export default function Lanes({
      */
     const room = window.innerHeight - el.getBoundingClientRect().height;
     scrollIntoViewSmooth(el, -Math.max(16, Math.min(64, room - 24)));
-  }, [at, playing]);
+  }, [at]);
 
   return (
     <div className="lanes" role="list" aria-label="Claim timeline, claimant and witness lanes">
