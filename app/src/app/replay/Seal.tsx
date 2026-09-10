@@ -18,10 +18,16 @@ const EXPLORER = "https://sepolia.etherscan.io";
  * boundary: two full inputs going in, one thin thing coming out.
  *
  * Why the two values are visible at all, when the panel's whole argument is that
- * they were withheld: the runner archives the bundle AFTER settlement, as a
- * deliberate disclosure recorded in docs/decisions.md. Confidentiality is a
- * property of the adjudication window, not of eternity. The component says so
- * rather than leaving a reader to wonder how a "sealed" value is on screen.
+ * they were withheld: this is a testnet demo and the runner archives the bundle
+ * after settlement so the replay has something to show. That is the exception,
+ * not the rule, and the panel labels it as one.
+ *
+ * Production per docs/design.md §3.5 stores the bundle as an encrypted blob with
+ * the key held by the Vault DON, so it stays confidential indefinitely and any
+ * later disclosure is a party's own choice, checkable against the commitment.
+ * An earlier draft of this file justified the archive by claiming
+ * confidentiality "was never meant to be permanent" — which is not the design,
+ * and is the kind of convenient principle that gets invented to excuse a demo.
  */
 export default function Seal({ seal }: { seal: SealData }) {
   const fmt = (v: number | null) =>
@@ -64,7 +70,7 @@ export default function Seal({ seal }: { seal: SealData }) {
         values in the markup.
       */}
       <div className="seal-box">
-        <p className="seal-box-head">Sealed for the duration</p>
+        <p className="seal-box-head">Never published</p>
         <dl>
           {seal.withheld.map((w) => (
             <div key={w.label}>
@@ -95,11 +101,22 @@ export default function Seal({ seal }: { seal: SealData }) {
         arrived from a Chainlink Forwarder.
       </p>
 
+      {/*
+        An earlier version of this paragraph justified the archive by asserting
+        that confidentiality "was never meant to be permanent". That is not the
+        design. Under docs/design.md §3.5 the bundle is stored encrypted with the
+        key held by the Vault DON, so it stays confidential indefinitely and any
+        later disclosure is a party's own choice. The demo is the exception, and
+        it has to be labelled as one rather than dressed up as a principle.
+      */}
       <p className="seal-note seal-why">
-        The values above are legible because the runner archives the bundle after settlement, which is
-        a deliberate disclosure. Confidentiality is a property of the adjudication window: it stops
-        node operators reading evidence in flight, and stops a claimant tailoring to a witness&rsquo;s
-        method before the verdict lands. It was never meant to be permanent.
+        <b>Why you can read the two values above.</b> This is a testnet demo, and the runner archives
+        each bundle after settlement so the replay can show what the agents actually did. Production
+        does not work this way: the bundle is stored <b>encrypted</b>, the key is held by the Chainlink
+        Vault DON, and only the confidential workflow can decrypt it. Node operators never see
+        plaintext, and neither party ever sees the other&rsquo;s work &mdash; the enclave is the only
+        place the two submissions meet. An agent knows its own evidence and may choose to reveal it
+        later; the commitment above is what makes such a reveal checkable by anyone.
       </p>
     </div>
   );

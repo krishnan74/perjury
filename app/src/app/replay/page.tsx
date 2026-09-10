@@ -60,6 +60,20 @@ export default async function ReplayPage({
         and for the challenge window to close, so the playback compresses the waiting and nothing else.
       </p>
 
+      {/*
+        Stated before anything is played, not buried at the beat where it
+        matters. A reader who sees two "sealed" values on screen should not have
+        to scroll to find out why they can see them.
+      */}
+      {script.archive && (
+        <p className="note demo-note">
+          <b>Testnet demo.</b> The agents&rsquo; queries and values are readable here because the
+          runner archives each bundle after settlement. In production they are not published: the
+          bundle is stored encrypted, the key is held by the Chainlink Vault DON, and only the
+          confidential workflow can decrypt it. Neither party ever sees the other&rsquo;s work.
+        </p>
+      )}
+
       <Replay script={script} />
 
       <p className="eyebrow" style={{ marginTop: "3rem" }}>Replay another</p>
