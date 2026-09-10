@@ -1,5 +1,6 @@
 "use client";
 
+import { ensUrl } from "@/lib/identity";
 import type { Draw as DrawData } from "@/lib/replay";
 
 const EXPLORER = "https://sepolia.etherscan.io";
@@ -50,7 +51,9 @@ export default function Draw({ draw, claimantName }: { draw: DrawData | null; cl
         {draw.candidates.map((c) => (
           <li key={c.address} data-role={c.role} data-start={c.index === draw.startIndex}>
             <span className="draw-idx">{c.index}</span>
-            <span className="draw-name">{c.name}</span>
+            <a className="draw-name" href={ensUrl(c.name)} target="_blank" rel="noreferrer">
+              {c.name}
+            </a>
             {/* Kept to one or two words. The long form collided with the name
                 in a column this narrow; the rule itself is explained once,
                 below the list, rather than repeated on every row. */}

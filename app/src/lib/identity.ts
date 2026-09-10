@@ -70,6 +70,19 @@ export function identityOf(name: string, address: string, role: Role): Identity 
   return { monogram: monogramOf(name), hue: hueOf(address), name, address, role };
 }
 
+/**
+ * Where an agent's name can actually be looked up.
+ *
+ * NOT app.ens.domains. These names live on the ENSv2 hackathon deployment, not
+ * production ENS, so the mainstream app would show nothing for them — a link
+ * that 404s on a site whose whole argument is that every claim can be checked is
+ * worse than no link. This is the ENS team's own explorer for that deployment;
+ * the URL mirrors ENS_HACKATHON_URLS.explorer in packages/ens.
+ */
+export const ENS_EXPLORER = "https://hackathon-deployment-portal-app.ens-cf.workers.dev";
+
+export const ensUrl = (name: string) => `${ENS_EXPLORER}/${name}`;
+
 export const ROLE_LABEL: Record<Role, string> = {
   claimant: "Claimant",
   witness: "Witness",

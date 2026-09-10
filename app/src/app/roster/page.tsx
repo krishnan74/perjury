@@ -1,6 +1,7 @@
 import { buildFleet, type FleetAgent } from "@/lib/fleet";
 import { claimEvents, mechanismEvents, ago, EXPLORER, eth, short } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
+import { ensUrl } from "@/lib/identity";
 
 export const revalidate = 30;
 
@@ -64,8 +65,14 @@ function Row({ a, domain }: { a: FleetAgent; domain: { lo: number; hi: number } 
           {a.who.monogram}
         </span>
         <span>
-          <a className="fleet-name" href={`${EXPLORER}/address/${a.who.address}`}>{a.who.name}</a>
-          <span className="fleet-addr">{short(a.who.address, 10)}</span>
+          {/* The name goes to ENS, the address to Etherscan. They are two
+              different identities and conflating them was the old behaviour. */}
+          <a className="fleet-name" href={ensUrl(a.who.name)} target="_blank" rel="noreferrer">
+            {a.who.name}
+          </a>
+          <a className="fleet-addr" href={`${EXPLORER}/address/${a.who.address}`}>
+            {short(a.who.address, 10)}
+          </a>
         </span>
       </div>
 

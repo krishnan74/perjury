@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 
 import { cancelSmoothScroll, scrollIntoViewSmooth } from "../SmoothScroll";
 import type { ReplayScript } from "@/lib/replay";
-import { ROLE_LABEL } from "@/lib/identity";
+import { ROLE_LABEL, ensUrl } from "@/lib/identity";
+import { PartnerChip } from "../Partners";
 import AgentRead from "./AgentRead";
 import Draw from "./Draw";
 import Panel from "./Panel";
@@ -95,7 +96,19 @@ export default function Lanes({
   useEffect(() => {
     if (!playing || !following.current || at === 0) return;
     const el = beatRefs.current[at - 1];
-    if (el) scrollIntoViewSmooth(el);
+    if (!el) return;
+
+    /*
+     * Headroom is whatever the beat can spare.
+     *
+     * Every beat is sized to fit a viewport, but the tallest leaves only about
+     * 36px on a 1280x800 laptop — and a fixed 64px offset then pushed its last
+     * lines off the bottom, which is the one thing this scroll exists to
+     * prevent. Short beats still get comfortable headroom; tall ones give it up
+     * to stay whole.
+     */
+    const room = window.innerHeight - el.getBoundingClientRect().height;
+    scrollIntoViewSmooth(el, -Math.max(16, Math.min(64, room - 24)));
   }, [at, playing]);
 
   return (
@@ -162,15 +175,28 @@ export default function Lanes({
                 <span
                   className="lane-who"
                   style={{ ["--agent-hue" as string]: String(b.who.hue) }}
-                  title={`${ROLE_LABEL[b.who.role]} — ${b.who.name}`}
                 >
                   <span className="lane-mono" aria-hidden="true">{b.who.monogram}</span>
-                  <span className="lane-who-name">{b.who.name}</span>
+                  {/* The name is the agent's real identity, so it links where
+                      that identity actually lives rather than to its address. */}
+                  <a
+                    className="lane-who-name"
+                    href={ensUrl(b.who.name)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`${ROLE_LABEL[b.who.role]} — ${b.who.name} on the ENS explorer`}
+                  >
+                    {b.who.name}
+                  </a>
                 </span>
               )}
               {b.label}
             </p>
+            {/* The one fact the step delivered, set large. Everything under it
+                is support, and a beat with no lead simply has none. */}
+            {b.lead && <p className="lane-lead" data-kind={b.kind}>{b.lead}</p>}
             {b.detail && <p className="lane-detail">{b.detail}</p>}
+            {b.partner && <PartnerChip id={b.partner} />}
             {/*
               One sentence of plain English per beat, so the page carries itself
               when a judge opens it with nobody narrating. The text was already

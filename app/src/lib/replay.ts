@@ -33,6 +33,15 @@ export interface Beat {
   /** Anchors the panels — the draw hangs off `draw`, the seal off `seal`. */
   kind: "claim" | "request" | "draw" | "verdict" | "appeal" | "panel" | "settle" | "payout" | "read";
   label: string;
+  /**
+   * The one fact this beat exists to deliver, set large.
+   *
+   * Every beat had a label and a muted detail line, which made a verdict look
+   * exactly like a payout. A step in a narrated replay needs a single thing the
+   * eye lands on, and it is different per beat: the sentence that was bonded,
+   * who was drawn, the word the tribunal returned.
+   */
+  lead: string;
   detail: string;
   /** One sentence of plain English, so the page carries itself without narration. */
   note: string;
@@ -45,6 +54,8 @@ export interface Beat {
   read?: AgentRead;
   /** Whose beat this is, where a party owns it. */
   who?: Identity;
+  /** The protocol doing the work at this step, where one is. */
+  partner?: "chainlink" | "ens" | "graph";
 }
 
 /**
@@ -290,6 +301,10 @@ export function nameOf(roster: Agent[], addr: string | null | undefined): string
 
 const shortAddr = (a: string) => (a.length > 12 ? `${a.slice(0, 8)}…${a.slice(-4)}` : a);
 
+/** Wei to a short ETH figure. Amounts here are bonds and fees, never dust. */
+const ethOf = (wei: unknown) =>
+  new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(BigInt(String(wei ?? 0n))) / 1e18);
+
 /**
  * Lane assignment.
  *
@@ -299,7 +314,7 @@ const shortAddr = (a: string) => (a.length > 12 ? `${a.slice(0, 8)}…${a.slice(
  */
 const SCRIPT: Record<
   string,
-  { lane: Lane; kind: Beat["kind"]; label: string; note: string }
+  { lane: Lane; kind: Beat["kind"]; label: string; note: string; partner?: Beat["partner"] }
 > = {
   ClaimSubmitted: {
     lane: "claimant",
@@ -311,12 +326,14 @@ const SCRIPT: Record<
   // when the witness enters, having had no say in it. The mechanics of the draw
   // itself are shown on the spine at this same row.
   WitnessAssigned: {
+    partner: "chainlink",
     lane: "witness",
     kind: "draw",
     label: "Drawn as witness by VRF",
     note: "The witness did not volunteer and cannot decline. Assignment is pushed to it by a random draw it had no way to influence.",
   },
   VerdictRecorded: {
+    partner: "chainlink",
     lane: "spine",
     kind: "verdict",
     label: "Tribunal returned a verdict",
@@ -329,18 +346,21 @@ const SCRIPT: Record<
     note: "A verdict opens a challenge window rather than settling. Appealing costs a second, larger bond.",
   },
   PanelSeated: {
+    partner: "chainlink",
     lane: "spine",
     kind: "panel",
     label: "VRF seated a panel of three",
     note: "A second draw, excluding the claimant, the original witness and the appellant. A panel containing any of them would not be review.",
   },
   PanelUpheld: {
+    partner: "chainlink",
     lane: "spine",
     kind: "panel",
     label: "Panel upheld the verdict",
     note: "Three independently seated agents reached the same finding as the first witness.",
   },
   PanelOverturned: {
+    partner: "chainlink",
     lane: "spine",
     kind: "panel",
     label: "Panel overturned the verdict",
@@ -359,6 +379,7 @@ const SCRIPT: Record<
     note: "The same fee whichever way the verdict went, so the witness has nothing to gain by disagreeing.",
   },
   Settled: {
+    partner: "ens",
     lane: "spine",
     kind: "settle",
     label: "Settled",
@@ -427,7 +448,11 @@ function readBeat(
       key: `read-${role}-${p.queryHash.slice(0, 12)}`,
       lane: role,
       kind: "read",
+      partner: "graph",
       label: role === "claimant" ? "Read the indexer, then drafted a claim" : "Read the indexer, independently",
+      // The value it walked away with. The card below shows the working; this is
+      // the number the next step will be decided on.
+      lead: `${read.asserted}${read.unit === "percent" ? "%" : ` ${read.unit}`}`,
       detail: "",
       note:
         role === "claimant"
@@ -462,12 +487,43 @@ function buildBeats(claim: ClaimRow, roster: Agent[], archive: Archive | null): 
       note: "",
     };
 
+    /*
+     * Lead and detail carry different weights, so they carry different facts.
+     * The lead is what the step delivered; the detail is who or what it names.
+     * Getting this wrong is what made a verdict and a fee payment look alike.
+     */
+    let lead = "";
     let detail = "";
-    if (e.name === "WitnessAssigned") detail = nameOf(roster, String(e.args.witness));
-    else if (e.name === "PanelSeated") {
-      detail = (e.args.panel as string[]).map((a) => nameOf(roster, a)).join(", ");
-    } else if (e.name === "VerdictRecorded") detail = VERDICT[Number(e.args.verdict)] ?? "";
-    else if (e.name === "ClaimSubmitted") detail = nameOf(roster, String(e.args.claimant));
+    if (e.name === "WitnessAssigned") {
+      lead = nameOf(roster, String(e.args.witness));
+    } else if (e.name === "PanelSeated") {
+      const seats = (e.args.panel as string[]).map((a) => nameOf(roster, a));
+      lead = `${seats.length} seats, no party among them`;
+      detail = seats.join(", ");
+    } else if (e.name === "VerdictRecorded") {
+      lead = VERDICT[Number(e.args.verdict)] ?? "";
+    } else if (e.name === "PanelUpheld") {
+      lead = "upheld";
+      detail = VERDICT[Number(e.args.verdict)] ?? "";
+    } else if (e.name === "PanelOverturned") {
+      lead = "overturned";
+    } else if (e.name === "ClaimSubmitted") {
+      // The sentence that was actually bonded, where the archive kept it. Its
+      // keccak is the claimHash in storage, so this is the thing at stake.
+      lead = archive?.claimText ?? `${ethOf(e.args.bond)} ETH bonded`;
+      detail = nameOf(roster, String(e.args.claimant));
+    } else if (e.name === "Appealed") {
+      lead = `${ethOf(e.args.bond)} ETH appeal bond`;
+    } else if (e.name === "ClaimantSlashed") {
+      lead = `${ethOf(BigInt(String(e.args.bond)) + BigInt(String(e.args.stakeSlashed)))} ETH forfeited`;
+      detail = "bond and stake, payable to nobody";
+    } else if (e.name === "WitnessPaid") {
+      lead = `${ethOf(e.args.fee)} ETH`;
+      detail = "the same fee whichever way the verdict went";
+    } else if (e.name === "Settled") {
+      lead = VERDICT[Number(e.args.verdict)] ?? "";
+      detail = "reputation is applied here, not at adjudication";
+    }
 
     return {
       at: e.timestamp,
@@ -476,8 +532,10 @@ function buildBeats(claim: ClaimRow, roster: Agent[], archive: Archive | null): 
         lane: spec.lane,
         kind: spec.kind,
         label: spec.label,
+        lead,
         detail,
         note: spec.note,
+        partner: spec.partner,
         tx: e.tx,
         block: String(e.block),
         who: spec.lane === "claimant" ? claimantId : spec.lane === "witness" ? witnessId ?? undefined : undefined,

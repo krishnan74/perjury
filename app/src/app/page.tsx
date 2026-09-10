@@ -2,6 +2,7 @@ import { claimEvents, claimsIndex, protocolSummary, eth, EXPLORER, REGISTRY } fr
 import { rosterSnapshot } from "@/lib/roster";
 import { Reveal } from "./Reveal";
 import { Ticker } from "./Ticker";
+import { PartnerList } from "./Partners";
 
 export const revalidate = 30;
 
@@ -301,9 +302,22 @@ export default async function Home() {
         </Reveal>
       </section>
 
-      {/* ══ 6. Check it ════════════════════════════════════════════════════ */}
+      {/* ══ 6. Built on ════════════════════════════════════════════════════
+          Who does what, rather than a wall of logos. Each row says where that
+          protocol actually does its work in this system, because "powered by"
+          under a feature card tells a reader nothing they can check. */}
       <section className="wrap section">
         <span className="chapter-num" aria-hidden="true">05</span>
+        <Reveal>
+          <p className="eyebrow">Built on</p>
+          <h2 className="h2" style={{ maxWidth: "22ch" }}>Three protocols, three jobs.</h2>
+          <PartnerList />
+        </Reveal>
+      </section>
+
+      {/* ══ 7. Check it ════════════════════════════════════════════════════ */}
+      <section className="wrap section">
+        <span className="chapter-num" aria-hidden="true">06</span>
         <Reveal>
           <p className="eyebrow">Check it yourself</p>
           <h2 className="h2" style={{ maxWidth: "20ch" }}>Everything above is on Sepolia.</h2>

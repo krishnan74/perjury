@@ -136,6 +136,11 @@ a { color: inherit; }
 /* ── Layout ───────────────────────────────────────────────────────────── */
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
+/* 1180 is a reading measure, chosen for prose. The replay is three columns of
+   dense data and was paying for that measure in wrapped lines — at 1180 the
+   lanes came out 277px wide and an agent's evidence card broke a field name
+   across two lines. Wider here, and only here. */
+.wrap.wide { max-width: 1460px; }
 /* padding-block, NOT the shorthand. `padding: <v> 0` here reset the horizontal
    gutter that .wrap sets, so every section ran edge-to-edge. On desktop the
    auto margins disguised it; on a phone the text touched the screen edge. */
@@ -1032,7 +1037,7 @@ body::after {
   /* The spine carries the draw, the seal and the panel — the three densest
      blocks on the page — so it gets more room than the lanes. Narrow columns
      buy their width back in wrapped lines, and height is the scarce axis. */
-  grid-template-columns: minmax(0, 0.9fr) minmax(16.5rem, 1.35fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 1.25fr) minmax(0, 1fr);
   column-gap: clamp(0.9rem, 2.6vw, 2.2rem);
   align-items: start;
   margin-top: 1.6rem;
@@ -2047,4 +2052,98 @@ body::after {
   .fleet-strikes-cell::before { content: "Strikes seen "; }
   .fleet-last::before { content: "Last · "; }
   .fleet-strikes-cell { display: flex; align-items: center; gap: 0.6rem; }
+}
+
+
+/* ══ Beat hierarchy ═══════════════════════════════════════════════════════
+   Every beat used to be a label and a muted detail line, which made a verdict
+   look exactly like a fee payment. Each step now has one thing the eye lands
+   on — the sentence that was bonded, who was drawn, the word the tribunal
+   returned — and everything else is support beneath it. */
+
+.lane-lead {
+  margin: 0.3rem 0 0;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  line-height: 1.25;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+/* The verdict is the only beat allowed the accent, so it stays the loudest
+   thing on the page rather than one shout among several. */
+.lane-beat[data-kind="verdict"] .lane-lead,
+.lane-beat[data-kind="panel"] .lane-lead { color: var(--accent); }
+.lane-beat[data-kind="payout"] .lane-lead { font-size: 1.2rem; color: var(--mismatch); }
+.lane-beat[data-kind="read"] .lane-lead { font-size: 1.7rem; }
+/* Idle beats keep the hierarchy but lose the emphasis, so the eye follows
+   playback rather than jumping ahead to whatever is largest. */
+.lane-beat[data-state="idle"] .lane-lead { color: var(--muted); }
+
+.lane-detail { font-size: 0.72rem; }
+
+/* ── Partner marks ────────────────────────────────────────────────────────
+   Simplified geometry drawn inline, not official brand assets. Brand colour
+   appears at mark size only: three coloured glyphs at 13px read as
+   identifiers, not as a second palette competing with --accent. */
+
+.pmark { display: block; flex: 0 0 auto; }
+
+.pchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin-top: 0.5rem;
+  padding: 0.16rem 0.42rem 0.16rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--pcolour) 32%, transparent);
+  background: color-mix(in srgb, var(--pcolour) 7%, transparent);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pcolour) 72%, var(--ink));
+}
+.lane-beat.claimant .pchip { flex-direction: row-reverse; }
+
+/* ── The partners section ─────────────────────────────────────────────── */
+
+.partners { margin-top: 2.4rem; border-top: 1px solid var(--rule); }
+.partner {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 14rem) minmax(0, 1fr);
+  gap: 1.4rem;
+  align-items: start;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+  color: inherit;
+}
+.partner:hover { background: var(--paper-2); }
+.partner-mark { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; }
+.partner-id b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.partner-layer {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.partner-blurb { font-size: 0.9rem; line-height: 1.65; color: var(--ink-2); max-width: 60ch; }
+
+@media (max-width: 780px) {
+  .partner {
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+    gap: 0.9rem 1rem;
+    padding: 1.2rem 0;
+  }
+  .partner-mark { width: 2.6rem; height: 2.6rem; }
+  .partner-blurb { grid-column: 2; }
 }

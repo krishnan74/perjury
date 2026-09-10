@@ -30,7 +30,7 @@ export default async function ReplayPage({
 
   if (!chosen) {
     return (
-      <main className="wrap section">
+      <main className="wrap wide section">
         <p className="eyebrow">Replay</p>
         <h1 className="h2">No settled claims in range.</h1>
       </main>
@@ -51,7 +51,7 @@ export default async function ReplayPage({
   const script = buildScript(chosen, mechanism, roster, archive, claimTextOk, readToleranceBps());
 
   return (
-    <main className="wrap section">
+    <main className="wrap wide section">
       <p className="eyebrow">Replay</p>
       <h1 className="h2" style={{ maxWidth: "22ch" }}>Watch a claim settle.</h1>
       <p className="lede" style={{ marginTop: "1.2rem", marginBottom: "2rem" }}>

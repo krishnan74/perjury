@@ -1,7 +1,7 @@
 "use client";
 
 import type { Appeal } from "@/lib/replay";
-import { hueOf, monogramOf } from "@/lib/identity";
+import { ensUrl, hueOf, monogramOf } from "@/lib/identity";
 
 const EXPLORER = "https://sepolia.etherscan.io";
 
@@ -25,11 +25,10 @@ const EXPLORER = "https://sepolia.etherscan.io";
 export default function Panel({ appeal }: { appeal: Appeal }) {
   return (
     <div className="panel-fork">
-      <p className="panel-head">The appeal</p>
-      <p className="panel-note">
-        A second draw, excluding the claimant, the original witness and the appellant. A panel
-        containing any of them would not be review.
-      </p>
+      {/* No intro line here: the beat this sits inside already carries one, and
+          two sentences saying the same thing is how a compact page stops being
+          compact. */}
+      <p className="panel-head">The appeal, re-derived</p>
 
       <div className="panel-seats">
         {appeal.seats.map((s) => (
@@ -41,7 +40,9 @@ export default function Panel({ appeal }: { appeal: Appeal }) {
             >
               {monogramOf(s.name)}
             </span>
-            <span className="panel-seat-name">{s.name}</span>
+            <a className="panel-seat-name" href={ensUrl(s.name)} target="_blank" rel="noreferrer">
+              {s.name}
+            </a>
             {s.unverifiableReason ? (
               <span className="panel-seat-bad">unverifiable</span>
             ) : s.value !== null ? (
