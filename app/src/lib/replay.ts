@@ -126,6 +126,25 @@ export interface Seal {
   /** Absolute distance between the two, in the assertion's own unit. */
   divergence: number | null;
   /**
+   * Both composed documents, for the side-by-side comparison.
+   *
+   * Null where a run predates the capture. The corroboration argument rests on
+   * the two documents being written independently, and a hash cannot show that
+   * to anybody.
+   */
+  claimantQuery: string | null;
+  witnessQuery: string | null;
+  /**
+   * The band inside which the two values count as agreeing.
+   *
+   * Derived from the tribunal's own rule rather than approximated. The test is
+   * `|a-b| / max(|a|,|b|) <= bps/10000`, which is NOT symmetric about the
+   * witness's value: a claimant below it passes down to `w(1-t)` and one above
+   * it passes up to `w/(1-t)`. Drawing a symmetric band would show a passing
+   * range the contract does not have.
+   */
+  band: { lo: number; hi: number; bps: number } | null;
+  /**
    * Whether both parties' archived rows are byte-identical.
    *
    * When they are, a disagreement cannot be blamed on the data: the two agents
@@ -134,6 +153,37 @@ export interface Seal {
    * values rather than an interpretation of them.
    */
   identicalEvidence: boolean | null;
+}
+
+/**
+ * The appeal, as three independent re-derivations.
+ *
+ * `PanelSeated` names who the chain drew; the archive carries what each of them
+ * concluded. Those used to be unjoinable — the archive labelled its seats
+ * "seat-a", "seat-b", "seat-c", which are model assignments — so a finding could
+ * not be attributed to the agent that produced it. Seats now carry the drawn
+ * address, and a seat whose finding is missing says so rather than borrowing a
+ * neighbour's.
+ */
+export interface PanelSeatView {
+  address: string;
+  name: string;
+  /** Null where the archive predates the binding, or the seat was unverifiable. */
+  value: number | null;
+  unverifiableReason?: string;
+  /** Whether this seat's value falls inside the tolerance band. */
+  agrees: boolean | null;
+}
+
+export interface Appeal {
+  appellant: { address: string; name: string } | null;
+  seats: PanelSeatView[];
+  /** The finding that stands. A panel verdict supersedes the original. */
+  outcome: "upheld" | "overturned" | null;
+  original: VerdictName;
+  seatedTx: string | null;
+  /** True when the archive could be joined to the drawn addresses at all. */
+  bound: boolean;
 }
 
 export interface StandingMove {
@@ -167,6 +217,7 @@ export interface ReplayScript {
   beats: Beat[];
   draw: Draw | null;
   seal: Seal | null;
+  appeal: Appeal | null;
   standing: StandingMove | null;
   totalSeconds: number;
 }
@@ -194,6 +245,7 @@ export function buildScript(
   roster: Agent[],
   archive: Archive | null = null,
   claimTextOk: boolean | null = null,
+  toleranceBps: number | null = null,
 ): ReplayScript {
   const named = (addr: string | null | undefined) => ({
     address: String(addr ?? ""),
@@ -224,7 +276,8 @@ export function buildScript(
     appealed: claim.appealed,
     beats,
     draw: buildDraw(claim, mine, roster),
-    seal: buildSeal(claim, archive),
+    seal: buildSeal(claim, archive, toleranceBps),
+    appeal: buildAppeal(claim, archive, roster, toleranceBps),
     standing: buildStanding(claim, mechanism, roster),
     totalSeconds: beats.reduce((sum, b) => sum + b.gap, 0),
   };
@@ -516,7 +569,14 @@ function buildDraw(claim: ClaimRow, mine: ClaimEvent[], roster: Agent[]): Draw |
   };
 }
 
-function buildSeal(claim: ClaimRow, archive: Archive | null): Seal | null {
+/** The exact set of claimant values that `withinTolerance` accepts, given the witness's. */
+function toleranceBand(witnessValue: number, bps: number): { lo: number; hi: number; bps: number } | null {
+  const t = bps / 10_000;
+  if (t <= 0 || t >= 1 || witnessValue === 0) return null;
+  return { lo: witnessValue * (1 - t), hi: witnessValue / (1 - t), bps };
+}
+
+function buildSeal(claim: ClaimRow, archive: Archive | null, toleranceBps: number | null): Seal | null {
   const recorded = claim.events.find((e) => e.name === "VerdictRecorded");
   if (!recorded) return null;
   const assigned = claim.events.find((e) => e.name === "WitnessAssigned");
@@ -538,6 +598,9 @@ function buildSeal(claim: ClaimRow, archive: Archive | null): Seal | null {
   return {
     claimantValue: cv,
     witnessValue: wv,
+    claimantQuery: archive?.claim.query ?? null,
+    witnessQuery: archive?.witness.query ?? null,
+    band: wv !== null && toleranceBps !== null ? toleranceBand(wv, toleranceBps) : null,
     unit: archive?.claim.attestation?.assertion.unit ?? null,
     divergence: cv !== null && wv !== null ? Math.abs(cv - wv) : null,
     identicalEvidence: identical,
@@ -547,6 +610,65 @@ function buildSeal(claim: ClaimRow, archive: Archive | null): Seal | null {
     commitment: commitment || null,
     adjudicationSeconds: assigned ? Math.max(0, recorded.timestamp - assigned.timestamp) : 0,
     withheld: [...WITHHELD],
+  };
+}
+
+/**
+ * Join the drawn panel to what each seat concluded.
+ *
+ * Renders from chain alone when there is no archive: three agents were drawn and
+ * the outcome is on chain, which is the whole of A4's Tier A requirement. The
+ * archived values are an enrichment, and their absence is stated rather than
+ * hidden.
+ */
+function buildAppeal(
+  claim: ClaimRow,
+  archive: Archive | null,
+  roster: Agent[],
+  toleranceBps: number | null,
+): Appeal | null {
+  const seated = claim.events.find((e) => e.name === "PanelSeated");
+  if (!seated) return null;
+
+  const drawn = (seated.args.panel as string[] | undefined) ?? [];
+  const upheld = claim.events.find((e) => e.name === "PanelUpheld");
+  const overturned = claim.events.find((e) => e.name === "PanelOverturned");
+
+  const witnessValue = archive?.witness.attestation?.assertion.value ?? null;
+  const t = toleranceBps === null ? null : toleranceBps / 10_000;
+
+  const byAddress = new Map(
+    (archive?.panel ?? []).map((p) => [p.member.toLowerCase(), p] as const),
+  );
+  const bound = drawn.some((a) => byAddress.has(a.toLowerCase()));
+
+  const seats: PanelSeatView[] = drawn.map((address) => {
+    const found = byAddress.get(address.toLowerCase());
+    const value = found?.submission.attestation?.assertion.value ?? null;
+    return {
+      address,
+      name: nameOf(roster, address),
+      value,
+      unverifiableReason: found?.submission.unverifiableReason,
+      agrees:
+        value === null || witnessValue === null || t === null
+          ? null
+          : Math.abs(value - witnessValue) / Math.max(Math.abs(value), Math.abs(witnessValue)) <= t,
+    };
+  });
+
+  return {
+    appellant: claim.events.find((e) => e.name === "Appealed")
+      ? {
+          address: String(claim.events.find((e) => e.name === "Appealed")!.args.appellant),
+          name: nameOf(roster, String(claim.events.find((e) => e.name === "Appealed")!.args.appellant)),
+        }
+      : null,
+    seats,
+    outcome: upheld ? "upheld" : overturned ? "overturned" : null,
+    original: claim.verdict,
+    seatedTx: seated.tx,
+    bound,
   };
 }
 

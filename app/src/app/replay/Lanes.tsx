@@ -4,6 +4,7 @@ import type { ReplayScript } from "@/lib/replay";
 import { ROLE_LABEL } from "@/lib/identity";
 import AgentRead from "./AgentRead";
 import Draw from "./Draw";
+import Panel from "./Panel";
 import Seal from "./Seal";
 
 const EXPLORER = "https://sepolia.etherscan.io";
@@ -137,6 +138,10 @@ export default function Lanes({
                 slot of its own: both occupy the spine at this row, and two grid
                 items in one cell overlap. */}
             {b.kind === "verdict" && i < at && script.seal && <Seal seal={script.seal} />}
+            {/* A4 — the fork, on the beat where the panel was actually seated. */}
+            {b.kind === "panel" && b.label.includes("seated") && i < at && script.appeal && (
+              <Panel appeal={script.appeal} />
+            )}
             {b.tx ? (
               i < at ? (
                 <a className="lane-tx" href={`${EXPLORER}/tx/${b.tx}`} target="_blank" rel="noreferrer">

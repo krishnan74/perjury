@@ -51,7 +51,7 @@ export interface Archive {
   claimId: string;
   claim: ArchivedSubmission;
   witness: ArchivedSubmission;
-  panel?: { member: string; submission: ArchivedSubmission }[];
+  panel?: { member: string; name?: string; submission: ArchivedSubmission }[];
   witnessAgent?: { name: string; address: string };
   claimText?: string;
   claimHash?: string;
@@ -65,6 +65,27 @@ export interface Archive {
  * with `app/` as cwd, so both are tried.
  */
 const ROOTS = [join(process.cwd(), "..", "evidence-archive"), join(process.cwd(), "evidence-archive")];
+
+/**
+ * The adjudication tolerance the tribunal is configured with, in basis points.
+ *
+ * Read from the CRE config rather than hardcoded, so the page cannot drift from
+ * the value the enclave actually applies. Returns null if it cannot be read, and
+ * the number line is omitted rather than drawn against a guess.
+ */
+export function readToleranceBps(): number | null {
+  for (const root of [join(process.cwd(), ".."), process.cwd()]) {
+    try {
+      const cfg = JSON.parse(
+        readFileSync(join(root, "cre", "tribunal", "config.staging.json"), "utf8"),
+      ) as { toleranceBps?: number };
+      if (typeof cfg.toleranceBps === "number") return cfg.toleranceBps;
+    } catch {
+      // Try the next root.
+    }
+  }
+  return null;
+}
 
 export function readArchive(claimId: string): Archive | null {
   for (const root of ROOTS) {

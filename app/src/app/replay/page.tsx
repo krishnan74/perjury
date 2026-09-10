@@ -1,7 +1,7 @@
 import { REGISTRY, REGISTRY_ABI, claimEvents, claimsIndex, mechanismEvents, pub } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
 import { buildScript } from "@/lib/replay";
-import { claimTextVerified, readArchive } from "@/lib/evidence";
+import { claimTextVerified, readArchive, readToleranceBps } from "@/lib/evidence";
 import Replay from "./Replay";
 
 export const revalidate = 30;
@@ -48,7 +48,7 @@ export default async function ReplayPage({
   const claimTextOk =
     archive && stored ? claimTextVerified(archive, stored.claimHash) : null;
 
-  const script = buildScript(chosen, mechanism, roster, archive, claimTextOk);
+  const script = buildScript(chosen, mechanism, roster, archive, claimTextOk, readToleranceBps());
 
   return (
     <main className="wrap section">

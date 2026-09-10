@@ -56,18 +56,40 @@ export default function Replay({ script }: { script: ReplayScript }) {
   const settleAt = steps.findIndex((s) => s.kind === "settle");
   const fmt = (s: number) => (s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`);
 
+  /*
+   * A6 — a time axis rather than a progress bar.
+   *
+   * Beats are positioned by the seconds that actually elapsed, so the ninety
+   * seconds of challenge window occupies ninety seconds of width. That is the
+   * point: the waiting is visible as distance, and you can drag straight to the
+   * interesting eight seconds instead of sitting through it. The counter still
+   * reports true elapsed time at every speed — a replay of a verification
+   * protocol that misrepresents its own timing defeats itself.
+   */
+  const cumulative = steps.reduce<number[]>((acc, b) => [...acc, (acc[acc.length - 1] ?? 0) + b.gap], []);
+  const atFraction = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+
+  /** The beat a point on the axis lands on. */
+  const seek = (fraction: number) => {
+    const t = Math.max(0, Math.min(1, fraction)) * total;
+    let i = 0;
+    while (i < cumulative.length && (cumulative[i] ?? 0) <= t) i++;
+    clear();
+    setPlaying(false);
+    setAt(Math.max(0, Math.min(i, steps.length)));
+  };
+
+  const fromPointer = (el: HTMLElement, clientX: number) => {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0) return;
+    seek((clientX - r.left) / r.width);
+  };
+
   return (
     <>
       <div className="actions" style={{ marginTop: 0, marginBottom: "1.6rem", alignItems: "center" }}>
         <button className="btn" onClick={() => (at >= steps.length ? reset() : setPlaying((p) => !p))}>
           {at >= steps.length ? "Replay" : playing ? "Pause" : at === 0 ? "Play" : "Resume"}
-        </button>
-        <button
-          className="btn ghost"
-          onClick={() => { clear(); setPlaying(false); setAt((i) => Math.min(i + 1, steps.length)); }}
-          disabled={at >= steps.length}
-        >
-          Step
         </button>
         <button className="btn ghost" onClick={reset} disabled={at === 0}>Reset</button>
         <span className="chip" role="group" aria-label="Playback speed">
@@ -96,9 +118,50 @@ export default function Replay({ script }: { script: ReplayScript }) {
         </span>
       </div>
 
-      <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length}
-           aria-valuenow={at} aria-label="Replay progress">
-        <span style={{ transform: `scaleX(${steps.length ? at / steps.length : 0})` }} />
+      {/*
+        Draggable, keyboard-operable, and labelled in seconds rather than steps,
+        because "step 6 of 11" tells a viewer nothing about where the protocol
+        actually spends its time.
+      */}
+      <div
+        className="scrub"
+        role="slider"
+        tabIndex={0}
+        aria-label="Scrub the replay, in elapsed seconds on chain"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={elapsed}
+        aria-valuetext={`${fmt(elapsed)} of ${fmt(total)}`}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          fromPointer(e.currentTarget, e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) fromPointer(e.currentTarget, e.clientX);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") { clear(); setPlaying(false); setAt((i) => Math.min(i + 1, steps.length)); }
+          else if (e.key === "ArrowLeft") { clear(); setPlaying(false); setAt((i) => Math.max(i - 1, 0)); }
+          else if (e.key === "Home") reset();
+          else if (e.key === "End") { clear(); setPlaying(false); setAt(steps.length); }
+          else return;
+          e.preventDefault();
+        }}
+      >
+        <span className="scrub-track" aria-hidden="true" />
+        <span className="scrub-fill" style={{ width: `${atFraction(elapsed)}%` }} aria-hidden="true" />
+        {steps.map((b, i) => (
+          <span
+            key={b.key}
+            className="scrub-beat"
+            data-done={i < at}
+            data-kind={b.kind}
+            style={{ left: `${atFraction(cumulative[i] ?? 0)}%` }}
+            title={`${fmt(cumulative[i] ?? 0)} — ${b.label}`}
+            aria-hidden="true"
+          />
+        ))}
+        <span className="scrub-head" style={{ left: `${atFraction(elapsed)}%` }} aria-hidden="true" />
       </div>
 
       <Lanes script={script} at={at} playing={playing} />
