@@ -1,16 +1,22 @@
 /**
  * The three protocols this is built on, and where each one does its work.
  *
- * The marks are SIMPLIFIED geometry, not official brand assets — a hexagon for
- * Chainlink, a lozenge for ENS, a node-and-orbit for The Graph. They are drawn
- * here rather than fetched so the page has no third-party asset dependency and
- * nothing to load, and they are deliberately plain: a half-accurate replica of
- * someone's logo is worse than an obvious abstraction of it. Swap in official
- * SVGs before submitting if brand accuracy matters.
+ * The marks are the OFFICIAL logos, served from `public/partners/` and used
+ * unmodified — no recolouring, no redrawing, no tracing. An earlier version
+ * drew simplified geometry by hand, which is defensible for a placeholder and
+ * not for something a judge from any of these three teams will watch:
  *
- * Brand colour is used at mark size only. The site has one accent and this does
- * not become a second: these are identifiers, and three coloured glyphs at 20px
- * read as marks rather than as palette.
+ *   chainlink.svg  Simple Icons, the brand's own #375BD2
+ *   ens.svg        Simple Icons, the brand's own #0080BC
+ *   graph.svg      thegraph.com/brand, "Logomark — Dark", the variant they
+ *                  publish for light backgrounds
+ *
+ * The Graph's logomark ships only in dark and light; there is no coloured
+ * variant of it, and the coloured GRT symbol is the token rather than the
+ * protocol, so the dark mark is the correct one to use here.
+ *
+ * Each file keeps its own colour, which is why two of these are blue. Tinting
+ * them to a common palette would be a brand violation dressed up as design.
  */
 
 export type PartnerId = "chainlink" | "ens" | "graph";
@@ -50,7 +56,9 @@ export const PARTNERS: Record<PartnerId, Partner> = {
     layer: "The facts under dispute",
     blurb:
       "Both agents compose their own queries against pinned subgraph deployments and read them through the live Gateway. A deployment id is a hash of the mapping code, which is what makes two reads independent rather than repeated.",
-    colour: "#6747ed",
+    // The chip tint follows the mark. The Graph's logomark is monochrome, so a
+    // purple chip around a near-black logo would look like a mistake.
+    colour: "#0c0a1d",
     href: "https://thegraph.com",
   },
 };
@@ -62,42 +70,26 @@ export const PARTNERS: Record<PartnerId, Partner> = {
  * glyph that repeats the word next to it is noise in a screen reader.
  */
 export function PartnerMark({ id, size = 18 }: { id: PartnerId; size?: number }) {
-  const colour = PARTNERS[id].colour;
-  const common = { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": true } as const;
-
-  if (id === "chainlink") {
-    return (
-      <svg {...common} className="pmark">
-        <path
-          d="M12 2.6 20.4 7.3v9.4L12 21.4 3.6 16.7V7.3z"
-          fill="none"
-          stroke={colour}
-          strokeWidth="2.1"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-
-  if (id === "ens") {
-    return (
-      <svg {...common} className="pmark">
-        <path
-          d="M12 2.2c3.4 4.1 6.6 6.6 6.6 10.6A6.6 6.6 0 0 1 12 21.8a6.6 6.6 0 0 1-6.6-9c0-4 3.2-6.5 6.6-10.6z"
-          fill="none"
-          stroke={colour}
-          strokeWidth="2.1"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-
+  /*
+   * Plain <img>, not next/image and not an inline sprite.
+   *
+   * These are three small static SVGs on the same origin: there is nothing to
+   * optimise, and running a brand's logo through a transform pipeline is how it
+   * stops being the logo. `alt` is empty because every use sits beside the
+   * partner's name in text, and a glyph that repeats the word next to it is
+   * noise in a screen reader.
+   */
   return (
-    <svg {...common} className="pmark">
-      <circle cx="10.4" cy="10.4" r="6.4" fill="none" stroke={colour} strokeWidth="2.1" />
-      <circle cx="19" cy="19" r="2.6" fill={colour} />
-    </svg>
+    <img
+      className="pmark"
+      src={`/partners/${id}.svg`}
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+    />
   );
 }
 

@@ -2147,3 +2147,10 @@ body::after {
   .partner-mark { width: 2.6rem; height: 2.6rem; }
   .partner-blurb { grid-column: 2; }
 }
+
+/* Optical sizing for the partner marks.
+   Each brand insets its mark differently inside its own viewBox — The Graph's
+   logomark occupies about 56% of a 64px box where the other two nearly fill
+   theirs — so equal boxes render unequal marks. Scaling the box is a
+   presentation correction, not a change to the artwork. */
+.pmark[src$="graph.svg"] { transform: scale(1.3); }
