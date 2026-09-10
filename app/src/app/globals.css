@@ -1919,3 +1919,132 @@ body::after {
   .scrub-fill,
   .scrub-head { transition: none; }
 }
+
+
+/* ══ The agent fleet ══════════════════════════════════════════════════════
+   A registry, not a leaderboard. Status leads, because the protocol's only
+   question about an agent is whether it may be drawn — and the reason it may
+   not travels in the same cell as the answer.
+
+   Laid out as a real grid rather than a table element so the columns collapse
+   into stacked cards on a phone without a horizontal scrollbar. */
+
+.fleet-stats { margin: 0 0 2.2rem; }
+
+.fleet {
+  border-top: 1px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.fleet-head,
+.fleet-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.35fr) minmax(0, 1.1fr) 5.5rem minmax(0, 1.4fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 0.2rem;
+  border-bottom: 1px solid var(--rule);
+}
+.fleet-head {
+  padding-block: 0.55rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fleet-row:hover { background: var(--paper-2); }
+/* The excluded agent is the news on this page, so it is marked rather than
+   greyed — a faded row reads as "inactive", which is the wrong idea entirely. */
+.fleet-row[data-eligible="false"] { box-shadow: inset 3px 0 0 var(--mismatch); }
+
+.fleet-agent { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.fleet-mono {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 2px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #fff;
+  background: hsl(var(--agent-hue, 220) 42% 38%);
+}
+.fleet-name { display: block; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.fleet-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.fleet-addr { display: block; font-size: 0.66rem; color: var(--muted); }
+
+.fleet-status { min-width: 0; }
+.fleet-chip {
+  display: inline-block;
+  padding: 0.18rem 0.45rem;
+  border: 1px solid currentColor;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--match);
+}
+.fleet-chip[data-eligible="false"] { color: var(--mismatch); }
+.fleet-why { display: block; margin-top: 0.3rem; font-size: 0.65rem; color: var(--muted); }
+
+.fleet-standing { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.fleet-standing b { font-family: var(--serif); font-size: 1.15rem; font-weight: 400; }
+.fleet-standing b[data-down="true"] { color: var(--mismatch); }
+
+.fleet-bar {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 3rem;
+  height: 6px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+}
+/* Zero is the only reference the contract justifies marking. */
+.fleet-bar-zero {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ink);
+  opacity: 0.5;
+}
+.fleet-bar-fill { position: absolute; top: 0; bottom: 0; background: var(--match); }
+.fleet-bar-fill[data-down="true"] { background: var(--mismatch); }
+
+.fleet-strikes { display: inline-flex; gap: 0.28rem; align-items: center; }
+.fleet-strikes span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+}
+.fleet-strikes span[data-on="true"] { background: var(--mismatch); border-color: var(--mismatch); }
+.fleet-strikes b { font-size: 0.62rem; color: var(--mismatch); font-weight: 500; }
+
+.fleet-last { min-width: 0; font-size: 0.7rem; }
+.fleet-last a { color: var(--ink-2); text-decoration: none; }
+.fleet-last a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.fleet-when { display: block; font-size: 0.63rem; color: var(--muted); }
+
+/* Stacked cards rather than a table that scrolls sideways. Each cell keeps the
+   header it lost, because a bare bar in a stack means nothing. */
+@media (max-width: 860px) {
+  .fleet-head { display: none; }
+  .fleet-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    padding: 1rem 0.2rem 1.1rem;
+  }
+  .fleet-standing::before,
+  .fleet-strikes-cell::before,
+  .fleet-last::before {
+    font-size: 0.6rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .fleet-standing::before { content: "Standing"; }
+  .fleet-strikes-cell::before { content: "Strikes seen "; }
+  .fleet-last::before { content: "Last · "; }
+  .fleet-strikes-cell { display: flex; align-items: center; gap: 0.6rem; }
+}
