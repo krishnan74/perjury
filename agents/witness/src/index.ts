@@ -8,7 +8,7 @@
 // result onto a typed assertion. It does not get to decide whether the data was
 // trustworthy — graph-guard makes that call deterministically, because an agent
 // cannot be relied on to report honestly about its own data.
-import { queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
+import { composeDocument, queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import type { Attestation, TypedAssertion, Comparator } from "@perjury/shared";
@@ -48,8 +48,16 @@ export interface Finding {
   attestation: Attestation | null;
   methodology: string;
   unverifiableReason?: string;
-  /** Raw rows the assertion was derived from. Sealed; never published. */
+  /**
+   * Raw rows the assertion was derived from.
+   *
+   * Confidential for the duration of adjudication, not forever: the enclave
+   * fetches it over Confidential HTTP, and the runner archives it after
+   * settlement so a verdict can be audited. See docs/decisions.md.
+   */
   evidence: unknown;
+  /** The GraphQL document this agent composed and sent. */
+  query?: string;
 }
 
 const PLAN_SYSTEM = `You translate a prose claim about DeFi protocol metrics into a GraphQL query and a typed assertion schema.
@@ -156,6 +164,7 @@ export async function witness(claim: Claim, llm: LlmClient = defaultClient()): P
         `witness: ${pinned.protocolName} via ${pinned.schema}; ${plan.reasoning}` +
         ` [${provenance.corroboration?.sources ?? 1} independent deployment(s)` +
         `${claim.atBlock ? `, pinned @ ${claim.atBlock}` : ""}]`,
+      query: composeDocument(plan.selection, claim.atBlock ?? provenance.indexedBlock),
       evidence: data,
     };
   } catch (e) {

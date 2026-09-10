@@ -8,7 +8,7 @@
  * the enclave. Prints the gateway URL and writes it into the CRE config, so the
  * tribunal adjudicates these agents rather than a fixture compiled into itself.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { draftClaim } from "@perjury/claimant";
 import { witness } from "@perjury/witness";
 import { runPanel, seatPanel } from "@perjury/panel";
@@ -22,12 +22,19 @@ const withPanel = process.argv.includes("--panel");
 const llm = new ClaudeCodeClient();
 
 const seal = (
-  a: { attestation: unknown; methodology: string; evidence: unknown; unverifiableReason?: string },
+  a: {
+    attestation: unknown;
+    methodology: string;
+    evidence: unknown;
+    unverifiableReason?: string;
+    query?: string;
+  },
 ): SealedSubmission => ({
   attestation: a.attestation as never,
   methodology: a.methodology,
   evidence: a.evidence,
   unverifiableReason: a.unverifiableReason,
+  query: a.query,
 });
 
 const claim = await draftClaim(
@@ -65,6 +72,31 @@ if (withPanel) {
 
 const url = publishBundle(bundle);
 console.log(`\ngateway: ${url}`);
+
+/*
+ * Keep the agents' work.
+ *
+ * Until now nothing about a run survived it. The gateway gets a fresh gist per
+ * run and only the newest URL is kept, in the CRE config; the chain keeps a
+ * commitment, which is a hash. So a settled verdict could be proven to exist and
+ * never inspected, which is a poor bargain for a project whose subject is
+ * verifiable claims.
+ *
+ * This is a deliberate disclosure and is recorded as one in docs/decisions.md.
+ * Note what it does NOT change: the tribunal still publishes a verdict and a
+ * commitment and nothing else. The bundle is published here, by the runner,
+ * out of band, after the fact. Confidentiality is a property of the adjudication
+ * window — it stops node operators reading evidence in flight and stops a
+ * claimant tailoring to a witness's method before the verdict lands — and it was
+ * never eternal. The gateway gist has been world-readable from the first run.
+ */
+mkdirSync("evidence-archive", { recursive: true });
+const archive = `evidence-archive/${claimId}.json`;
+writeFileSync(
+  archive,
+  `${JSON.stringify({ ...bundle, gatewayUrl: url, archivedAt: new Date().toISOString() }, null, 2)}\n`,
+);
+console.log(`archived: ${archive}`);
 
 for (const f of ["cre/tribunal/config.staging.json", "cre/tribunal/config.production.json"]) {
   const cfg = JSON.parse(readFileSync(f, "utf8"));

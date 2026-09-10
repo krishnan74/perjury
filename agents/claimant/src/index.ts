@@ -8,7 +8,7 @@
 // It can also be told to lie. Scene 2 of the demo needs a claim that is false in
 // a way a witness will actually catch, and fabricating that honestly means
 // deriving the true value first and then stating something else.
-import { queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
+import { composeDocument, queryCorroborated, deriveMetric, pinnedFor, rootEntityFor, type PinnedEntry } from "@perjury/graph-client";
 import { isUnverifiable } from "@perjury/graph-guard";
 import { defaultClient, extractJson, type LlmClient } from "@perjury/llm";
 import { digestOf, type Attestation, type Comparator, type TypedAssertion } from "@perjury/shared";
@@ -22,6 +22,8 @@ export interface ClaimDraft {
   methodology: string;
   evidence: unknown;
   unverifiableReason?: string;
+  /** The GraphQL document this agent composed and sent. */
+  query?: string;
   /** True when the agent was instructed to misstate its finding. */
   fabricated: boolean;
 }
@@ -132,6 +134,9 @@ export async function draftClaim(
       assertion,
       attestation: { provenance, assertion, digest: digestOf(provenance, assertion) },
       methodology: `claimant: ${pinned.protocolName} via ${pinned.schema}; ${p.reasoning}`,
+      // The document as sent, not the selection as planned: _meta and the block
+      // pin are injected by the guard, and what was asked is what went out.
+      query: composeDocument(p.selection, provenance.indexedBlock),
       evidence: data,
       fabricated,
     };

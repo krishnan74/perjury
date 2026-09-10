@@ -25,6 +25,16 @@ export interface SealedSubmission {
   evidence: unknown;
   /** Set when the party could not verify — carries its reason. */
   unverifiableReason?: string;
+  /**
+   * The GraphQL document this party actually sent, as composed.
+   *
+   * Provenance carries only `queryHash`, which proves two parties asked
+   * different things without showing what either asked. The whole corroboration
+   * argument rests on the two documents being independently written, and a hash
+   * cannot show that to anyone. Optional, because submissions archived before
+   * this existed do not carry it.
+   */
+  query?: string;
 }
 
 /**
