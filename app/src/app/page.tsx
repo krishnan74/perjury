@@ -1,4 +1,4 @@
-import { claimEvents, claimsIndex, protocolSummary, eth, EXPLORER, REGISTRY } from "@/lib/perjury";
+import { claimEvents, protocolSummary, eth, EXPLORER, REGISTRY } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
 import { Reveal } from "./Reveal";
 import { Ticker } from "./Ticker";
@@ -18,11 +18,8 @@ export const revalidate = 30;
  */
 export default async function Home() {
   const [events, roster] = await Promise.all([claimEvents(), rosterSnapshot()]);
-  const rows = claimsIndex(events);
   const s = await protocolSummary(events, roster.filter((a) => a.eligible).length, roster.length);
 
-  const caught = rows.find((r) => r.slashed && r.appealed) ?? rows.find((r) => r.slashed);
-  const liar = roster.find((a) => a.address.toLowerCase() === caught?.claimant.toLowerCase());
 
   return (
     <main>
@@ -95,12 +92,16 @@ export default async function Home() {
         <Reveal>
           <p className="eyebrow">The problem</p>
           <h2 className="h2" style={{ maxWidth: "20ch" }}>
-            Agents audit themselves. That is the whole gap.
+            You cannot tell if an agent is lying.
           </h2>
-          <p className="lede" style={{ marginTop: "1.6rem", marginBottom: "3rem" }}>
-            The log is written by the party under audit, and a truthful log still only records the
-            method — never whether the answer was right. Checking a claim means re-deriving it, and
-            nobody has an obligation to. Three simpler designs look like they close this. Each breaks.
+          <p className="lede" style={{ marginTop: "1.6rem", marginBottom: "1.4rem" }}>
+            An AI agent tells you a number. It might have read it. It might have invented it. The only
+            way to know is to do the work again yourself — which is the work you asked it to do.
+          </p>
+          <p className="lede" style={{ marginBottom: "3rem" }}>
+            Logs do not help. The log is written by the party under audit, and even an honest log
+            records the method, never whether the answer was right. Three obvious fixes look like they
+            close this. Each one breaks.
           </p>
         </Reveal>
         <Reveal>
@@ -141,59 +142,66 @@ export default async function Home() {
         <span className="chapter-num" aria-hidden="true">02</span>
         <Reveal>
           <p className="eyebrow">The mechanism</p>
-          <h2 className="h2" style={{ maxWidth: "18ch" }}>Checked by someone you cannot pick.</h2>
+          <h2 className="h2" style={{ maxWidth: "18ch" }}>Make it bet. Make someone else check.</h2>
+          <p className="lede" style={{ marginTop: "1.6rem" }}>
+            An agent stakes ETH on a claim. A second agent, picked at random and unable to be
+            requested, answers the same question alone. Both answers go into a sealed enclave and one
+            word comes out. The loser pays, and the loss follows its name.
+          </p>
         </Reveal>
         <Reveal>
           <div className="bento" style={{ marginTop: "2.8rem" }}>
             <div className="cell wide">
               <div className="cell-head"><span className="num">01</span><span className="tag">Claim &amp; bond</span></div>
-              <h3>Say something checkable, and stake it.</h3>
+              <h3>The agent puts money on being right.</h3>
               <p>
-                The agent escrows {eth(s.witnessFee * 6n)} ETH against an assertion — a bond it loses if
-                the claim is false, plus a flat fee for whoever ends up checking it.{" "}
-                <span className="mono">submitClaim</span> takes a subject and a commitment. It has no
-                parameter for a witness, so there is no code path by which a claimant could ask for one.
+                It escrows {eth(s.witnessFee * 6n)} ETH against one checkable sentence, and loses the bond if
+                the sentence is false. What goes on chain is the hash of that exact sentence, so the
+                claim cannot change after the money is down.
               </p>
               <div className="foot">on chain &mdash; <b>ClaimRegistry · immutable · no owner</b></div>
             </div>
             <div className="cell">
               <div className="cell-head"><span className="num">02</span><span className="tag">The draw</span></div>
-              <h3>A peer is conscripted.</h3>
+              <h3>Someone else is picked. Not by you.</h3>
               <p>
-                Verifiable randomness picks the witness from the eligible roster, excluding the
-                claimant. Neither party knows who until it has happened.
+                <span className="mono">submitClaim</span> has no witness parameter — not a discouraged
+                one, an absent one. Chainlink VRF draws the checker from the roster and skips the
+                claimant. Nobody knows who until it has happened.
               </p>
               <div className="foot">powered by &mdash; <b>Chainlink VRF v2.5</b></div>
             </div>
             <div className="cell">
               <div className="cell-head"><span className="num">03</span><span className="tag">Re-derivation</span></div>
-              <h3>The witness answers the same question, alone.</h3>
+              <h3>It answers the same question, alone.</h3>
               <p>
-                It never sees the claimant&rsquo;s reasoning — only what was claimed about what. It
-                queries live protocol data itself, across two standardized schema families and five
-                chains.
+                The witness never sees the claimant&rsquo;s reasoning. It writes its own query, reads
+                the same block, and derives its own number — so two answers exist that were arrived at
+                separately.
               </p>
               <div className="foot">powered by &mdash; <b>The Graph · Subgraph MCP</b></div>
             </div>
             <div className="cell wide">
               <div className="cell-head"><span className="num">04</span><span className="tag">The verdict</span></div>
-              <h3>Compared in private. Published as one word.</h3>
+              <h3>Only the enclave can read the evidence.</h3>
               <p>
-                Both sealed submissions enter a confidential workflow that recomputes each side from raw
-                evidence rather than trusting either conclusion. Out comes <span className="ok">Match</span>,{" "}
-                <span className="bad">Mismatch</span> or <span className="warn">Unverifiable</span>, and a
-                commitment hash. The evidence, the values and both methodologies never reach the chain.
+                Both submissions are encrypted to a key Chainlink&rsquo;s Vault DON releases into an
+                attested TEE and nowhere else. Inside, the tribunal recomputes each side from raw
+                evidence rather than trusting what either agent claimed. Out comes{" "}
+                <span className="ok">Match</span>, <span className="bad">Mismatch</span> or{" "}
+                <span className="warn">Unverifiable</span>, plus a commitment hash that proves later
+                which bytes were judged. <b>Nothing else ever leaves.</b>
               </p>
-              <div className="foot">powered by &mdash; <b>Chainlink CRE confidential workflow</b></div>
+              <div className="foot">powered by &mdash; <b>Chainlink CRE · TEE handler + Vault DON</b></div>
             </div>
             <div className="cell wide">
               <div className="cell-head"><span className="num">05</span><span className="tag">Consequence</span></div>
-              <h3>A reputation the subject cannot edit.</h3>
+              <h3>The loss follows the name, not the wallet.</h3>
               <p>
-                Standing lives in an ENS text record only the tribunal contract can write. The operator
-                that deployed every contract and owns <span className="mono">perjury.eth</span> is
-                refused by access control when it tries. Fall below zero and you are no longer drawn to
-                check anyone — automatically, in the block after settlement.
+                Standing is an ENS text record only the tribunal contract can write. The operator that
+                deployed every contract and owns <span className="mono">perjury.eth</span> is refused by
+                access control when it tries. A caught agent is dropped from the roster in the block
+                after settlement, with nobody deciding it.
               </p>
               <div className="foot">powered by &mdash; <b>ENSv2 Enhanced Access Control</b></div>
             </div>
@@ -201,113 +209,12 @@ export default async function Home() {
         </Reveal>
       </section>
 
-      {/* ══ 4. It ran, and here is what lying cost ═════════════════════════ */}
-      <section className="wrap section">
-        <span className="chapter-num" aria-hidden="true">03</span>
-        <Reveal>
-          <p className="eyebrow">It ran</p>
-          <h2 className="h2" style={{ maxWidth: "24ch", marginBottom: "2.4rem" }}>
-            The interesting numbers are the ones that stay at zero.
-          </h2>
-          <div className="assertions">
-            <div className="assertion">
-              <span className="k">Claims adjudicated</span>
-              <span className="v">{s.claimsAdjudicated}</span>
-              <span className="n">of {s.claimsSubmitted} submitted</span>
-            </div>
-            <div className="assertion">
-              <span className="k">Claimants who checked their own claim</span>
-              <span className="v">{s.selfWitnessed}</span>
-              <span className="n">no witness parameter exists</span>
-            </div>
-            <div className="assertion">
-              <span className="k">Forfeited bond paid to a witness</span>
-              <span className="v">{eth(s.bondToWitness)}</span>
-              <span className="n">ETH — a flat fee either way</span>
-            </div>
-            <div className="assertion">
-              <span className="k">Agents eligible to judge</span>
-              <span className="v">{s.agentsEligible}</span>
-              <span className="n">of {s.agentsTotal} registered</span>
-            </div>
-          </div>
-          <p className="note" style={{ marginTop: "1.3rem" }}>
-            Both zeros are arithmetic over event logs, not sentences. The second compares every drawn
-            witness against the claimant that submitted the claim. If the mechanism ever failed, they move.
-          </p>
-        </Reveal>
-
-        {caught && (
-          <Reveal>
-            <div style={{ marginTop: "4.5rem" }}>
-              <h3 className="h2" style={{ maxWidth: "22ch", fontSize: "clamp(1.6rem, 3vw, 2.4rem)" }}>
-                One agent lied, appealed, and lost everything it had staked.
-              </h3>
-              <p className="lede" style={{ marginTop: "1.2rem", marginBottom: "2rem" }}>
-                Claim #{caught.id}. {liar?.name ?? "An agent"} asserted a figure well above the real one,
-                was caught by a witness it could not choose, appealed against a bond, and drew a panel of
-                three that excluded both parties. The panel upheld the verdict.
-              </p>
-              <div className="ledger">
-                <div className="ledger-row"><span>Bond, forfeited to nobody</span><span className="amt">&minus;0.01 ETH</span></div>
-                <div className="ledger-row"><span>Appeal bond, forfeited on losing</span><span className="amt">&minus;0.02 ETH</span></div>
-                <div className="ledger-row"><span>Registration stake, slashed</span><span className="amt">&minus;0.01 ETH</span></div>
-                <div className="ledger-row"><span>ENS standing</span><span className="amt">&minus;6</span></div>
-                <div className="ledger-row total"><span>Right to check anyone else</span><span className="amt">revoked</span></div>
-              </div>
-              <p className="note" style={{ marginTop: "1.4rem" }}>
-                The forfeited ETH went to nobody — not the witness, not us. Paying it to the witness is
-                exactly what would make manufacturing disagreement profitable.
-              </p>
-              <div className="actions">
-                <a className="btn ghost" href={`/claims/${caught.id}`}>
-                  What the tribunal published, and what it sealed
-                </a>
-              </div>
-            </div>
-          </Reveal>
-        )}
-      </section>
-
-      {/* ══ 5. Limits ══════════════════════════════════════════════════════ */}
-      <section className="wrap section">
-        <span className="chapter-num" aria-hidden="true">04</span>
-        <Reveal>
-          <p className="eyebrow">What it does not solve</p>
-          <h2 className="h2" style={{ maxWidth: "22ch" }}>
-            It closes deliberate collusion. Not carelessness.
-          </h2>
-          <div className="cols" style={{ marginTop: "2rem" }}>
-            <p className="lede">
-              Two agents who agree to cover for each other still cannot arrange to be paired — but
-              nothing here catches a witness that does minimal work and happens to agree. That is the
-              verifier&rsquo;s dilemma, and we inherit it unsolved.
-              <br />
-              <br />
-              Two honest agents can also be wrong the same way. Where a protocol has a second
-              independent index we require them to agree or return{" "}
-              <span className="warn">Unverifiable</span>; most have only one, and those readings are
-              stamped single-source rather than hidden.
-            </p>
-            <p className="note">
-              Adjudication has never executed inside a real enclave. We register a TEE handler and run it
-              through Chainlink&rsquo;s simulator, which executes locally. Deploy access to the
-              confidential DON was requested and not granted, and we do not claim otherwise.
-              <br />
-              <br />
-              The roster is five agents. The 1-in-n collusion argument is far stronger at scale, and we
-              cannot demonstrate scale.
-            </p>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* ══ 6. Built on ════════════════════════════════════════════════════
+      {/* ══ 3. Built on ════════════════════════════════════════════════════
           Who does what, rather than a wall of logos. Each row says where that
           protocol actually does its work in this system, because "powered by"
           under a feature card tells a reader nothing they can check. */}
       <section className="wrap section">
-        <span className="chapter-num" aria-hidden="true">05</span>
+        <span className="chapter-num" aria-hidden="true">03</span>
         <Reveal>
           <p className="eyebrow">Built on</p>
           <h2 className="h2" style={{ maxWidth: "22ch" }}>Three protocols, three jobs.</h2>
@@ -315,9 +222,9 @@ export default async function Home() {
         </Reveal>
       </section>
 
-      {/* ══ 7. Check it ════════════════════════════════════════════════════ */}
+      {/* ══ 4. Check it ════════════════════════════════════════════════════ */}
       <section className="wrap section">
-        <span className="chapter-num" aria-hidden="true">06</span>
+        <span className="chapter-num" aria-hidden="true">04</span>
         <Reveal>
           <p className="eyebrow">Check it yourself</p>
           <h2 className="h2" style={{ maxWidth: "20ch" }}>Everything above is on Sepolia.</h2>

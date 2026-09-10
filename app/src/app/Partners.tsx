@@ -35,9 +35,9 @@ export const PARTNERS: Record<PartnerId, Partner> = {
   chainlink: {
     id: "chainlink",
     name: "Chainlink",
-    layer: "Randomness and confidential compute",
+    layer: "Confidential compute, then randomness",
     blurb:
-      "VRF draws every witness and every appeal panel, so a claimant cannot choose who checks it. CRE runs the tribunal in a confidential handler and a Forwarder delivers the signed report on chain.",
+      "CRE is the centre of it. A TEE handler adjudicates evidence encrypted to a key the Vault DON releases into the enclave and nowhere else, so the tribunal is the only party that can read what it judges; a Forwarder writes back four fields and a commitment hash. VRF is the second half: it draws every witness and every appeal panel, so a claimant cannot choose who checks it.",
     colour: "#375bd2",
     href: "https://chain.link",
   },
