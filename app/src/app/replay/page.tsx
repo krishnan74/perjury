@@ -65,6 +65,19 @@ export default async function ReplayPage({
         matters. A reader who sees two "sealed" values on screen should not have
         to scroll to find out why they can see them.
       */}
+      {/*
+        The spec's own rule: missing data says so. A claim with no archived
+        bundle was rendering no read beats and no explanation, which is
+        indistinguishable from a claim whose agents did no work.
+      */}
+      {!script.archive && (
+        <p className="note demo-note">
+          <b>No evidence archived for this claim.</b> It settled before the runner began keeping
+          bundles, so the replay can show every transaction but not what either agent asked or
+          concluded. Claims from #19 onward carry their evidence.
+        </p>
+      )}
+
       {script.archive && (
         <p className="note demo-note">
           <b>Testnet demo.</b> The agents&rsquo; queries and values are readable here because the

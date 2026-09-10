@@ -1529,3 +1529,16 @@ body::after {
   background: var(--paper-2);
   border-left: 2px solid var(--accent);
 }
+
+
+/* A7 — the sentence under each beat. Muted and narrow: it explains the beat to
+   a reader who arrived without a narrator, and must never compete with the
+   beat's own label. */
+.lane-note {
+  margin: 0.35rem 0 0;
+  max-width: 46ch;
+  font-size: 0.68rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.lane-beat.claimant .lane-note { margin-left: auto; }

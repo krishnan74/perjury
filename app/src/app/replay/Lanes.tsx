@@ -113,6 +113,12 @@ export default function Lanes({
             </p>
             {b.detail && <p className="lane-detail">{b.detail}</p>}
             {/*
+              One sentence of plain English per beat, so the page carries itself
+              when a judge opens it with nobody narrating. The text was already
+              on every beat and had simply never been rendered.
+            */}
+            {b.note && <p className="lane-note">{b.note}</p>}
+            {/*
               The gap before a verdict is the one interval on this page with no
               transaction behind it, so it is named where it happened rather
               than drawn as a beat of its own. The duration is the measured gap;
