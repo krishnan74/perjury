@@ -24,7 +24,7 @@
  * other's work; the gateway is the only place the two meet, and they meet inside
  * the enclave.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { keccak256, toBytes } from "viem";
 import { draftClaim } from "@perjury/claimant";
 import { witness } from "@perjury/witness";
@@ -240,13 +240,28 @@ if (phase === "draft") {
   );
   console.log(`archived: ${archive}`);
 
-  for (const f of ["cre/tribunal/config.staging.json", "cre/tribunal/config.production.json"]) {
-    const cfg = JSON.parse(readFileSync(f, "utf8"));
-    cfg.evidenceGatewayUrl = url;
-    cfg.claimId = claimId;
-    writeFileSync(f, `${JSON.stringify(cfg, null, 2)}\n`);
-  }
-  console.log("cre config updated — the tribunal will now judge these submissions");
+  /*
+   * Tell the gateway where this claim's evidence went.
+   *
+   * The workflow used to be edited here — its config carried the gist URL and
+   * the claim id, and this rewrote both after every publish. That only worked
+   * because a human redeployed the workflow between scenes. Now the workflow
+   * reads the claim off chain and asks the site for `/api/evidence/<claimId>`,
+   * so nothing about it changes per run and the only thing that has to be
+   * recorded is which store holds which claim.
+   */
+  const indexPath = "evidence-archive/gateway-index.json";
+  const index: Record<string, string> = existsSync(indexPath)
+    ? JSON.parse(readFileSync(indexPath, "utf8"))
+    : {};
+  index[claimId] = url;
+  const ordered = Object.fromEntries(
+    Object.keys(index)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => [k, index[k]]),
+  );
+  writeFileSync(indexPath, `${JSON.stringify(ordered, null, 2)}\n`);
+  console.log(`gateway index updated — the tribunal will fetch claim ${claimId} from the site`);
 } else {
   console.error("usage: publish-evidence.ts draft   <claimId> [honest|false]");
   console.error("       publish-evidence.ts witness <claimId> <witnessName> <witnessAddr>");

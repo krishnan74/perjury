@@ -30,15 +30,24 @@ import { isSealedEnvelope, open } from "@perjury/shared";
 const claimId = process.argv[2];
 
 const config = JSON.parse(readFileSync("cre/tribunal/config.staging.json", "utf8")) as {
-  evidenceGatewayUrl: string;
-  claimId: string;
+  evidenceGatewayBaseUrl: string;
 };
-const id = claimId ?? config.claimId;
+
+// Fetch exactly what the enclave fetches. Since the workflow started finding its
+// own claim there is no single gateway URL in the config to read, so the claim
+// id has to come from the command line and the URL is built the way the workflow
+// builds it — base plus id. Anything else would be proving a different fetch
+// than the one that matters.
+const index = JSON.parse(readFileSync("evidence-archive/gateway-index.json", "utf8")) as Record<string, string>;
+const id = claimId ?? Object.keys(index).sort((a, b) => Number(b) - Number(a))[0];
+if (!id) throw new Error("no claim id given and the gateway index is empty");
+const url = `${config.evidenceGatewayBaseUrl}/${id}`;
 
 console.log(`\nclaim ${id}`);
-console.log(`gateway ${config.evidenceGatewayUrl}\n`);
+console.log(`gateway ${url}`);
+console.log(`store   ${index[id] ?? "unknown to the index"}\n`);
 
-const res = await fetch(config.evidenceGatewayUrl);
+const res = await fetch(url);
 if (!res.ok) throw new Error(`gateway fetch ${res.status}`);
 const raw = await res.text();
 const body = JSON.parse(raw) as unknown;
