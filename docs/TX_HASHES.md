@@ -4,7 +4,27 @@ Every on-chain transaction that appears in the demo or backs a claim in the subm
 
 Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<hash>`
 
-## Deployed contracts — live cascade (Sep 11)
+## Deployed contracts — live cascade (Sep 12)
+
+The contracts a claim goes to now, and the first set whose verdicts are written by a workflow executing in an enclave on the Chainlink DON.
+
+| Contract | Address | Notes |
+|---|---|---|
+| `ClaimRegistry` | `0x63cf47746B2181E2e64EB4349373c4f8B050c6c3` | |
+| `WitnessRoster` | `0x841f3FD732C6740141FeAaFF10875A0F0f51c534` | VRF consumer, 10 agents |
+| `PerjuryStandingWriter` | `0x8dd1D2f807A4B6F46EcD4994c4BAe0a44eBf9F8A` | |
+| `ENSTextStandingReader` | `0x4a675089228B308564fd31501410d66c2631A071` | |
+| `VerdictSink` | `0x8f74f7428E045c29F4aF571955CAD21e3a1a2BEe` | **answers ERC-165** — the reason this cascade exists |
+
+**The verdict that proves it.** Claim 1, adjudicated in the enclave and delivered by a DON transmitter through the production Forwarder `0xF8344CFd…4482`:
+
+`0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5`
+
+One transaction carries both `ReportProcessed(result: true)` from the Forwarder and `VerdictRecorded(claim 1, Match)` from the registry.
+
+**Why the previous cascade was replaced.** Its sink had no `supportsInterface`. The Forwarder staticcalls that before routing, a receiver without it reverts, and the Forwarder then records the report as failed while the workflow is told the write succeeded. The simulator's mock Forwarder never makes the call, so everything worked locally and nothing arrived on chain. The sink's authorised writer is immutable, so four lines cost a cascade.
+
+## Deployed contracts — superseded cascade (Sep 11)
 
 The contracts a claim submitted now goes to. Deployed because CRE deploy access arrived and `VerdictSink.CRE_REPORT_WRITER` is immutable: a sink built for the simulator's Forwarder can never accept a report from a workflow running on the DON, and `ClaimRegistry.verdictSink` locks on first wiring, so there was no way to point the old registry at a new sink. This sink accepts **both** Forwarders, so the simulator still works against the same contracts. See [ADR 0011](decisions.md).
 

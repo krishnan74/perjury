@@ -63,17 +63,19 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 | Operator | `0xDcbe075a907960951Cd4df379BB21461097eEa91` |
 | `perjury.eth` | registered, ENSv2 hackathon deployment |
 | `ScratchSink` (probe) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` |
-| `ClaimRegistry` | `0x398907AbE00070127780F24C05B629cb8fEC51eb` |
-| `WitnessRoster` | `0xD083e7B5fB92389478D9213F431Ae4AE1D0007E3` (VRF consumer) |
-| `PerjuryStandingWriter` | `0x510035cCb2A7142fD127a52d950124d6B2a0BeE2` |
-| `ENSTextStandingReader` | `0xB5A08B0885e221B1fb48EDF0E011c32f614176f5` |
-| `VerdictSink` | `0x572e7b912031267c4163d8F3c785e03b88AEb5b2` (accepts **both** Forwarders) |
+| `ClaimRegistry` | `0x63cf47746B2181E2e64EB4349373c4f8B050c6c3` |
+| `WitnessRoster` | `0x841f3FD732C6740141FeAaFF10875A0F0f51c534` (VRF consumer) |
+| `PerjuryStandingWriter` | `0x8dd1D2f807A4B6F46EcD4994c4BAe0a44eBf9F8A` |
+| `ENSTextStandingReader` | `0x4a675089228B308564fd31501410d66c2631A071` |
+| `VerdictSink` | `0x8f74f7428E045c29F4aF571955CAD21e3a1a2BEe` — answers ERC-165, accepts both Forwarders |
 | `PerjuryResolver` | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` — EAC configured per-key, operator write revoked |
 | `perjury.eth` subregistry | `0x087f2A255b8C989a7A739F40e85123BDf3d49eFb` — issues the agent subnames |
 | CRE Forwarder (DON) | `0xF8344CFd5c43616a4366C34E3EEE75af79a74482` |
 | CRE Forwarder (simulator) | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` |
 | VRF subscription | owner = operator, roster registered as consumer |
-| Agents | 5 real subnames of `perjury.eth`, owned by the agents, all registered and staked |
+| Agents | 10 real subnames of `perjury.eth`, owned by the agents, all registered and staked |
+| Deployed workflow | `perjury-tribunal-production`, private registry, DON family `zone-a` — **ACTIVE, settling verdicts from the enclave** |
+| Live site | https://perjury.vercel.app — production tracks `main` |
 
 **Challenge window is 90s, not 30s.** At 30s the appeal in scene 2 raced the window and intermittently reverted `WindowClosed` — the gap between the verdict landing and the appeal being mined is one confirmation. It is a constructor parameter, so changing it means a redeploy.
 
@@ -81,10 +83,16 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 
 ## Facts learned the hard way
 
-- **`cre workflow simulate` runs LOCALLY, not in an enclave** (Chainlink, Sep 8). We register a real TEE handler via `cre.handlerInTee`, but simulation does not execute in a TEE. Say "confidential workflow with a TEE handler, executed via the simulator" — never "ran inside an enclave". This matters for the demo video.
+- **`cre workflow simulate` runs LOCALLY, not in an enclave.** Still true, and still the fast development loop. What changed on Sep 12 is that the DEPLOYED workflow does run in one and settles verdicts from it, so "ran inside an enclave" is now accurate for that path and only that path. Be precise about which one you mean.
 - **Two forwarders, and the sink now accepts both.** Confirm them for your own tenant with `cre workflow supported-chains -T staging-settings -e .env` rather than trusting a note. `VerdictSink` takes `CRE_REPORT_WRITER` and `CRE_ALT_REPORT_WRITER`; both are immutable, and passing zero for the second collapses to one door. Committing to a single Forwarder means betting the demo on that execution path, because the registry's pointer at the sink locks on first wiring.
-- **CRE reports arrive from a Forwarder, not the workflow owner.** Both addresses are immutable on the sink, read from the tenant's own chain list rather than guessed.
-- **A cascade resets claim ids to 1**, so the evidence archive and the gateway index are filed under the registry address. A flat directory silently overwrote a settled claim's evidence the first time this happened. The site addresses archived claims with `?d=sim`.
+- **CRE reports arrive from a Forwarder, not the workflow owner.** Both addresses are immutable on the sink. `0xF8344CFd…4482` is the production Forwarder on Sepolia; `0x15fC6ae9…9F88` is the **simulation mock**, not a second production one — `cre workflow supported-chains` lists both and the labels mislead.
+- **A report receiver MUST implement ERC-165.** The production Forwarder staticcalls `supportsInterface` before routing; a contract without it reverts, the Forwarder records the report failed, and the workflow is told the write SUCCEEDED because the Forwarder's own transaction succeeded. The only trace is `ReportProcessed(receiver, …, result: false)` in the Forwarder's logs. **The simulator's mock Forwarder never makes this call**, so a receiver can work perfectly under `simulate --broadcast` and never receive a single report on the DON. Cost a day and a cascade.
+- **Always check what `writeReport` returned.** The capability call is dispatched eagerly and `.result()` is the only way to learn the outcome; ignoring it reports a clean execution whatever happened. Require `txStatus === 2`.
+- **Two `getSecret` calls in one execution fail on the second.** Batch them into one `getSecrets`. And `cre secrets create` files secrets under namespace `main` while `getSecret` defaults to `default` — the mismatch surfaces as `relay quorum unreachable`, which reads like an outage. Neither reproduces in the simulator, which reads secrets from a local env file.
+- **`receiver` in `writeReport` is a hex string**, despite the generated type calling it `bytes`. Base64 is rejected with `Invalid hex string`.
+- **A cascade resets claim ids to 1**, so the evidence archive, the gateway index and the shared store are all keyed by registry address. A flat layout silently overwrote a settled claim's evidence the first time this happened. Three cascades exist now and the site reads all of them: live, `?d=sim2` (Sep 11), `?d=sim` (Sep 8).
+- **Log reads from a public RPC come back short without erroring.** A wide or unfiltered `getLogs` can answer 200 with a truncated set. Filter per event, keep spans at 5000 blocks, and check the row count against `nextClaimId` — claim ids are sequential, so a gap is always a failed read. A paid endpoint would fix it properly.
+- **Node RPCs return log addresses lowercased** and our constants are checksummed. Key any map on `.toLowerCase()` or it matches nothing and every page reads as though the chain were empty.
 - **The workflow finds its own claim.** `ClaimRegistry.pendingForTribunal()` returns the oldest claim awaiting a verdict and its report kind, so one deployment serves every claim. The registry read goes through `usingTheDons()` because the EVM capability takes a `Runtime` and `TeeRuntime` is not one — the claim id is public, so nothing is lost.
 - **Deploy access is enabled.** `cre account link-key` costs a small amount of real **mainnet** ETH, and workflows target the Chainlink-hosted `private` registry (set `deployment-registry` in `workflow.yaml`) rather than the on-chain mainnet one. Vault DON secrets need an interactive browser sign-in: `cre secrets create secrets.yaml -T staging-settings -e .env --secrets-auth browser`.
 - **The tribunal re-validates provenance itself** (`provenanceOk` in both `packages/tribunal` and `cre/tribunal/workflow.ts`). The allowlist comes from config, generated from `pinned-deployments.json` by `deploy-all.ts` — if you pin a new deployment, redeploy or regenerate the config or the tribunal will reject honest evidence from it. A missing policy accepts NOTHING, deliberately.
@@ -132,21 +140,31 @@ Redeploying is a **cascade** — each contract holds the next immutably, so chan
 | `/` | Six sections, theoretical → technical. This doubles as the pitch deck; there is no separate deck, and the video is narrated off this page. |
 | `/claims`, `/claims/[id]` | Claim feed and detail, with the "what the tribunal did NOT publish" panel. |
 | `/roster` | Who may be drawn and why the excluded agent isn't — read through the same ENS reader the VRF callback uses, never a cache. |
-| `/replay` | A settled claim played back from its own transactions. Real hashes, real gaps; the elapsed counter always shows true elapsed time even when playback is sped up. `?d=sim` reads the archived cascade. |
-| `/submit` | Post a real claim and watch it settle, streamed from the runner over SSE. Needs a real Node process with the repo on disk — it spawns the agents. |
+| `/replay` | A settled claim played back from its own transactions. Real hashes, real gaps; the elapsed counter always shows true elapsed time even when playback is sped up. `?d=sim2` and `?d=sim` read the older cascades. |
+| `/submit` | Post a real claim and watch it settle. Six short steps the browser drives, agents running in-process, password-gated with a single-flight lock. |
+| `/api/evidence/[claimId]` | The sealed bundle, as the enclave fetches it. Public, because it is ciphertext and the enclave carries no credentials. `POST` records where a claim's evidence went, bearer-authenticated. |
+| `/api/claim` | One step of a claim per request. |
 | `/api/evidence/[claimId]` | The sealed bundle, as the enclave fetches it. Public, because it is ciphertext and the enclave carries no credentials. |
 
-Read-only. Live triggering from the browser was deliberately deferred. **`/replay` is the next piece of UI work** — it is honest but renders the mechanism as a bullet list; the rebuild is specced in `docs/replay-plan.md` and is buildable from chain data alone up to Tier B. Every route is `revalidate = 30` ISR against Sepolia and the Gateway — deployment needs the same env the runners use. **Not deployed yet**, and the copy tells judges the site is live, so deploy before submitting.
+**Deployed at https://perjury.vercel.app**, production tracking `main`. Pages that read live state render per request; the rest is ISR at 30s against Sepolia and the Gateway.
+
+Submitting a claim needs five credentials beyond the read-only set: an agent key, `GRAPH_STUDIO_KEY`, `ANTHROPIC_API_KEY`, `PERJURY_ENVELOPE_PUBKEY`, `GITHUB_GIST_TOKEN`. Missing any and the page says so instead of failing — but only to someone holding `PERJURY_SUBMIT_PASSWORD`, since telling a stranger which credential is absent is a free leak.
+
+**Vercel defaults new env vars to Secret, which hides them from the build.** Use `--no-sensitive`. This broke two deployments before it was spotted.
 
 UI notes worth not relearning: reveal animations are gated on `@media (scripting: enabled)`, never a JS-injected class on `<html>` — that caused a hydration mismatch. `.wrap` uses `padding-block` so `.section` cannot reset the horizontal gutter. Chrome headless enforces a ~500px minimum layout viewport, so "390px" screenshots are lying to you.
 
 ## Remaining
 
-1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it. Before the take: run `scripts/verify-pinned.ts`, top up the operator and the four agent wallets, and re-run all three scenes.
+1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it. Before the take: run `scripts/verify-pinned.ts` and top up the wallets. **Use `/replay?d=sim&claim=25`** — claim 25 is on the Sep 8 cascade and the plain URL reads the live one.
 2. **Submission form** — copy drafted in `docs/ethglobal-submission.md` (gitignored). Three partner slots: Chainlink, ENS, The Graph.
 3. **Human-written limitations section** — the last unmet reserved component in `docs/ai-usage.md` §0.6.
-4. **Deploy the site.**
+4. ~~Deploy the site~~ — done, https://perjury.vercel.app.
 5. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 6. ~~Open gap: gateway storage not encrypted at rest.~~ **Closed Sep 10** — bundles are sealed to the tribunal's key before publishing, the Vault DON releases the private half into the enclave alone, and the envelope is bound to its claim id. `npx tsx scripts/prove-sealed.ts`. [ADR 0010](docs/decisions.md).
 
-Enclave execution still requires confidential-DON deploy access (requested, not received). The simulator path is the shipping path.
+7. **Chainlink follow-up** — drafted in `docs/chainlink-reply.md` (gitignored), not yet posted. Reports the ERC-165 root cause as ours and suggests the mock Forwarder make the same check.
+
+**Enclave execution works.** Deploy access arrived Sep 11, and since Sep 12 the deployed workflow adjudicates inside an AWS Nitro enclave on the DON and writes the verdict on chain through the production Forwarder. Claim 1 on the live registry settled that way: `0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5`.
+
+The simulator still works against the same contracts and is the faster loop for development. Say "a confidential workflow with a TEE handler" for the simulator path, and "executed in an enclave on the DON" only for the deployed one — the distinction is now real in both directions.

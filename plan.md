@@ -12,17 +12,17 @@
 
 ## Status at a glance
 
-*Updated Sep 11.* **CRE deploy access arrived, so the protocol was redeployed to accept the real DON Forwarder, the workflow now finds its own claim, and the site can post one live.** What remains is the video and deploying the site.
+*Updated Sep 12.* **The tribunal now adjudicates inside an enclave on the Chainlink DON and writes the verdict on chain from there.** The site is deployed and can post a claim live. What remains is the video and the submission form.
 
 | Task | State |
 |---|---|
 | T0 Unblock | ● wallet funded · VRF sub + consumer · Graph key · CRE CLI + login · Foundry + Bun |
-| T1 CRE tribunal | ● workflow + TEE handler, report delivered on-chain by the Forwarder. Executed via the simulator, which runs **locally, not in an enclave** — [execution log](docs/cre-execution-log.md) |
+| T1 CRE tribunal | ● **deployed to the DON and settling from the enclave.** Reads its own claim from chain, fetches sealed evidence over Confidential HTTP, opens it with Vault DON keys, and writes through the production Forwarder. The simulator still works and remains the fast loop |
 | T2 Contracts | ● all deployed, wired, immutable. 60 Foundry tests |
 | T3 Randomness | ● live VRF v2.5 rounds assigning witnesses and seating appeal panels, repeatedly |
 | T4 ENSv2 | ● subregistry under `perjury.eth`, five agent-owned subnames, per-key EAC, operator write revoked, standing written by the tribunal alone and readable through the Universal Resolver |
 | T5 Graph | ● live Gateway + guard + MCP + LLM agents. 13 deployments, 2 schema families, 5 chains on one standardized query pattern; corroborated reads across independent deployments; claim and verification pinned to one block. 89 TS tests |
-| T6 Dashboard | ● five routes, read-only + replay, merged to `main`. Doubles as the pitch deck. Live triggering deliberately not built |
+| T6 Dashboard | ● deployed at https://perjury.vercel.app. Reads three cascades, and `/submit` posts a real claim step by step from the browser |
 | T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
 | T8 Submit | ◐ evidence, docs and submission-form copy ready; **video not recorded** |
 
@@ -41,6 +41,14 @@ The earlier hold — `VerdictSink.CRE_REPORT_WRITER` is immutable and the Forwar
 All three previous blockers cleared. The agents run on `claude -p` rather than a raw API key; the ENS team answered the EAC questions and the resolver is configured and locked; the Forwarder address is measured and stable across runs.
 
 CRE confidential-DON deploy access was requested and has not been granted. It is **not** a blocker — the Chainlink track explicitly accepts execution via the CLI simulator with evidence, and that is the shipping path.
+
+### The tribunal settles from the enclave (Sep 12)
+
+A verdict is now written on chain by a workflow executing in an AWS Nitro enclave on the DON. Claim 1 on the live registry: `0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5`, delivered through the production Forwarder with no simulator involved.
+
+What was blocking it was ours. The Forwarder staticcalls `supportsInterface` on a receiver before routing a report; `VerdictSink` did not implement ERC-165 and has no fallback, so the call reverted, the Forwarder recorded the report as failed, and the workflow was told its write succeeded — because the Forwarder's own transaction did. The only trace is `ReportProcessed(receiver, …, result: false)` in the Forwarder's logs. The simulator's mock Forwarder never makes that call, which is why a receiver that worked perfectly under `simulate --broadcast` could not receive a single report on the DON.
+
+Four lines to fix, and a third cascade to ship, because the sink's authorised writer is immutable. Two smaller bugs came out of the same hunt: `writeReport`'s result was being discarded, and two `getSecret` calls in one execution fail where one batched `getSecrets` works.
 
 ### ENS: the subnames are real now (Sep 11)
 
@@ -66,7 +74,7 @@ Claim ids restart per cascade, so the site reads both sets of contracts and `?d=
 
 In priority order:
 
-0. **Deploy the site.** Now a prerequisite rather than a nicety: the enclave fetches evidence over the public internet and cannot reach a laptop. `/submit` additionally needs a real Node process with the repo on disk, since it spawns the agents — a serverless host will serve every other route but not that one.
+0. ~~Deploy the site~~ — done. The agents run in-process now, so `/submit` works on a serverless host too; what it needs is credentials, not a process.
 1. **Record the demo video.** The only item on the critical path — 2:00–4:00, human voice, ≥720p, no TTS, no sped-up footage, intro under 20s. Everything it needs to show already exists. Before the take: `npx tsx scripts/verify-pinned.ts`, top up the operator and agent wallets, and re-run all three scenes. Walk [docs/design.md](docs/design.md) §7 shot list row by row.
 2. **Fill the ETHGlobal submission form** — drafted in `docs/ethglobal-submission.md` (gitignored). Three partner slots: Chainlink, ENS, The Graph.
 3. **Human-written limitations section** — the last unmet reserved component in [docs/ai-usage.md](docs/ai-usage.md) §0.6.

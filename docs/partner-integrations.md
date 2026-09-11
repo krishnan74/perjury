@@ -15,11 +15,15 @@ Technical reference. What each protocol we use is doing, how it is wired, and wh
 
 ## 1. Chainlink CRE
 
-`cre/tribunal/workflow.ts` · sink `0x572e7b912031267c4163d8F3c785e03b88AEb5b2` · Forwarders `0xF8344CFd…4482` (DON) and `0x15fC6ae9…9F88` (simulator), both accepted
+`cre/tribunal/workflow.ts` · sink `0x8f74f7428E045c29F4aF571955CAD21e3a1a2BEe` · Forwarder `0xF8344CFd…4482` (production). `0x15fC6ae9…9F88` is the **simulation mock**, not a second production Forwarder — `supported-chains` lists both and the labels mislead.
 
 **Deployed to the DON, and executing.** Workflow `perjury-tribunal-production`, ID `00a2b49cb8ea5d506cf279fc6feb6b091cab9375efb6b73b88e34db059a81036`, private registry, DON family `zone-a`. Executions run on schedule and succeed: registry read, Confidential HTTP fetch, Vault secrets, adjudication, consensus, `WriteReport`.
 
-**One caveat, stated rather than buried.** `WriteReport` reports success and no transaction reaches Sepolia — not a revert, no transaction at all, confirmed against a probe contract that accepts any sender and any payload and was never called. Every verdict currently settled on chain came through `cre workflow simulate --broadcast`, which writes to the same contracts without trouble. So adjudication runs in a real enclave on the DON; on-chain delivery from that deployment does not yet work, and the question is with the Chainlink team.
+**It settles.** Claim 1 on the live registry was adjudicated inside the enclave and written on chain by a DON transmitter through the production Forwarder: [`0xf8dd4d02…c657c5`](https://sepolia.etherscan.io/tx/0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5). No simulator involved.
+
+**What blocked it for a day, because it is worth knowing.** The production Forwarder staticcalls `supportsInterface` on a receiver before routing a report. `VerdictSink` did not implement ERC-165 and has no fallback, so that call reverted, the Forwarder recorded the report as failed, and the workflow was told its write succeeded — because the Forwarder's own transaction did succeed. The only trace anywhere is `ReportProcessed(receiver, …, result: false)` in the Forwarder's own logs.
+
+The simulator's mock Forwarder never makes that call. So a receiver can work perfectly under `simulate --broadcast` and never receive a single report on the DON, and nothing warns you. Four lines fixed it, and because the sink's authorised writer is immutable, shipping those four lines cost a full cascade.
 
 ### Capabilities used
 
@@ -48,12 +52,16 @@ A deployed workflow carries the config it was built with, so a claim id in that 
 
 Taking the report kind from chain also closed a hazard rather than only enabling a feature: it had been configured as `panel`, and pointing that workflow at a claim nobody appealed would have judged it by the wrong rule and reached a confident wrong verdict.
 
-### Two things the simulator cannot catch
+### Four things the simulator cannot catch
 
-Both cost hours and neither reproduces locally, because the simulator reads secrets from an env file and never contacts the Vault DON.
+None reproduces locally, and together they cost most of two days.
 
-1. `cre secrets create` files secrets under namespace `main`; `getSecret({ id })` defaults to `default`. The mismatch surfaces as `relay quorum unreachable: 3 signed responses … need 4`, which reads like a DON outage rather than a name that was never going to resolve.
-2. Two separate `getSecret` calls in one execution failed consistently on the second while the first succeeded, with the same quorum error. Batching both into one `getSecrets` call works.
+1. **A receiver must implement ERC-165.** The mock Forwarder does not staticcall `supportsInterface`; the real one does, and a receiver without it silently receives nothing.
+2. **`writeReport`'s reply must be checked.** The capability call is dispatched eagerly and `.result()` is the only way to learn the outcome, so ignoring it reports a clean execution whatever happened on chain. Require `txStatus === 2`. Note that even `TX_STATUS_SUCCESS` only means the Forwarder's transaction landed, not that the receiver call inside it succeeded.
+3. **Secrets live in namespace `main`.** `cre secrets create` files them there; `getSecret({ id })` defaults to `default`. The mismatch surfaces as `relay quorum unreachable: 3 signed responses … need 4`, which reads like a DON outage.
+4. **Two `getSecret` calls in one execution fail on the second.** The first succeeds, the second returns the same quorum error. One batched `getSecrets` works.
+
+The first two are invisible because the simulator broadcasts through the mock Forwarder itself. The last two are invisible because it reads secrets from a local env file and never contacts the Vault.
 
 ### Vault DON secrets
 
@@ -125,7 +133,7 @@ The adjudication rule is public — a TEE reveals its binary. What must stay pri
 
 ## 2. Chainlink VRF v2.5
 
-`WitnessRoster` `0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252` · coordinator `0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B` · keyHash `0x787d74ca…3677ae` (500 gwei, the only Sepolia lane)
+`WitnessRoster` `0x841f3FD732C6740141FeAaFF10875A0F0f51c534` · coordinator `0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B` · keyHash `0x787d74ca…3677ae` (500 gwei, the only Sepolia lane)
 
 ### Request
 
@@ -183,13 +191,13 @@ function submitClaim(bytes32 subject, bytes32 claimHash) external payable
 
 No witness parameter. Not a discouraged path — an absent one, checkable from the signature. Assignment is *pushed*, so a claimant cannot request, hint at or predict its checker.
 
-**Verify:** read `WitnessDrawn(claimId, witness, seed)` and recompute `seed % agentCount()`. On claim 25 it lands on index 0, which is the claimant, and the walk steps to index 1. `/replay?claim=25` replays that walk from the seed.
+**Verify:** read `WitnessDrawn(claimId, witness, seed)` and recompute `seed % agentCount()`. On claim 25 it lands on index 0, which is the claimant, and the walk steps to index 1. `/replay?d=sim&claim=25` replays that walk from the seed — claim 25 is on the Sep 8 cascade, and claim ids restart with each redeploy.
 
 ---
 
 ## 3. ENS v2
 
-Root `perjury.eth` · subregistry `0x087f2A255b8C989a7A739F40e85123BDf3d49eFb` · resolver `0xcBd795d211Dd40dB392730034B5e68359c9E8534` (Permissioned, via `VerifiableFactory`) · writer `0x510035cCb2A7142fD127a52d950124d6B2a0BeE2` · reader `0xB5A08B0885e221B1fb48EDF0E011c32f614176f5`
+Root `perjury.eth` · subregistry `0x087f2A255b8C989a7A739F40e85123BDf3d49eFb` · resolver `0xcBd795d211Dd40dB392730034B5e68359c9E8534` (Permissioned, via `VerifiableFactory`) · writer `0x8dd1D2f807A4B6F46EcD4994c4BAe0a44eBf9F8A` · reader `0x4a675089228B308564fd31501410d66c2631A071`
 
 Built against the **hackathon deployment only**. `universalResolver` must be overridden (`withHackathonResolver()`); viem/ethers ship a different built-in address and every ENS result silently targets the wrong deployment otherwise.
 
@@ -357,7 +365,7 @@ Both agents were handed **identical rows** and their conclusions differ by **24.
 ## Known gaps
 
 - **CRE:** deployed to the DON and executing, but `WriteReport` produces no transaction, so every settled verdict came through the simulator. The enclave now verifies both against chain: `keccak256(claimText)` must equal the bonded `claimHash`, and the bundle's witness must be the address the roster assigned. `npx tsx scripts/prove-claim-binding.ts` demonstrates the refusal.
-- **VRF:** roster is five agents. The 1-in-n collusion argument is far stronger at scale.
+- **VRF:** roster is ten agents, so an accomplice is drawn about one time in ten. Throttled, not eliminated, and n is the whole argument — which is why the roster being open to anyone who can post a stake matters more than today's number.
 - **ENS:** ENSIP-25 / -26 records not implemented. `revokeSetterRoles` has no inverse. Subnames expire in a year and nothing renews them.
 - **The Graph:** 12 of 13 subjects single-source.
 - **Mechanism:** one witness decides an outcome. K-of-N corroboration is the known hole and is not built.

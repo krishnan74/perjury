@@ -6,6 +6,8 @@ Built for **ETHOnline 2026**. Sepolia testnet.
 
 > **Reviewing this for a sponsor prize?** [**docs/for-reviewers.md**](docs/for-reviewers.md) is a guided path to the exact lines where each partner technology is used, plus the two commands worth running.
 
+> **Live at [perjury.vercel.app](https://perjury.vercel.app).** The tribunal runs in an AWS Nitro enclave on the Chainlink DON and writes verdicts on chain from there — [a verdict it settled](https://sepolia.etherscan.io/tx/0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5).
+>
 > **Status: running end-to-end on Sepolia.** All three demo scenarios have executed on-chain — a true claim settled, a false claim caught and its appeal rejected by a randomly drawn panel, and a collusion attempt structurally throttled. Bonds settle, ENS standing moves, and a slashed agent is excluded from future assignment with no operator in the loop. See [What works today](#what-works-today).
 
 ---
@@ -39,14 +41,17 @@ Every contract is immutable: no owner, no pause, no upgrade proxy, no address se
 
 | Contract | Address |
 |---|---|
-| `ClaimRegistry` | [`0x8CDa96E615E96f97073C19Cc2167E4D242487A88`](https://sepolia.etherscan.io/address/0x8CDa96E615E96f97073C19Cc2167E4D242487A88) |
-| `WitnessRoster` | [`0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252`](https://sepolia.etherscan.io/address/0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252) |
-| `VerdictSink` | [`0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3`](https://sepolia.etherscan.io/address/0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3) |
-| `PerjuryStandingWriter` | [`0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD`](https://sepolia.etherscan.io/address/0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD) |
-| `ENSTextStandingReader` | [`0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55`](https://sepolia.etherscan.io/address/0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55) |
+| `ClaimRegistry` | [`0x63cf47746B2181E2e64EB4349373c4f8B050c6c3`](https://sepolia.etherscan.io/address/0x63cf47746B2181E2e64EB4349373c4f8B050c6c3) |
+| `WitnessRoster` | [`0x841f3FD732C6740141FeAaFF10875A0F0f51c534`](https://sepolia.etherscan.io/address/0x841f3FD732C6740141FeAaFF10875A0F0f51c534) |
+| `VerdictSink` | [`0x8f74f7428E045c29F4aF571955CAD21e3a1a2BEe`](https://sepolia.etherscan.io/address/0x8f74f7428E045c29F4aF571955CAD21e3a1a2BEe) |
+| `PerjuryStandingWriter` | [`0x8dd1D2f807A4B6F46EcD4994c4BAe0a44eBf9F8A`](https://sepolia.etherscan.io/address/0x8dd1D2f807A4B6F46EcD4994c4BAe0a44eBf9F8A) |
+| `ENSTextStandingReader` | [`0x4a675089228B308564fd31501410d66c2631A071`](https://sepolia.etherscan.io/address/0x4a675089228B308564fd31501410d66c2631A071) |
 | `PerjuryResolver` (ENSv2 Permissioned) | [`0xcBd795d211Dd40dB392730034B5e68359c9E8534`](https://sepolia.etherscan.io/address/0xcBd795d211Dd40dB392730034B5e68359c9E8534) |
+| `perjury.eth` subname registry | [`0x087f2A255b8C989a7A739F40e85123BDf3d49eFb`](https://sepolia.etherscan.io/address/0x087f2A255b8C989a7A739F40e85123BDf3d49eFb) |
 
-Identity: `perjury.eth` on the ENSv2 hackathon deployment, with a subname registry issuing five agent subnames — each owned by its agent and resolving through a Permissioned Resolver only the tribunal may write to.
+Identity: `perjury.eth` on the ENSv2 hackathon deployment, with a subname registry issuing ten agent subnames — each owned by its agent and resolving through a Permissioned Resolver only the tribunal may write to.
+
+Claim ids restart at 1 with every cascade, because each contract holds the next immutably and the registry's pointer at its verdict sink locks on first wiring. Two earlier cascades are still on chain and still readable: `0x398907Ab…51eb` (Sep 11, eleven claims) and `0x8CDa96E6…87A88` (Sep 8, twenty-five, including the appeal the demo replays). The site reads all three.
 
 Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 
@@ -129,7 +134,7 @@ Three partner-prize slots are selectable at submission; these are ours.
 
 | Track | How it's used |
 |---|---|
-| **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`) compares claim against finding and emits only a verdict. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. **Currently executed via the local simulator**, which runs locally rather than in an enclave; enclave execution needs confidential-DON deploy access. |
+| **Chainlink** — Best Confidential Workflow | The tribunal. A CRE Confidential Workflow with a TEE handler (`cre.handlerInTee`) compares claim against finding and emits only a verdict. Remove it and the protocol has no adjudicator — see [docs/design.md](docs/design.md) §3.4. **Deployed to the DON and settling from the enclave**: it reads its own claim from chain, fetches both sealed submissions over Confidential HTTP, opens them with keys the Vault DON releases into the enclave alone, and writes the verdict through the production Forwarder. The CLI simulator still runs the same binary against the same contracts and remains the fast development loop. |
 | **ENS** — Best Use of ENSv2 | Agents-as-namespaces (`<agent>.perjury.eth`) with Enhanced Access Control used twice over: reputation writable only by the tribunal, and the identity binding writable only by the namespace operator — so the contract that lowers an agent's standing cannot decide whose standing it is. Registration refuses a name the caller was not issued. |
 | **The Graph** | Two ways, both load-bearing. **AI use case:** the witness is an LLM agent that searches the Subgraph MCP, reads the schema and composes its own GraphQL — the finding it derives decides who loses a bond, so the data does real work rather than being printed. **Standardized products:** 13 deployments across two Messari schema families and five chains, read through one query pattern per family with no protocol- or chain-specific code, so adding a protocol, a chain or a whole schema family is a data change. **Corroborated reads** exploit the property only a content-addressed index has — a deployment id hashes the mapping code, so two deployments are two independent derivations, and the protocol refuses to convict when they disagree. Provenance failures reject rather than degrade. |
 

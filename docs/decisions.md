@@ -432,3 +432,35 @@ The registry read crosses to the DON runtime, because the EVM capability takes a
 - The site is now load-bearing infrastructure rather than a dashboard. The enclave fetches evidence from `/api/evidence/<claimId>`, so deploying it moved from the nice-to-have list onto the critical path.
 - That route proxies the store the agent published to rather than holding the bytes. Holding them would put the only copy of both agents' work on the same machine that runs the agents, and "you could have fed the tribunal a fixture" deserves a better answer than a shrug.
 - `/submit` spawns the agents, so it needs a real Node process with the repository on disk. Every other route is serverless-friendly; that one is not, and a host has to be chosen with it in mind.
+
+---
+
+## 0012. Run a live claim as short steps the browser drives
+
+**Sep 12.** The submit route spawned the runner and streamed its output for four minutes. That needs the repository on disk and a process that outlives a request, and a serverless function has neither — so the deployed site could explain the protocol and replay a settled claim, but a judge had to take the recording's word that anything ran.
+
+The fix is not a workaround for the platform. A claim is roughly twenty seconds of work and three and a half minutes of waiting, and the waiting is the VRF draw and the challenge window. Neither needs a process sitting on it. Six short steps the browser drives puts the waiting between requests instead of inside one, and removes a failure mode the streaming version had: a four-minute request dying at minute three and leaving a claim half-posted. Each step checks the phase it expects and returns unchanged otherwise, so a retry after a dropped response cannot post a second claim.
+
+The agents run in the server process rather than as spawned commands. They were already plain async functions; nothing about them had to change.
+
+**What this costs.** Publishing evidence went from the GitHub CLI to the API, because no serverless runtime has the CLI. State moved out of `/tmp`, which is private to one instance — a write and a later read could land on different machines, and the failure looked like evidence that had never been published.
+
+**What it deliberately does not do.** Adjudicate. The tribunal is the confidential workflow and `VerdictSink` accepts Chainlink Forwarders alone, so the verdict step watches the chain rather than producing anything. If no verdict lands, the page says so.
+
+**The gate.** Every other route here is read-only and public, which is the right default for a project asking to be checked. This one moves a bond out of a funded wallet on every call and cannot be undone, so an open version of it is a faucet and the damage would look exactly like the protocol working. A shared password, compared in constant time, plus one claim in flight at a time. Not an identity system and not claimed as one. The specific credential a deployment is missing is told only to someone holding the password, because naming it to a stranger is a free leak.
+
+**A live claim is archived like a scripted one.** Otherwise it replays as a row of transactions with no agent reads — the page that exists to show how a verdict was reached showing everything except that. Same deliberate disclosure as ADR 0009, and best effort: losing the archive costs a thinner replay, failing the claim over it would cost the claim.
+
+---
+
+## 0013. A report receiver must answer ERC-165
+
+**Sep 12.** The production Forwarder staticcalls `supportsInterface` on a receiver before routing a report. `VerdictSink` did not implement it and has no fallback, so the call reverted, the Forwarder recorded the report as failed, and the workflow was told its write succeeded — because the Forwarder's own transaction did succeed. The only trace anywhere is `ReportProcessed(receiver, …, result: false)` in the Forwarder's own logs.
+
+The simulator's mock Forwarder never makes that call. A receiver can therefore pass `simulate --broadcast` perfectly and never receive a single report on the DON, with nothing warning you.
+
+Finding it meant disbelieving a success. Everything plausible was eliminated first and all of it was fine: the report bytes were correct in the calldata, authorisation was correct, simulating the exact call from the production Forwarder succeeded, and gas was not the constraint. It surfaced only by tracing the Forwarder's own transaction and reading the staticcall two frames down.
+
+**The fix is four lines and cost a cascade**, because `CRE_REPORT_WRITER` is immutable and the registry's pointer at its sink locks on first wiring. Third deployment of the protocol. Worth it: adjudication now happens in an enclave and the verdict is written on chain from there.
+
+**Two habits this leaves behind.** Check what a capability returned rather than assuming, and note that `TX_STATUS_SUCCESS` only means the Forwarder's transaction landed — not that the receiver call inside it succeeded. And when a local path and a deployed path disagree, suspect the thing the local path does not do.
