@@ -86,6 +86,16 @@ export const configSchema = z.object({
 	pinnedReportKind: z.enum(['verdict', 'panel']).optional(),
 
 	verdictSinkAddress: z.string(),
+	/**
+	 * Gas handed to the receiver's `onReport`.
+	 *
+	 * Recording a verdict measures about 86k. The default was not enough, and the
+	 * way it fails is worth knowing: the Forwarder's transaction succeeds, the
+	 * receiver call inside it reverts, and the workflow sees TX_STATUS_SUCCESS
+	 * because the transaction it asked for did land. The only place the failure
+	 * is visible is the Forwarder's own ReportProcessed event, with result false.
+	 */
+	reportGasLimit: z.string().default('400000'),
 	chainSelector: z.string(), // CCIP chain selector; string because JSON has no bigint
 })
 type Config = z.infer<typeof configSchema>
@@ -628,20 +638,31 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	/*
 	 * Deliver the signed report on-chain.
 	 *
-	 * `receiver` is a proto `bytes` field, so its JSON form is base64 — not the
-	 * hex string it reads as. Passing hex worked in the simulator, which
-	 * broadcasts through the mock forwarder itself and parses the address its own
-	 * way, and produced nothing at all on the DON.
+	 * `receiver` is a hex string, despite the generated type calling it `bytes`
+	 * and proto JSON encoding bytes as base64. The TS SDK converts the hex
+	 * itself, and base64 is rejected with `Invalid hex string`. Recorded because
+	 * the two encodings fail very differently — base64 throws immediately, which
+	 * is how we learned hex was never the problem.
 	 *
 	 * The report is passed exactly as `.report()` returned it. Rebuilding it,
 	 * cloning it, or unwrapping and re-wrapping it can serialise the report field
 	 * empty, and an empty report is skipped by the write target with a success
 	 * that never touches a chain.
+	 *
+	 * `gasConfig` is what this was missing. Without it the Forwarder hands the
+	 * receiver whatever it defaults to, and our `onReport` needs about 86k —
+	 * recording a verdict writes the claim's status, verdict, commitment and
+	 * challenge deadline. The Forwarder delivered every report and every one
+	 * reverted on the receiver, which it reports as `ReportProcessed(..., result:
+	 * false)` rather than as a failed transaction. From inside the workflow that
+	 * looks like a success, because from the DON's point of view it was one: the
+	 * transaction landed, and the call it made did not.
 	 */
 	const written = evmClient
 		.writeReport(donRuntime, {
-			receiver: hexToBase64(config.verdictSinkAddress as `0x${string}`),
+			receiver: config.verdictSinkAddress,
 			report,
+			gasConfig: { gasLimit: config.reportGasLimit },
 		})
 		.result()
 

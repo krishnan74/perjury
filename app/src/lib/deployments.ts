@@ -53,13 +53,13 @@ const env = (k: string) => process.env[k] as Address | undefined;
 const CURRENT: Deployment = {
   id: "live",
   label: "Live",
-  note: "The contracts a new claim is submitted to. Its verdict sink accepts reports from the Forwarder a workflow deployed to the DON reports through.",
+  note: "The contracts a new claim is submitted to, and the first set whose verdicts are written by a workflow executing in an enclave on the Chainlink DON rather than through the CLI simulator.",
   registry: env("CLAIM_REGISTRY_ADDRESS")!,
   roster: env("WITNESS_ROSTER_ADDRESS")!,
   writer: env("STANDING_WRITER_ADDRESS")!,
   reader: env("STANDING_READER_ADDRESS")!,
   sink: env("VERDICT_SINK_ADDRESS")!,
-  fromBlock: BigInt(process.env.CLAIM_REGISTRY_FROM_BLOCK ?? 11679414),
+  fromBlock: BigInt(process.env.CLAIM_REGISTRY_FROM_BLOCK ?? 11683651),
   current: true,
 };
 
@@ -73,7 +73,7 @@ const CURRENT: Deployment = {
  */
 const ARCHIVED: Deployment = {
   id: "sim",
-  label: "Archived",
+  label: "Archived (Sep 8)",
   note: "The cascade used before CRE deploy access arrived. Its verdict sink only accepts the simulator's Forwarder, so nothing new can settle here — but every claim it holds really happened.",
   registry: "0x8CDa96E615E96f97073C19Cc2167E4D242487A88",
   roster: "0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252",
@@ -84,7 +84,32 @@ const ARCHIVED: Deployment = {
   current: false,
 };
 
-export const DEPLOYMENTS: Deployment[] = [CURRENT, ARCHIVED];
+/**
+ * The cascade replaced on Sep 12.
+ *
+ * Its sink had no `supportsInterface`, and the production Forwarder staticcalls
+ * that on a receiver before routing a report — so every report it was sent
+ * reverted before delivery while the workflow was told the write succeeded. The
+ * fix is four lines and the sink's authorised writer is immutable, so it needed
+ * a new one, and a new sink needs a new registry.
+ *
+ * Ten claims settled here, including an appeal a randomly drawn panel upheld.
+ * All of it is still on chain.
+ */
+const PRE_ERC165: Deployment = {
+  id: "sim2",
+  label: "Archived (Sep 11)",
+  note: "Replaced because its verdict sink could not answer the Forwarder's supportsInterface check, so a workflow on the DON could never deliver to it. Everything here settled through the CLI simulator, which does not make that call.",
+  registry: "0x398907AbE00070127780F24C05B629cb8fEC51eb",
+  roster: "0xD083e7B5fB92389478D9213F431Ae4AE1D0007E3",
+  writer: "0x510035cCb2A7142fD127a52d950124d6B2a0BeE2",
+  reader: "0xB5A08B0885e221B1fb48EDF0E011c32f614176f5",
+  sink: "0x572e7b912031267c4163d8F3c785e03b88AEb5b2",
+  fromBlock: 11679414n,
+  current: false,
+};
+
+export const DEPLOYMENTS: Deployment[] = [CURRENT, PRE_ERC165, ARCHIVED];
 
 export const currentDeployment = (): Deployment => CURRENT;
 

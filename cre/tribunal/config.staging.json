@@ -1,11 +1,11 @@
 {
   "schedule": "0 */1 * * * *",
   "evidenceGatewayBaseUrl": "http://localhost:3000/api/evidence",
-  "claimRegistryAddress": "0x398907AbE00070127780F24C05B629cb8fEC51eb",
+  "claimRegistryAddress": "0x63cf47746B2181E2e64EB4349373c4f8B050c6c3",
   "secretId": "COMMITMENT_SALT",
   "envelopeSecretId": "ENVELOPE_KEY",
   "toleranceBps": 50,
-  "verdictSinkAddress": "0x572e7b912031267c4163d8F3c785e03b88AEb5b2",
+  "verdictSinkAddress": "0x8f74f7428E045c29F4aF571955CAD21e3a1a2BEe",
   "chainSelector": "16015286601757825753",
   "pinnedDeployments": [
     "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",

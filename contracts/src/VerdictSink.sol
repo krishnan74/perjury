@@ -57,6 +57,26 @@ contract VerdictSink {
     uint8 public constant KIND_VERDICT = 0;
     uint8 public constant KIND_PANEL = 1;
 
+    /// @notice ERC-165. Required by the Forwarder, not by us.
+    ///
+    /// @dev The production Forwarder calls `supportsInterface` on a receiver
+    ///      before it will route a report to it. A contract without the function
+    ///      reverts on that staticcall, the Forwarder marks the report failed,
+    ///      and the workflow is told its write succeeded — because the
+    ///      Forwarder's own transaction did succeed. The only trace is
+    ///      `ReportProcessed(receiver, …, result: false)` in the Forwarder's
+    ///      logs.
+    ///
+    ///      The simulator's mock Forwarder does not make this call, so a sink
+    ///      that works perfectly under `cre workflow simulate --broadcast` can
+    ///      never receive a single report on the DON. That cost a day.
+    ///
+    ///      `0x805f2132` is `onReport(bytes,bytes)`, which is the whole of the
+    ///      receiver interface.
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return interfaceId == 0x01ffc9a7 || interfaceId == 0x805f2132;
+    }
+
     /// @notice The only entry point. Every report the tribunal delivers arrives
     ///         here, and routes on the kind carried in the payload.
     function onReport(bytes calldata, /* metadata */ bytes calldata report) external {
