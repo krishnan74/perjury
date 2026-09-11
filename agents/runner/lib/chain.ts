@@ -69,12 +69,31 @@ export const READER_ABI = [
 export const STATUS = ["None", "Pending", "WitnessAssigned", "Adjudicated", "UnderAppeal", "Settled"];
 export const VERDICT = ["None", "Match", "Mismatch", "Unverifiable"];
 
+/**
+ * Every agent this machine holds a key for, and the name it was issued.
+ *
+ * The slot numbers are not contiguous with the names on purpose: AGENT_5 was
+ * registered by a bug in scripts/add-agents.ts under the label "--write", has
+ * withdrawn its stake, and is ineligible. It stays listed so a draw that lands
+ * on it prints a name rather than a bare address — the roster is append-only and
+ * pretending the row is not there would make the scene output lie about chain
+ * state.
+ *
+ * Scenes only need names for display and for choosing a claimant; the roster
+ * itself is the authority on who may be drawn.
+ */
 export const AGENTS = [
   { name: "operator.perjury.eth", envAddr: "" },
   { name: "witness-a.perjury.eth", envAddr: "AGENT_1_ADDR" },
   { name: "panel-1.perjury.eth", envAddr: "AGENT_2_ADDR" },
   { name: "panel-2.perjury.eth", envAddr: "AGENT_3_ADDR" },
   { name: "panel-3.perjury.eth", envAddr: "AGENT_4_ADDR" },
+  { name: "--write.perjury.eth", envAddr: "AGENT_5_ADDR" },
+  { name: "witness-b.perjury.eth", envAddr: "AGENT_6_ADDR" },
+  { name: "witness-c.perjury.eth", envAddr: "AGENT_7_ADDR" },
+  { name: "panel-4.perjury.eth", envAddr: "AGENT_8_ADDR" },
+  { name: "panel-5.perjury.eth", envAddr: "AGENT_9_ADDR" },
+  { name: "panel-6.perjury.eth", envAddr: "AGENT_10_ADDR" },
 ];
 
 /**
