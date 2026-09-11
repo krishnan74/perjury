@@ -63,13 +63,14 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 | Operator | `0xDcbe075a907960951Cd4df379BB21461097eEa91` |
 | `perjury.eth` | registered, ENSv2 hackathon deployment |
 | `ScratchSink` (probe) | `0xA7355Ac345828Ea003ad6686Be6D9506F9Fb31cF` |
-| `ClaimRegistry` | `0x8CDa96E615E96f97073C19Cc2167E4D242487A88` |
-| `WitnessRoster` | `0x1b686Decd5fc0F5Bd2511E6B63809c340dec2252` (VRF consumer) |
-| `PerjuryStandingWriter` | `0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD` |
-| `ENSTextStandingReader` | `0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55` |
-| `VerdictSink` | `0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3` (mock forwarder) |
+| `ClaimRegistry` | `0x398907AbE00070127780F24C05B629cb8fEC51eb` |
+| `WitnessRoster` | `0xD083e7B5fB92389478D9213F431Ae4AE1D0007E3` (VRF consumer) |
+| `PerjuryStandingWriter` | `0x510035cCb2A7142fD127a52d950124d6B2a0BeE2` |
+| `ENSTextStandingReader` | `0xB5A08B0885e221B1fb48EDF0E011c32f614176f5` |
+| `VerdictSink` | `0x572e7b912031267c4163d8F3c785e03b88AEb5b2` (accepts **both** Forwarders) |
 | `PerjuryResolver` | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` — EAC configured per-key, operator write revoked |
-| CRE report writer | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` — a **Forwarder**, measured |
+| CRE Forwarder (DON) | `0xF8344CFd5c43616a4366C34E3EEE75af79a74482` |
+| CRE Forwarder (simulator) | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` |
 | VRF subscription | owner = operator, roster registered as consumer |
 | Agents | 5 subnames of `perjury.eth`, all registered and staked |
 
@@ -80,8 +81,11 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 ## Facts learned the hard way
 
 - **`cre workflow simulate` runs LOCALLY, not in an enclave** (Chainlink, Sep 8). We register a real TEE handler via `cre.handlerInTee`, but simulation does not execute in a TEE. Say "confidential workflow with a TEE handler, executed via the simulator" — never "ran inside an enclave". This matters for the demo video.
-- **Two forwarders.** Simulation uses the mock `0x15fC6ae953E024d975e77382eEeC56A9101f9F88`; production uses `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`. Deploy `VerdictSink` with whichever matches the environment.
-- **CRE reports arrive from a Forwarder, not the workflow owner.** `VerdictSink.CRE_REPORT_WRITER` is immutable, so this was measured, not guessed. Unknown whether the address is stable across runs — this is why the protocol is not deployed yet.
+- **Two forwarders, and the sink now accepts both.** Confirm them for your own tenant with `cre workflow supported-chains -T staging-settings -e .env` rather than trusting a note. `VerdictSink` takes `CRE_REPORT_WRITER` and `CRE_ALT_REPORT_WRITER`; both are immutable, and passing zero for the second collapses to one door. Committing to a single Forwarder means betting the demo on that execution path, because the registry's pointer at the sink locks on first wiring.
+- **CRE reports arrive from a Forwarder, not the workflow owner.** Both addresses are immutable on the sink, read from the tenant's own chain list rather than guessed.
+- **A cascade resets claim ids to 1**, so the evidence archive and the gateway index are filed under the registry address. A flat directory silently overwrote a settled claim's evidence the first time this happened. The site addresses archived claims with `?d=sim`.
+- **The workflow finds its own claim.** `ClaimRegistry.pendingForTribunal()` returns the oldest claim awaiting a verdict and its report kind, so one deployment serves every claim. The registry read goes through `usingTheDons()` because the EVM capability takes a `Runtime` and `TeeRuntime` is not one — the claim id is public, so nothing is lost.
+- **Deploy access is enabled.** `cre account link-key` costs a small amount of real **mainnet** ETH, and workflows target the Chainlink-hosted `private` registry (set `deployment-registry` in `workflow.yaml`) rather than the on-chain mainnet one. Vault DON secrets need an interactive browser sign-in: `cre secrets create secrets.yaml -T staging-settings -e .env --secrets-auth browser`.
 - **The tribunal re-validates provenance itself** (`provenanceOk` in both `packages/tribunal` and `cre/tribunal/workflow.ts`). The allowlist comes from config, generated from `pinned-deployments.json` by `deploy-all.ts` — if you pin a new deployment, redeploy or regenerate the config or the tribunal will reject honest evidence from it. A missing policy accepts NOTHING, deliberately.
 - **Claim and verification are pinned to one block.** The claimant records `atBlock`; the witness, tribunal and appeal path replay against that same block. `composeDocument(selection, atBlock)` injects `block: {number: N}` into `_meta` and the root field, and the guard requires the served block to equal the requested one. **Staleness is deliberately not checked on a pinned read** — the pin is the freshness contract. Without this, a metric that legitimately moved between the two reads looked like a mismatch.
 - **Tolerances are seconds, not blocks.** 50 blocks is 10 minutes on Ethereum and 12 seconds on Arbitrum; a healthy Arbitrum deployment 149 blocks behind was failing hard. Freshness and tribunal skew are both expressed in seconds and converted per chain, so every assertion carries its `chain`.
@@ -125,7 +129,9 @@ Redeploying is a **cascade** — each contract holds the next immutably, so chan
 | `/` | Six sections, theoretical → technical. This doubles as the pitch deck; there is no separate deck, and the video is narrated off this page. |
 | `/claims`, `/claims/[id]` | Claim feed and detail, with the "what the tribunal did NOT publish" panel. |
 | `/roster` | Who may be drawn and why the excluded agent isn't — read through the same ENS reader the VRF callback uses, never a cache. |
-| `/replay` | A settled claim played back from its own transactions. Real hashes, real gaps; the elapsed counter always shows true elapsed time even when playback is sped up. |
+| `/replay` | A settled claim played back from its own transactions. Real hashes, real gaps; the elapsed counter always shows true elapsed time even when playback is sped up. `?d=sim` reads the archived cascade. |
+| `/submit` | Post a real claim and watch it settle, streamed from the runner over SSE. Needs a real Node process with the repo on disk — it spawns the agents. |
+| `/api/evidence/[claimId]` | The sealed bundle, as the enclave fetches it. Public, because it is ciphertext and the enclave carries no credentials. |
 
 Read-only. Live triggering from the browser was deliberately deferred. **`/replay` is the next piece of UI work** — it is honest but renders the mechanism as a bullet list; the rebuild is specced in `docs/replay-plan.md` and is buildable from chain data alone up to Tier B. Every route is `revalidate = 30` ISR against Sepolia and the Gateway — deployment needs the same env the runners use. **Not deployed yet**, and the copy tells judges the site is live, so deploy before submitting.
 

@@ -12,7 +12,7 @@
 
 ## Status at a glance
 
-*Updated Sep 10.* **The protocol is live on Sepolia, all three demo scenes have run end to end, and the site is built and merged to `main`.** What remains is the video.
+*Updated Sep 11.* **CRE deploy access arrived, so the protocol was redeployed to accept the real DON Forwarder, the workflow now finds its own claim, and the site can post one live.** What remains is the video and deploying the site.
 
 | Task | State |
 |---|---|
@@ -42,14 +42,27 @@ All three previous blockers cleared. The agents run on `claude -p` rather than a
 
 CRE confidential-DON deploy access was requested and has not been granted. It is **not** a blocker — the Chainlink track explicitly accepts execution via the CLI simulator with evidence, and that is the shipping path.
 
+### What changed on Sep 11
+
+CRE deploy access was granted. That forced a cascade, because `VerdictSink.CRE_REPORT_WRITER` is immutable and `ClaimRegistry.verdictSink` locks on first wiring, so a sink built for the simulator's Forwarder can never accept a report from a workflow running on the DON. The new sink accepts **both** Forwarders, which means a failed DON deployment costs nothing — the simulator path still works against the same contracts.
+
+Three things had to change for a claim to be adjudicable at all after it was submitted:
+
+- `ClaimRegistry.pendingForTribunal()` — the workflow reads the oldest outstanding claim and its report kind off chain, instead of carrying a claim id in deploy-time config. One deployment now serves every claim there will ever be.
+- The evidence gateway moved to `/api/evidence/<claimId>` on the site, which proxies the store the agent actually published to. A workflow that picks its own claim cannot be handed a URL.
+- The archive and gateway index are filed under the registry address, because a cascade resets claim ids to 1 and the flat layout overwrote a settled claim's evidence the first time it happened.
+
+Claim ids restart per cascade, so the site reads both sets of contracts and `?d=sim` addresses the archived one. Every claim that settled before Sep 11 is still readable and still replayable.
+
 ### Resume here
 
 In priority order:
 
+0. **Deploy the site.** Now a prerequisite rather than a nicety: the enclave fetches evidence over the public internet and cannot reach a laptop. `/submit` additionally needs a real Node process with the repo on disk, since it spawns the agents — a serverless host will serve every other route but not that one.
 1. **Record the demo video.** The only item on the critical path — 2:00–4:00, human voice, ≥720p, no TTS, no sped-up footage, intro under 20s. Everything it needs to show already exists. Before the take: `npx tsx scripts/verify-pinned.ts`, top up the operator and agent wallets, and re-run all three scenes. Walk [docs/design.md](docs/design.md) §7 shot list row by row.
 2. **Fill the ETHGlobal submission form** — drafted in `docs/ethglobal-submission.md` (gitignored). Three partner slots: Chainlink, ENS, The Graph.
 3. **Human-written limitations section** — the last unmet reserved component in [docs/ai-usage.md](docs/ai-usage.md) §0.6.
-4. **Deploy the site** — built and merged, deliberately not deployed yet. Judges are told it is live, so this has to happen before submitting.
+4. ~~Deploy the site~~ — promoted to item 0 above.
 5. **ENS follow-up:** `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
 
 The last open gap closed on Sep 10: the evidence store is now sealed. Bundles are encrypted to the tribunal's public key before publishing, the Vault DON releases the private half only into the attested enclave, and the envelope is bound to its claim id so a swapped gateway URL cannot supply another claim's evidence. Proven against the live gateway with `npx tsx scripts/prove-sealed.ts` — see [ADR 0010](docs/decisions.md).

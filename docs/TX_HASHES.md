@@ -4,9 +4,37 @@ Every on-chain transaction that appears in the demo or backs a claim in the subm
 
 Network: **Ethereum Sepolia** · Explorer: https://sepolia.etherscan.io/tx/`<hash>`
 
-## Deployed contracts
+## Deployed contracts — live cascade (Sep 11)
 
-Addresses below are the **final** deployment — the one the three demo scenes ran against. Earlier deploys were superseded when `ClaimRegistry` split settlement out of `recordPanelVerdict`; every contract here is immutable, so a change means a redeploy.
+The contracts a claim submitted now goes to. Deployed because CRE deploy access arrived and `VerdictSink.CRE_REPORT_WRITER` is immutable: a sink built for the simulator's Forwarder can never accept a report from a workflow running on the DON, and `ClaimRegistry.verdictSink` locks on first wiring, so there was no way to point the old registry at a new sink. This sink accepts **both** Forwarders, so the simulator still works against the same contracts. See [ADR 0011](decisions.md).
+
+| Contract | Address | Notes |
+|---|---|---|
+| `ClaimRegistry` | `0x398907AbE00070127780F24C05B629cb8fEC51eb` | adds `pendingForTribunal()` |
+| `WitnessRoster` | `0xD083e7B5fB92389478D9213F431Ae4AE1D0007E3` | VRF consumer |
+| `PerjuryStandingWriter` | `0x510035cCb2A7142fD127a52d950124d6B2a0BeE2` | holds ENS `SET_TEXT`, per key |
+| `ENSTextStandingReader` | `0xB5A08B0885e221B1fb48EDF0E011c32f614176f5` | |
+| `VerdictSink` | `0x572e7b912031267c4163d8F3c785e03b88AEb5b2` | accepts `0xF834…4482` (DON) **and** `0x15fC…9F88` (simulator) |
+| `PerjuryResolver` (ENSv2 Permissioned) | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` | reused — the operator still held `SET_TEXT_ADMIN`, so no ENS rebinding was needed |
+
+ENS standing survived the cascade, because standing lives in ENS text records rather than in a contract we redeployed. The first claim on the new registry moved `operator.perjury.eth` from 9 to 10, continuing a history the old contracts wrote.
+
+### Deployed CRE workflow
+
+| | |
+|---|---|
+| Workflow | `perjury-tribunal-staging` |
+| Workflow ID | `00797c26b0d625db84088eae919d9c14ed1971c4ec11f6ceeebdba6c8e307dcf` |
+| Registry | private (Chainlink-hosted) · DON family `zone-a` |
+| Owner | `0x168c1E12d38910994b77f549a60132FB1e9b5E76` |
+| Binary | https://storage.cre.chain.link/artifacts/00797c26b0d625db84088eae919d9c14ed1971c4ec11f6ceeebdba6c8e307dcf/binary.wasm |
+| Status | Active, executing on schedule |
+
+This is the difference between registering a TEE handler and running one. Executions succeed every minute and return `idle` when the registry reports nothing outstanding; the enclave produces no logs, which is the expected behaviour rather than a missing feature.
+
+## Deployed contracts — archived cascade (Sep 8)
+
+Superseded on Sep 11 and still on chain. Every claim below really settled here, and the site reads them with `?d=sim`. Nothing new can settle here: this sink accepts only the simulator's Forwarder, and that address is immutable.
 
 | Contract | Address | Deploy tx | Date |
 |---|---|---|---|
@@ -489,3 +517,37 @@ Claim ids restart with each deployment, so these are the claims of the deploymen
 | 11674409 | `AgentSlashed` | [`0x621415186b7f…`](https://sepolia.etherscan.io/tx/0x621415186b7ffb83fa96eb3278f795ec8c557c4b90ee41724f9a5ca41605ecde) | agent=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 amount=10000000000000000 remainingStake=0 |
 
 <!-- END GENERATED LEDGER -->
+
+---
+
+## Live cascade — claims settled on the new contracts
+
+Generated the same way, against `ClaimRegistry` `0x398907Ab…51eb`. Claim ids restart at 1 with a cascade, so these are different claims from the ones above that share their numbers.
+
+*Generated 2026-09-11 from Sepolia blocks 11670519–11679519. 2 claims, 14 events. Rebuild with `npx tsx scripts/collect-evidence.ts --write`.*
+
+Claim ids restart with each deployment, so these are the claims of the deployment currently in `.env`.
+
+#### Claim 1 — Match
+
+| Block | Event | Tx | Detail |
+|---|---|---|---|
+| 11679414 | `ClaimSubmitted` | [`0x8456c1d15091…`](https://sepolia.etherscan.io/tx/0x8456c1d1509164b65ad6f9ff2b567d3fe748e6647c6a5aec82368716793e4638) | claimant=0xDcbe075a907960951Cd4df379BB21461097eEa91 subject=0x04e817a09791e480d31fd4d0cbe7288855680ae0cf9cad600e4cfb274bfd6dd7 bond=12000000000000000 |
+| 11679414 | `WitnessRequested` | [`0x8456c1d15091…`](https://sepolia.etherscan.io/tx/0x8456c1d1509164b65ad6f9ff2b567d3fe748e6647c6a5aec82368716793e4638) | requestId=15194911546214339838171155379398868840310242228781507728820684044380104717957 |
+| 11679419 | `WitnessAssigned` | [`0x7c94f05c27f2…`](https://sepolia.etherscan.io/tx/0x7c94f05c27f2c1893dac23441cb2922c9ec448707846458badebe7151a2ba687) | witness=0x407E1437890E460c8027f4C94ebf05f6a7917e13 |
+| 11679419 | `WitnessDrawn` | [`0x7c94f05c27f2…`](https://sepolia.etherscan.io/tx/0x7c94f05c27f2c1893dac23441cb2922c9ec448707846458badebe7151a2ba687) | witness=0x407E1437890E460c8027f4C94ebf05f6a7917e13 seed=76206374173110219688578784058827409575608384041432631981959638944514225056775 |
+| 11679424 | `VerdictRecorded` | [`0x52808aa9de15…`](https://sepolia.etherscan.io/tx/0x52808aa9de15249b6e0253632d0074595aefe71cb58725ac2251bbf193280e61) | verdict=1 evidenceCommitment=0x73728e08332c63209a6150e0ecc4dc8a2ab9ae6dded2090efa6bd8c65a4f4da8 |
+| 11679433 | `Settled` | [`0x8998b5498509…`](https://sepolia.etherscan.io/tx/0x8998b54985097d9fb96f5bf50a55234ecde61449dce0f495abf726cb45c71165) | claimant=0xDcbe075a907960951Cd4df379BB21461097eEa91 verdict=1 |
+| 11679433 | `WitnessPaid` | [`0x8998b5498509…`](https://sepolia.etherscan.io/tx/0x8998b54985097d9fb96f5bf50a55234ecde61449dce0f495abf726cb45c71165) | witness=0x407E1437890E460c8027f4C94ebf05f6a7917e13 fee=2000000000000000 |
+
+#### Claim 2 — Match
+
+| Block | Event | Tx | Detail |
+|---|---|---|---|
+| 11679479 | `ClaimSubmitted` | [`0x16d29a7272d8…`](https://sepolia.etherscan.io/tx/0x16d29a7272d82a048d2d87f8400451861ecf29859a26b4dcbfe91b413b043635) | claimant=0x407E1437890E460c8027f4C94ebf05f6a7917e13 subject=0x12d66637bedea0b1be82c38be1c369db2c7467af95a47400a57b8f268fa56cb0 bond=12000000000000000 |
+| 11679479 | `WitnessRequested` | [`0x16d29a7272d8…`](https://sepolia.etherscan.io/tx/0x16d29a7272d82a048d2d87f8400451861ecf29859a26b4dcbfe91b413b043635) | requestId=55847335514679244238814873213681856017286137556943320263832656080590411820972 |
+| 11679484 | `WitnessAssigned` | [`0xb0f9d39ff03d…`](https://sepolia.etherscan.io/tx/0xb0f9d39ff03dad131345b93964075015af8d0988a55363079342be494bc877cc) | witness=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 |
+| 11679484 | `WitnessDrawn` | [`0xb0f9d39ff03d…`](https://sepolia.etherscan.io/tx/0xb0f9d39ff03dad131345b93964075015af8d0988a55363079342be494bc877cc) | witness=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 seed=99114784481859172360521579436715618939127066968244227382386319835402654852742 |
+| 11679488 | `VerdictRecorded` | [`0xb31727689669…`](https://sepolia.etherscan.io/tx/0xb31727689669a992b8b8475785ef5e401257f6b3b23805ef0abddd0452dabd26) | verdict=1 evidenceCommitment=0x2c37b515428bf2d8b208676e6b29de154967d282778df432df0beded23379da1 |
+| 11679497 | `Settled` | [`0xcf0626fa1b9f…`](https://sepolia.etherscan.io/tx/0xcf0626fa1b9f74d670ce45066d87907b40eda6e954c0358eca8be6b62b737396) | claimant=0x407E1437890E460c8027f4C94ebf05f6a7917e13 verdict=1 |
+| 11679497 | `WitnessPaid` | [`0xcf0626fa1b9f…`](https://sepolia.etherscan.io/tx/0xcf0626fa1b9f74d670ce45066d87907b40eda6e954c0358eca8be6b62b737396) | witness=0xeEE49a2a6a8d352862C7283C0e31595780e67fb1 fee=2000000000000000 |

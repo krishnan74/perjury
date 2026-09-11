@@ -409,3 +409,26 @@ Three properties beyond "it is encrypted":
 - `scripts/prove-sealed.ts` demonstrates the property against the live gateway instead of asserting it: the body is an envelope, none of the evidence's own field names survive in it, a wrong key fails, another claim's id fails, and the enclave's key opens exactly what was archived locally.
 - Proven end to end on claim 24, which settled `Match` with the gist holding 3831 bytes of ciphertext and nothing else.
 - It does not hide that a claim exists, hide the envelope's size, or stop a party publishing its own plaintext elsewhere. It closes the store, not the world.
+
+---
+
+## 0011. Redeploy so the sink accepts both Forwarders, and let the workflow find its own claim
+
+**Sep 11.** CRE deploy access was granted, which turned the weakest sentence in the submission — the workflow registers a TEE handler but executes in a local simulator — into something fixable. Acting on it broke three assumptions the protocol had been built on.
+
+**The sink could not be reused.** Chainlink runs two Forwarders per chain per tenant: one a DON-deployed workflow reports through, one the CLI simulator reports through. Ours were read from `cre workflow supported-chains`, not guessed. `VerdictSink.CRE_REPORT_WRITER` is immutable and `ClaimRegistry.verdictSink` locks on its first wiring call, so a sink built for the simulator can never accept a DON report and no setter exists to change that. Real enclave execution therefore meant redeploying everything.
+
+**So the sink now has two doors.** Committing to one Forwarder would have staked the entire demo on DON deployment working, which was unproven at the time the choice had to be made. Both addresses are Chainlink-operated and scoped to this organisation, so accepting either is the same party arriving by a different door rather than a wider trust assumption. Passing zero for the second collapses back to one. This is the only place the protocol trades a little purity for the ability to fail safely, and it is worth it.
+
+**A deployed workflow cannot be told anything.** Its config is fixed at deploy time, and three of the values in it were per-claim: the claim id, the evidence URL, and whether the report was a verdict or an appeal panel. That was survivable while a human edited the file between scenes and fatal for a claim submitted a minute ago. `ClaimRegistry.pendingForTribunal()` now returns the oldest outstanding claim and its kind, the evidence URL is a configured base plus that id, and one deployment serves every claim there will ever be.
+
+Taking the kind from chain also closed a live hazard rather than only enabling a feature. It had been configured as `panel`; pointing that workflow at a claim nobody appealed would have judged it by the wrong rule and produced a confident wrong verdict.
+
+The registry read crosses to the DON runtime, because the EVM capability takes a `Runtime` and `TeeRuntime` is not one. Nothing is lost — a claim id and a status are public values on a public chain — and the secret and the evidence fetch still go through the TEE. It is stated here so the confidentiality claim stays exactly as narrow as it actually is.
+
+**The consequences we accepted.**
+
+- Claim ids restart at 1 with every cascade, so the archive and the gateway index are filed under the registry address, and the site addresses the old contracts with `?d=sim`. The flat layout overwrote a settled claim's evidence the first time this happened, before the namespacing landed. Everything that settled before Sep 11 is still on chain and still replayable.
+- The site is now load-bearing infrastructure rather than a dashboard. The enclave fetches evidence from `/api/evidence/<claimId>`, so deploying it moved from the nice-to-have list onto the critical path.
+- That route proxies the store the agent published to rather than holding the bytes. Holding them would put the only copy of both agents' work on the same machine that runs the agents, and "you could have fed the tribunal a fixture" deserves a better answer than a shrug.
+- `/submit` spawns the agents, so it needs a real Node process with the repository on disk. Every other route is serverless-friendly; that one is not, and a host has to be chosen with it in mind.
