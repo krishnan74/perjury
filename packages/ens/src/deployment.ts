@@ -9,7 +9,20 @@ export const ENS_HACKATHON_SEPOLIA = {
   chainId: 11155111,
   /** viem/ethers ship a DIFFERENT built-in address — this must override it. */
   universalResolver: "0xd26f2040d083af1cd2962ba303f4bea0c4faf142",
-  ethRegistry: "0xe7f0d5724f8337e3aa9a9910540341ff4273fed9",
+  /**
+   * Where `.eth` names actually live on this deployment.
+   *
+   * Corrected Sep 11. The previous value has code and looks plausible, which is
+   * why it survived: it simply does not hold our name. `getResolver("perjury")`
+   * returns zero there and the real resolver here, which is how it was caught.
+   */
+  ethRegistry: "0x1d78834d97c1d7b1a38c1dedbd1a287cfed3971e",
+  /**
+   * Subname registry implementation, deployed behind a proxy by the factory
+   * below — one per parent name. A name with no subregistry has no children at
+   * all, however many records a resolver holds about them.
+   */
+  userRegistryImpl: "0x47b442d0cf617c41cabaff5f02f44dd1e5f72546",
   ethRegistrar: "0x7d1b7f586a62ac3f54b9a396849757814283270b",
   publicResolverV2: "0xf9de4979ddb290baf5b760d0e788125017bc33f6",
   /** Registration fee token. Fund the registering account with this. */
