@@ -16,7 +16,7 @@
  * the extra hop.
  */
 import { NextResponse } from "next/server";
-import { gatewayUrlFor } from "@/lib/gateway-index";
+import { gatewayUrlFor, recordGatewayUrl } from "@/lib/gateway-index";
 
 /** Reads the filesystem index. Not an edge route. */
 export const runtime = "nodejs";
@@ -67,4 +67,52 @@ export async function GET(
     status: 200,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
   });
+}
+
+/**
+ * Tell the gateway where a claim's evidence went.
+ *
+ * An agent publishes from wherever it runs, which is not this server. Without
+ * this, a deployed workflow could only ever adjudicate claims whose URL happened
+ * to ship in the build — every claim made afterwards would be invisible to it,
+ * which defeats the point of the workflow finding its own work.
+ *
+ * Authenticated, unlike the GET. The GET serves ciphertext to an enclave that
+ * carries no credentials, so it has to be open. This one changes where the
+ * tribunal looks for evidence, and an open version of it would let anyone point
+ * the tribunal at a bundle of their own choosing. The envelope would refuse to
+ * open under the wrong claim id, so the attack is a denial of service rather
+ * than a forged verdict — still not something to leave unlocked.
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ claimId: string }> },
+) {
+  const { claimId } = await params;
+  const expected = process.env.PERJURY_GATEWAY_TOKEN;
+
+  // No token configured means no writes, rather than no check. A deployment that
+  // forgot to set it must not silently accept anonymous ones.
+  if (!expected) {
+    return NextResponse.json({ error: "gateway writes are not configured" }, { status: 503 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${expected}`) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!/^\d+$/.test(claimId)) {
+    return NextResponse.json({ error: "claim id must be a number" }, { status: 400 });
+  }
+
+  const body = (await request.json().catch(() => null)) as { url?: string } | null;
+  // Only the two hosts we actually publish to. A URL is what the enclave will
+  // fetch, so accepting an arbitrary one makes this a request-forgery lever.
+  if (!body?.url || !/^https:\/\/(gist\.githubusercontent\.com|gist\.github\.com)\//.test(body.url)) {
+    return NextResponse.json(
+      { error: "url must be a gist.githubusercontent.com address" },
+      { status: 400 },
+    );
+  }
+
+  recordGatewayUrl(claimId, body.url);
+  return NextResponse.json({ ok: true, claimId });
 }

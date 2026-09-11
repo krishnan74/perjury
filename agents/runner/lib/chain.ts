@@ -131,12 +131,39 @@ export async function rosterSnapshot() {
 }
 
 /** Run the CRE workflow. Returns the verdict it logged. */
-export function runTribunal(kind: "verdict" | "panel" = "verdict"): string {
-  for (const f of ["cre/tribunal/config.staging.json", "cre/tribunal/config.production.json"]) {
-    const cfg = JSON.parse(readFileSync(f, "utf8"));
-    cfg.reportKind = kind;
-    writeFileSync(f, `${JSON.stringify(cfg, null, 2)}\n`);
+/**
+ * Get a verdict onto the claim.
+ *
+ * Two tribunals can do this and only one should, per run. The workflow deployed
+ * to the DON adjudicates on a schedule whether or not anything asks it to, so
+ * running the simulator as well means both race for the same claim: one lands a
+ * report and the other reverts, because by then the claim is no longer awaiting
+ * one. PERJURY_TRIBUNAL=don says the deployed one is in charge and this should
+ * only wait for it.
+ *
+ * The kind is no longer written into config. The workflow reads it from chain
+ * along with the claim id, which is what lets one deployment serve every claim.
+ */
+export async function runTribunal(
+  kind: "verdict" | "panel" = "verdict",
+  claimId?: bigint,
+): Promise<string> {
+  if (process.env.PERJURY_TRIBUNAL === "don") {
+    if (claimId === undefined) throw new Error("PERJURY_TRIBUNAL=don needs the claim id to wait on");
+    // Poll rather than watch: a verdict is a state change on the claim, and the
+    // report that caused it arrives from a Forwarder we do not control.
+    const started = Date.now();
+    const want = kind === "panel" ? 4 : 2; // UnderAppeal -> settled-ish, Adjudicated
+    for (;;) {
+      const c = await claim(claimId);
+      if (Number(c.verdict) !== 0 && Number(c.status) >= want) return VERDICT[Number(c.verdict)] ?? "?";
+      if (Date.now() - started > 5 * 60_000) {
+        throw new Error(`no verdict from the deployed workflow after 5 minutes on claim ${claimId}`);
+      }
+      await new Promise((r) => setTimeout(r, 5_000));
+    }
   }
+
   const out = execFileSync(
     `${process.env.HOME}/.cre/bin/cre`,
     ["workflow", "simulate", "tribunal", "--target", "staging-settings", "--broadcast"],

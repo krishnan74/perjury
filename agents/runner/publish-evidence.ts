@@ -271,6 +271,37 @@ if (phase === "draft") {
   );
   writeFileSync(indexPath, `${JSON.stringify(ordered, null, 2)}\n`);
   console.log(`gateway index updated — the tribunal will fetch claim ${claimId} from the site`);
+
+  /*
+   * Tell the deployed gateway too, if there is one.
+   *
+   * The local index only reaches a workflow running against a local site. A
+   * workflow deployed to the DON reads the public one, and it has no way to
+   * learn about a claim made after the site was built — so without this it could
+   * only ever adjudicate claims whose URL shipped in the deployment.
+   *
+   * Best effort on purpose. A run that cannot reach the public site has still
+   * published its evidence and still settles locally; failing the whole scene
+   * over a deployment that may not exist yet would be the wrong trade.
+   */
+  const publishUrl = process.env.PERJURY_GATEWAY_PUBLISH_URL;
+  const token = process.env.PERJURY_GATEWAY_TOKEN;
+  if (publishUrl && token) {
+    try {
+      const res = await fetch(`${publishUrl}/${claimId}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ url }),
+      });
+      console.log(
+        res.ok
+          ? `deployed gateway notified — the DON workflow can now find claim ${claimId}`
+          : `deployed gateway refused (${res.status}) — the DON workflow will not see claim ${claimId}`,
+      );
+    } catch (err) {
+      console.log(`deployed gateway unreachable (${(err as Error).message}) — local run is unaffected`);
+    }
+  }
 } else {
   console.error("usage: publish-evidence.ts draft   <claimId> [honest|false]");
   console.error("       publish-evidence.ts witness <claimId> <witnessName> <witnessAddr>");

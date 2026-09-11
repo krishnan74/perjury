@@ -61,7 +61,7 @@ p.assertion("CLAIMANT", draft.text, `${round2(draft.out.match(/asserts ([\d.]+)%
 p.assertion("WITNESS", "independently re-derived from Aave v3", `${round2(out.match(/derives ([\d.]+)/)?.[1])}%`, p.c.magenta);
 
 p.step("The tribunal rules");
-p.verdict(runTribunal("verdict"), "The claimant's own evidence does not reproduce its stated value.");
+p.verdict(await runTribunal("verdict", claimId), "The claimant's own evidence does not reproduce its stated value.");
 
 p.step("The claimant appeals — three more agents are drawn");
 const appealHash = await signer.writeContract({
@@ -87,7 +87,7 @@ panelEvidence(
     address: seat,
   })),
 );
-p.verdict(runTribunal("panel"), "Three independent derivations, majority stands.");
+p.verdict(await runTribunal("panel", claimId), "Three independent derivations, majority stands.");
 
 p.step("Settlement");
 const finHash = await op.writeContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "finalize", args: [claimId] });

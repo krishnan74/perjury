@@ -22,8 +22,16 @@ import { runCapability } from "@/lib/live-run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-/** A claim takes minutes. Next would otherwise cut the stream long before then. */
-export const maxDuration = 900;
+/**
+ * A claim takes minutes, so the stream has to outlive a default request.
+ *
+ * 300 is the ceiling on a Vercel hobby plan and anything higher is rejected at
+ * deploy time, not at runtime — so this number is a hosting constraint rather
+ * than a considered value. It is also still short of a full claim, which is one
+ * more reason a real run needs a host with a long-lived process. On such a host
+ * this export is ignored.
+ */
+export const maxDuration = 300;
 
 /**
  * One run at a time, process-wide.

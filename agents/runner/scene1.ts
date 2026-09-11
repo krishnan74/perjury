@@ -78,7 +78,7 @@ p.assertion("WITNESS", `independently re-derived from ${SUBJECT} via The Graph`,
 
 p.step("The tribunal compares them inside a confidential workflow");
 p.note("Both submissions enter the enclave. Only a verdict comes out.");
-const v = runTribunal("verdict");
+const v = await runTribunal("verdict", claimId);
 p.verdict(v, "No evidence, no methodology, and neither value appears on-chain — only this.");
 
 p.step("Settlement, once the challenge window closes");

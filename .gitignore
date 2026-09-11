@@ -72,3 +72,4 @@ app/.env.local
 
 # design references, local only
 UI references/
+.vercel
