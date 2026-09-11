@@ -36,6 +36,15 @@ export const configSchema = z.object({
 	claimRegistryAddress: z.string(),
 	secretId: z.string(),
 	/**
+	 * Vault DON namespace the secrets live in.
+	 *
+	 * `cre secrets create` files them under `main`, and getSecret defaults to
+	 * `default` — so omitting this fails at run time with a quorum error that
+	 * reads like a DON outage rather than a name mismatch. The simulator never
+	 * catches it, because it reads the values from a local env file instead.
+	 */
+	secretNamespace: z.string().default('main'),
+	/**
 	 * Vault DON secret holding the private half of the evidence envelope key.
 	 *
 	 * Optional so a plaintext gateway still works during a migration, but once
@@ -383,10 +392,25 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		reportKind = pendingKind === 1 ? 'panel' : 'verdict'
 	}
 
-	// The salt is released by the Vault DON directly into the attested enclave.
-	// It binds the evidence commitment so the published hash cannot be
-	// brute-forced back to the sealed evidence.
-	const salt = runtime.getSecret({ id: config.secretId }).result().value
+	// Both secrets are released by the Vault DON directly into the attested
+	// enclave. The salt binds the evidence commitment, so the published hash
+	// cannot be brute-forced back to the sealed evidence; the envelope key is
+	// the only thing that can open the evidence at all.
+	//
+	// Fetched together in one call rather than one each at the point of use. Two
+	// separate getSecret calls in a single execution failed against the real DON
+	// with a quorum error on the second, while the first succeeded — so the
+	// batched form is the one that works, not merely the tidier one. The
+	// simulator does not reproduce this, because it reads both from a local env
+	// file and never talks to the Vault.
+	const secrets = runtime
+		.getSecrets(
+			[config.secretId, config.envelopeSecretId]
+				.filter((id): id is string => Boolean(id))
+				.map((id) => ({ id, namespace: config.secretNamespace })),
+		)
+		.result()
+	const salt = secrets[config.secretId].value
 
 	// Fetch the two agents' sealed submissions from the evidence gateway.
 	//
@@ -431,8 +455,7 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		if (!config.envelopeSecretId) {
 			throw new Error('evidence is sealed but no envelopeSecretId is configured')
 		}
-		const envelopeKey = runtime.getSecret({ id: config.envelopeSecretId }).result().value
-		raw = openEnvelope(body, envelopeKey)
+		raw = openEnvelope(body, secrets[config.envelopeSecretId].value)
 	} else {
 		if (config.envelopeSecretId) {
 			// Configured for sealed evidence and handed plaintext: refuse rather
