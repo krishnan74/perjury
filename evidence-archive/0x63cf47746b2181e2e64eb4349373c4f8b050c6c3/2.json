@@ -1,0 +1,96 @@
+{
+  "claimId": "2",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "indexedBlock": 25956358,
+        "chainHead": 25956358,
+        "queriedAt": 1789156180722,
+        "queryHash": "54653e21ed2a3949df04aca90aeb6e86e5356b16b4c3212f1e642707ebfda684",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "totalBorrowBalanceUSD / totalDepositBalanceUSD",
+        "comparator": "gt",
+        "value": 63.81,
+        "unit": "percent",
+        "asOfBlock": 25956358
+      },
+      "digest": "e4e091cffae3b3e0e0776b8f579798f84ed1d585d923957e429cd9dba292a055"
+    },
+    "methodology": "claimant: Aave v3 via messari-lending; Utilization ratio quantifies the proportion of deposits currently borrowed, indicating capital efficiency and systemic risk exposure.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "9899140221.153026210557575731284049",
+          "totalDepositBalanceUSD": "24803346943.89124095578651055396165"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
+        "block": {
+          "number": 25956358
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witness": {
+    "attestation": null,
+    "methodology": "witness: provenance check failed — field totalBorrowBalanceUSD / totalDepositBalanceUSD missing or non-numeric",
+    "evidence": null,
+    "unverifiableReason": "no-data"
+  },
+  "witnessAgent": {
+    "name": "panel-3.perjury.eth",
+    "address": "0xDcB350AC72184BBE9528Dd3123f0e270887B203f"
+  },
+  "claimText": "Aave v3 totalBorrowBalanceUSD / totalDepositBalanceUSD is above 63.81%.",
+  "claimHash": "0x8be4c4441cb1ab79c5dabec23d79ac4215b31bada390ea512e9171351bd221aa",
+  "panel": [
+    {
+      "member": "0xDcbe075a907960951Cd4df379BB21461097eEa91",
+      "name": "operator.perjury.eth",
+      "submission": {
+        "attestation": null,
+        "methodology": "witness: provenance check failed — field totalBorrowBalanceUSD / totalDepositBalanceUSD missing or non-numeric",
+        "evidence": null,
+        "unverifiableReason": "no-data"
+      }
+    },
+    {
+      "member": "0x51F8F34bFbf77384C1b1273FA5E6567C21bD0EEc",
+      "name": "witness-c.perjury.eth",
+      "submission": {
+        "attestation": null,
+        "methodology": "witness: provenance check failed — field totalBorrowBalanceUSD / totalDepositBalanceUSD missing or non-numeric",
+        "evidence": null,
+        "unverifiableReason": "no-data"
+      }
+    },
+    {
+      "member": "0x97A87d98B332916F1dF1D6BBaa430C09f64fCA1A",
+      "name": "panel-4.perjury.eth",
+      "submission": {
+        "attestation": null,
+        "methodology": "witness: provenance check failed — field totalBorrowBalanceUSD / totalDepositBalanceUSD missing or non-numeric",
+        "evidence": null,
+        "unverifiableReason": "no-data"
+      }
+    }
+  ],
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/c982ffbf3f7a20d2552a56044978a7a6",
+  "archivedAt": "2026-09-11T19:54:08.656Z"
+}

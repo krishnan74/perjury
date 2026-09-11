@@ -66,14 +66,28 @@ export function recompute(evidence: unknown, metric: string): number | null {
     return Number.isFinite(n) ? n : null;
   };
 
-  // A ratio metric is recomputed from its components, never taken on trust.
-  if (/utilization/i.test(metric)) {
+  /*
+   * A ratio metric is recomputed from its components, never taken on trust.
+   *
+   * Matched loosely on purpose. The metric name comes from an agent, which means
+   * a model wrote it, and a model asked for a utilisation ratio will sometimes
+   * answer "utilizationRatio" and sometimes "totalBorrowBalanceUSD /
+   * totalDepositBalanceUSD". Both name the same quantity. Matching only the word
+   * meant the second phrasing recomputed to nothing on BOTH sides, and a claim
+   * that was plainly false came back Unverifiable — the tribunal declining to
+   * judge because it did not recognise a synonym.
+   *
+   * Recognising the components as well as the name is not leniency. The
+   * recomputation is still from raw rows and still ignores whatever the agent
+   * claimed the answer was.
+   */
+  if (/utilization|utilisation/i.test(metric) || (/borrow/i.test(metric) && /deposit/i.test(metric))) {
     const borrowed = num("totalBorrowBalanceUSD");
     const deposited = num("totalDepositBalanceUSD");
     if (borrowed === null || deposited === null || deposited === 0) return null;
     return (borrowed / deposited) * 100;
   }
-  if (/turnover/i.test(metric)) {
+  if (/turnover/i.test(metric) || (/volume/i.test(metric) && /(tvl|valuelocked|value locked)/i.test(metric))) {
     const volume = num("cumulativeVolumeUSD");
     const tvl = num("totalValueLockedUSD");
     if (volume === null || tvl === null || tvl === 0) return null;

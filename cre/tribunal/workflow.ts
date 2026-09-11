@@ -210,13 +210,17 @@ const recompute = (evidence: unknown, metric: string): number | null => {
 		const n = Number(v)
 		return Number.isFinite(n) ? n : null
 	}
-	if (/utilization/i.test(metric)) {
+	// Matched loosely: the metric name is written by a model, which will say
+	// "utilizationRatio" one run and "totalBorrowBalanceUSD /
+	// totalDepositBalanceUSD" the next. Matching only the word made a plainly
+	// false claim come back Unverifiable, because neither side recomputed.
+	if (/utilization|utilisation/i.test(metric) || (/borrow/i.test(metric) && /deposit/i.test(metric))) {
 		const b = num('totalBorrowBalanceUSD')
 		const d = num('totalDepositBalanceUSD')
 		if (b === null || d === null || d === 0) return null
 		return (b / d) * 100
 	}
-	if (/turnover/i.test(metric)) {
+	if (/turnover/i.test(metric) || (/volume/i.test(metric) && /(tvl|valuelocked|value locked)/i.test(metric))) {
 		const v = num('cumulativeVolumeUSD')
 		const t = num('totalValueLockedUSD')
 		if (v === null || t === null || t === 0) return null
