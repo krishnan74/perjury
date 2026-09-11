@@ -1,0 +1,105 @@
+{
+  "claimId": "6",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
+        "indexedBlock": 25955297,
+        "chainHead": 25955297,
+        "queriedAt": 1789143404061,
+        "queryHash": "54653e21ed2a3949df04aca90aeb6e86e5356b16b4c3212f1e642707ebfda684",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "compound-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilization ratio",
+        "comparator": "gt",
+        "value": 30.86,
+        "unit": "percent",
+        "asOfBlock": 25955297
+      },
+      "digest": "67a0ad8cd4324794d23d3fcbec8676bb9ac94b40e711967071cba5cf8212ba87"
+    },
+    "methodology": "claimant: Compound III via messari-lending; Utilization ratio is calculated as total borrowed divided by total deposited (totalBorrowBalanceUSD / totalDepositBalanceUSD) to measure capital efficiency.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "584651114.9257604227098546188089962",
+          "totalDepositBalanceUSD": "1895120368.574821842717271075642708"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
+        "block": {
+          "number": 25955297
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witness": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
+        "indexedBlock": 25955297,
+        "chainHead": 25955305,
+        "queriedAt": 1789143495051,
+        "queryHash": "956a884c9cfb81507509eca5d2f7d28ed2c6eb8b91fc69d00d0cb7113ae08467",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "compound-v3-ethereum",
+        "chain": "ethereum",
+        "metric": "utilization ratio",
+        "comparator": "gt",
+        "value": 30.85,
+        "unit": "percent",
+        "asOfBlock": 25955297
+      },
+      "digest": "f52d338e10ecb82580b1709f37c2a0b9141567a3f3e7b106b9802f4c7e7589be"
+    },
+    "methodology": "witness: Compound III via messari-lending; Utilization ratio is calculated as (totalBorrowBalanceUSD / totalDepositBalanceUSD) × 100, requiring both total borrow and deposit balances. [1 independent deployment(s), pinned @ 25955297]",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "584651114.9257604227098546188089962",
+          "totalDepositBalanceUSD": "1895120368.574821842717271075642708"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmNrQoow7pjM3biRnnhzeCaDYhuEbDyjKCpFeNv2oGXnuK",
+        "block": {
+          "number": 25955297
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta(block: {number: 25955297}) { deployment block { number } hasIndexingErrors } lendingProtocols(block: {number: 25955297}) { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witnessAgent": {
+    "name": "panel-2.perjury.eth",
+    "address": "0xeEE49a2a6a8d352862C7283C0e31595780e67fb1"
+  },
+  "claimText": "Compound III utilization ratio is above 29.31%.",
+  "claimHash": "0x4cf7548b48b9eb9f1895f0a5be5c57fd294f11783e0a1a9ebefc73bb3611ca1a",
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/11193341c8750e6b65c9cd8505cfdefd",
+  "archivedAt": "2026-09-11T16:18:25.454Z"
+}
