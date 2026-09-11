@@ -20,7 +20,7 @@
 | T1 CRE tribunal | ● workflow + TEE handler, report delivered on-chain by the Forwarder. Executed via the simulator, which runs **locally, not in an enclave** — [execution log](docs/cre-execution-log.md) |
 | T2 Contracts | ● all deployed, wired, immutable. 60 Foundry tests |
 | T3 Randomness | ● live VRF v2.5 rounds assigning witnesses and seating appeal panels, repeatedly |
-| T4 ENSv2 | ● resolver deployed, per-key EAC, operator write revoked, standing written by the tribunal alone |
+| T4 ENSv2 | ● subregistry under `perjury.eth`, five agent-owned subnames, per-key EAC, operator write revoked, standing written by the tribunal alone and readable through the Universal Resolver |
 | T5 Graph | ● live Gateway + guard + MCP + LLM agents. 13 deployments, 2 schema families, 5 chains on one standardized query pattern; corroborated reads across independent deployments; claim and verification pinned to one block. 89 TS tests |
 | T6 Dashboard | ● five routes, read-only + replay, merged to `main`. Doubles as the pitch deck. Live triggering deliberately not built |
 | T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
@@ -41,6 +41,14 @@ The earlier hold — `VerdictSink.CRE_REPORT_WRITER` is immutable and the Forwar
 All three previous blockers cleared. The agents run on `claude -p` rather than a raw API key; the ENS team answered the EAC questions and the resolver is configured and locked; the Forwarder address is measured and stable across runs.
 
 CRE confidential-DON deploy access was requested and has not been granted. It is **not** a blocker — the Chainlink track explicitly accepts execution via the CLI simulator with evidence, and that is the shipping path.
+
+### ENS: the subnames are real now (Sep 11)
+
+They were not before. `perjury.eth` was registered, the Permissioned Resolver was deployed, the per-key access control was proven — but the parent had no subregistry and pointed at the deployment's default resolver, so `witness-a.perjury.eth` did not exist in ENS at all. Resolving it through the Universal Resolver reverted. Our own reader worked only because the resolver's address is compiled into it, which is knowing where to look rather than resolving.
+
+Nobody caught it because nothing tested the path a third party would use. The ENS explorer did, and was ignored as a broken link.
+
+Now: a subname registry attached to `perjury.eth`, the parent pointed at our resolver, and five names owned by their agents. All five resolve publicly and return standing, flag state and address binding. Two follow-ups came out of it — the `ethRegistry` address in the ENS config was wrong and nothing read it, and the first issuance granted the agents `SET_RESOLVER` on their own names, which `scripts/fix-agent-roles.ts` revoked.
 
 ### What changed on Sep 11
 
