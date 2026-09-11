@@ -8,9 +8,16 @@
  */
 import { createPublicClient, http, parseAbiItem, type AbiEvent, type Address, type Log } from "viem";
 import { sepolia } from "viem/chains";
+import { currentDeployment, type Deployment } from "./deployments";
 
 export const EXPLORER = "https://sepolia.etherscan.io";
 
+/**
+ * The live contracts, for the many call sites that only ever mean those.
+ *
+ * A page reading an archived claim passes a Deployment explicitly — see
+ * ./deployments.ts for why there is more than one set.
+ */
 export const REGISTRY = process.env.CLAIM_REGISTRY_ADDRESS as Address;
 export const ROSTER = process.env.WITNESS_ROSTER_ADDRESS as Address;
 export const SINK = process.env.VERDICT_SINK_ADDRESS as Address;
@@ -169,8 +176,11 @@ export interface ClaimEvent {
  * slower, and it means the page can only show what actually happened on chain —
  * which for a project about verifiable claims is the right constraint to accept.
  */
-export async function claimEvents(lookback = LOOKBACK): Promise<ClaimEvent[]> {
-  return collect([[REGISTRY, CLAIM_EVENTS]], lookback);
+export async function claimEvents(
+  lookback = LOOKBACK,
+  deployment: Deployment = currentDeployment(),
+): Promise<ClaimEvent[]> {
+  return collect([[deployment.registry, CLAIM_EVENTS]], lookback);
 }
 
 /**
@@ -181,11 +191,14 @@ export async function claimEvents(lookback = LOOKBACK): Promise<ClaimEvent[]> {
  * would push `WitnessRequested` into every claim's stage list on pages that only
  * ever meant to show the lifecycle.
  */
-export async function mechanismEvents(lookback = LOOKBACK): Promise<ClaimEvent[]> {
+export async function mechanismEvents(
+  lookback = LOOKBACK,
+  deployment: Deployment = currentDeployment(),
+): Promise<ClaimEvent[]> {
   return collect(
     [
-      [ROSTER, ROSTER_EVENTS],
-      [WRITER, WRITER_EVENTS],
+      [deployment.roster, ROSTER_EVENTS],
+      [deployment.writer, WRITER_EVENTS],
     ],
     lookback,
   );

@@ -1,4 +1,5 @@
-import { REGISTRY, REGISTRY_ABI, claimEvents, claimsIndex, mechanismEvents, pub } from "@/lib/perjury";
+import { REGISTRY_ABI, claimEvents, claimsIndex, mechanismEvents, pub } from "@/lib/perjury";
+import { deploymentById } from "@/lib/deployments";
 import { rosterSnapshot } from "@/lib/roster";
 import { buildScript } from "@/lib/replay";
 import { claimTextVerified, readArchive, readToleranceBps } from "@/lib/evidence";
@@ -9,13 +10,16 @@ export const revalidate = 30;
 export default async function ReplayPage({
   searchParams,
 }: {
-  searchParams: Promise<{ claim?: string }>;
+  searchParams: Promise<{ claim?: string; d?: string }>;
 }) {
-  const { claim: requested } = await searchParams;
+  const { claim: requested, d } = await searchParams;
+  // Claim ids restart at one with every cascade, so an id on its own does not
+  // identify a claim. `?d=` says which set of contracts to read it from.
+  const deployment = deploymentById(d);
   const [events, mechanism, roster] = await Promise.all([
-    claimEvents(),
-    mechanismEvents(),
-    rosterSnapshot(),
+    claimEvents(undefined, deployment),
+    mechanismEvents(undefined, deployment),
+    rosterSnapshot(deployment),
   ]);
   const rows = claimsIndex(events);
 
@@ -43,7 +47,7 @@ export default async function ReplayPage({
   // claimHash is storage, not an event field — ClaimSubmitted carries only the
   // subject and the bond — so it is read from the registry.
   const stored = await pub
-    .readContract({ address: REGISTRY, abi: REGISTRY_ABI, functionName: "claimOf", args: [BigInt(chosen.id)] })
+    .readContract({ address: deployment.registry, abi: REGISTRY_ABI, functionName: "claimOf", args: [BigInt(chosen.id)] })
     .catch(() => null);
   const claimTextOk =
     archive && stored ? claimTextVerified(archive, stored.claimHash) : null;

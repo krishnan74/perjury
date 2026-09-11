@@ -6,10 +6,9 @@
  * eligibility at assignment time. If an ENS record becomes unreadable, this page
  * reports the agent ineligible for the same reason the protocol would.
  */
-import { ROSTER, ROSTER_ABI, READER_ABI, pub } from "./perjury";
+import { ROSTER_ABI, READER_ABI, pub } from "./perjury";
+import { currentDeployment, type Deployment } from "./deployments";
 import type { Address } from "viem";
-
-const READER = process.env.STANDING_READER_ADDRESS as Address;
 
 export interface Agent {
   address: Address;
@@ -43,7 +42,11 @@ export function decodeDnsName(hex: string): string {
   return labels.join(".");
 }
 
-export async function rosterSnapshot(): Promise<Agent[]> {
+export async function rosterSnapshot(deployment: Deployment = currentDeployment()): Promise<Agent[]> {
+  // A roster belongs to its cascade. Reading the live roster while replaying an
+  // archived claim would show today's agents standing in for the ones the draw
+  // actually chose from, which is a quiet lie about how the draw went.
+  const { roster: ROSTER, reader: READER } = deployment;
   const count = await pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "agentCount" });
 
   const addresses = await Promise.all(
