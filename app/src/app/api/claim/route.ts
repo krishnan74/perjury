@@ -15,6 +15,7 @@ import { assignment, draft, finalize, loadRun, runWitness, submit, verdict } fro
 import { configuredAgents } from "@/lib/live/chain";
 import { isPinnedSubject } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
+import { acquireLock, passwordOk, releaseLock } from "@/lib/live/gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
     return bad(`this deployment cannot run a claim: missing ${capability.missing.join(", ")}`, 503);
   }
 
+  // Spending money needs the shared secret. Read-only routes do not.
+  if (!passwordOk(request.headers.get("x-perjury-password"))) {
+    return bad("wrong or missing password", 401);
+  }
+
   const body = (await request.json().catch(() => null)) as
     | { step?: string; runId?: string; subject?: string; claimant?: string }
     | null;
@@ -47,7 +53,14 @@ export async function POST(request: Request) {
         if (!body.claimant || !configuredAgents().includes(body.claimant)) {
           return bad(`unknown or unconfigured agent: ${body.claimant}`);
         }
-        return NextResponse.json(await draft(body.subject, body.claimant));
+        // Taken before any work, so a second visitor is refused rather than
+        // told to wait after the model call has already been paid for.
+        if (!(await acquireLock("pending"))) {
+          return bad("a claim is already running — one at a time, so the bonds do not collide", 409);
+        }
+        const state = await draft(body.subject, body.claimant);
+        await acquireLock(state.runId);
+        return NextResponse.json(state);
       }
       case "submit":
       case "assignment":
@@ -56,7 +69,11 @@ export async function POST(request: Request) {
       case "finalize": {
         if (!body.runId) return bad("runId is required");
         const fn = { submit, assignment, witness: runWitness, verdict, finalize }[body.step];
-        return NextResponse.json(await fn(body.runId));
+        const next = await fn(body.runId);
+        // The claim is done with the wallets once it settles, so the next
+        // visitor should not wait out the lock's expiry.
+        if (next.phase === "settled") await releaseLock();
+        return NextResponse.json(next);
       }
       default:
         return bad(`unknown step: ${body.step}`);

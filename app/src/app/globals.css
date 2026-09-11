@@ -2393,3 +2393,13 @@ body::after {
 }
 
 .submit-step-body a { overflow-wrap: anywhere; }
+
+.submit-field input {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper, #fff);
+  color: inherit;
+}

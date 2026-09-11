@@ -22,6 +22,7 @@ import { keccak256, toBytes, toHex } from "viem";
 import { draftClaim } from "@perjury/claimant";
 import { witness as deriveWitness } from "@perjury/witness";
 import { publishBundle, type EvidenceBundle } from "@perjury/gateway";
+import { archiveKey } from "../evidence";
 import { recordGatewayUrl } from "../gateway-index";
 import { getJson, setJson } from "./store";
 import { REGISTRY, STATUS, SUBMIT_VALUE, VERDICT, WRITE_ABI, pub, walletFor } from "./chain";
@@ -198,6 +199,30 @@ export async function runWitness(runId: string): Promise<RunState> {
 
   const url = await publishBundle(bundle, process.env.PERJURY_ENVELOPE_PUBKEY);
   await recordGatewayUrl(state.claimId, url);
+
+  /*
+   * Archive the bundle in the clear, exactly as the runner does after a scene.
+   *
+   * This is the same deliberate disclosure recorded in ADR 0009 and it is a
+   * demo affordance, not a protocol step: the replay cannot show what either
+   * agent asked, got and concluded unless something keeps a readable copy.
+   * Confidentiality is a property of the adjudication window — it stops node
+   * operators reading evidence in flight and stops a claimant tailoring to a
+   * witness's method before the verdict lands — and the window is closed by the
+   * time anyone replays this.
+   *
+   * Best effort. Losing the archive costs a thinner replay; failing the claim
+   * over it would cost the claim.
+   */
+  try {
+    await setJson(archiveKey(state.claimId, REGISTRY), {
+      ...bundle,
+      gatewayUrl: url,
+      archivedAt: new Date().toISOString(),
+    });
+  } catch {
+    // The claim is already sealed and published. This is the optional part.
+  }
 
   state.witnessValue = finding.attestation?.assertion.value ?? null;
   state.gatewayUrl = url;

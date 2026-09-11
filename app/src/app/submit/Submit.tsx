@@ -44,13 +44,23 @@ const BEATS = [
 const EXPLORER = "https://sepolia.etherscan.io/tx";
 const phaseIndex = (p: string) => BEATS.findIndex((b) => b.phase === p);
 
-export default function Submit({ subjects, agents }: { subjects: SubjectOption[]; agents: string[] }) {
+export default function Submit({
+  subjects,
+  agents,
+  gated,
+}: {
+  subjects: SubjectOption[];
+  agents: string[];
+  /** Whether this deployment requires the shared password to spend anything. */
+  gated: boolean;
+}) {
   const [subject, setSubject] = useState(subjects[0]?.subject ?? "aave-v3-ethereum");
   const [claimant, setClaimant] = useState(agents[0] ?? "operator");
   const [run, setRun] = useState<RunState | null>(null);
   const [busy, setBusy] = useState(false);
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const cancelled = useRef(false);
 
@@ -66,13 +76,13 @@ export default function Submit({ subjects, agents }: { subjects: SubjectOption[]
   const call = useCallback(async (body: Record<string, unknown>): Promise<RunState> => {
     const res = await fetch("/api/claim", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-perjury-password": password },
       body: JSON.stringify(body),
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? `step failed (${res.status})`);
     return json as RunState;
-  }, []);
+  }, [password]);
 
   /** Poll a step that is waiting on the chain rather than doing work. */
   const pollUntil = useCallback(
@@ -151,7 +161,21 @@ export default function Submit({ subjects, agents }: { subjects: SubjectOption[]
           </select>
         </label>
 
-        <button type="button" className="submit-go" onClick={start} disabled={busy}>
+        {gated && (
+          <label className="submit-field">
+            <span className="submit-label">Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={busy}
+              autoComplete="off"
+              placeholder="shared with judges"
+            />
+          </label>
+        )}
+
+        <button type="button" className="submit-go" onClick={start} disabled={busy || (gated && !password)}>
           {busy ? `Running · ${mmss}` : "Submit a claim"}
         </button>
       </div>
@@ -160,6 +184,9 @@ export default function Submit({ subjects, agents }: { subjects: SubjectOption[]
         <p className="submit-hint">
           This posts a real claim to Sepolia with a real bond, draws a real checker through Chainlink VRF, and
           settles for real. It takes about four minutes, most of it waiting. Nothing below is pre-recorded.
+          {gated
+            ? " A password is required because each run spends ETH from a funded wallet."
+            : " This deployment has no password set, so anyone can spend its wallets."}
         </p>
       )}
 
