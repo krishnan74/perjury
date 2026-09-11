@@ -625,17 +625,43 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		})
 		.result()
 
-	// Deliver the signed report on-chain. The receiving contract sees a specific
-	// msg.sender, and the sink's authorised writers are immutable — so those
-	// addresses are read from the tenant's own chain list, never guessed.
-	evmClient
+	/*
+	 * Deliver the signed report on-chain.
+	 *
+	 * `receiver` is a proto `bytes` field, so its JSON form is base64 — not the
+	 * hex string it reads as. Passing hex worked in the simulator, which
+	 * broadcasts through the mock forwarder itself and parses the address its own
+	 * way, and produced nothing at all on the DON.
+	 *
+	 * The report is passed exactly as `.report()` returned it. Rebuilding it,
+	 * cloning it, or unwrapping and re-wrapping it can serialise the report field
+	 * empty, and an empty report is skipped by the write target with a success
+	 * that never touches a chain.
+	 */
+	const written = evmClient
 		.writeReport(donRuntime, {
-			receiver: config.verdictSinkAddress,
+			receiver: hexToBase64(config.verdictSinkAddress as `0x${string}`),
 			report,
 		})
 		.result()
 
-	return `claim=${claimId} kind=${reportKind} verdict=${verdict} confidence=${confidence}`
+	/*
+	 * Check what came back, rather than assuming.
+	 *
+	 * The capability call is dispatched eagerly and `.result()` is what retrieves
+	 * the outcome — so code that ignores the reply reports a clean execution
+	 * whatever happened on chain. TX_STATUS_SUCCESS is 2; 1 is reverted and 0 is
+	 * fatal. This is the check whose absence let "every step succeeded and no
+	 * transaction exists" look like a platform problem for a day.
+	 */
+	if (written.txStatus !== 2) {
+		throw new Error(
+			`claim ${claimId}: writeReport returned txStatus ${written.txStatus} (2 is success)`,
+		)
+	}
+
+	const txHash = written.txHash ? bytesToHex(written.txHash) : 'none'
+	return `claim=${claimId} kind=${reportKind} verdict=${verdict} confidence=${confidence} tx=${txHash}`
 }
 
 // ─── Workflow init ──────────────────────────────────────────
