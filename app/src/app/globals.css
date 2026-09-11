@@ -2403,3 +2403,40 @@ body::after {
   background: var(--paper, #fff);
   color: inherit;
 }
+
+.submit-unavailable-note {
+  margin: 0 0 1.5rem;
+  max-width: 62ch;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  padding: 0.9rem 1.1rem;
+  border-left: 3px solid var(--rule);
+  background: var(--paper-2, #fbfaf7);
+}
+
+/* Which set of contracts a page is reading. Present because claim ids restart
+   with every cascade, so the number alone is ambiguous and a feed that showed
+   only the newest contracts would quietly hide everything that came before. */
+.deployment-switch {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.6rem;
+}
+
+.deployment-switch a {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.deployment-switch a[aria-current="page"] {
+  opacity: 1;
+  border-color: currentColor;
+  font-weight: 600;
+}

@@ -47,27 +47,35 @@ export default async function SubmitPage() {
         tribunal alone.
       </p>
 
-      {!capability.ok ? (
-        <div className="submit-unavailable">
-          <p>
-            <strong>This deployment cannot post a claim.</strong> Submitting one runs the agents against
-            live data and spends a bond from a funded wallet, which needs {capability.missing.join(", ")}.
-          </p>
-          <p>
-            Everything else on this site is live against the same contracts, and{" "}
-            <a href="/replay?d=sim&claim=25">the replay</a> plays a settled claim back from its own
-            transactions. To post one yourself, clone the repository and run{" "}
-            <code>npm run dev</code> with the environment described in the README.
-          </p>
-        </div>
-      ) : agents.length === 0 ? (
+      {/*
+        The form is public; the password gates the action, not the page.
+        A judge who is only reading should be able to see that live submission
+        exists and what it would do, and nobody should be able to spend a bond
+        without the shared secret.
+
+        What is deliberately NOT here is which credential a deployment is
+        missing. The API keeps that behind the password too — telling a stranger
+        exactly what is unconfigured is a small leak and a free one to close, and
+        saying it on one side while hiding it on the other would be worse than
+        doing neither.
+      */}
+      {!capability.ok && (
+        <p className="submit-unavailable-note">
+          Live submission is not currently available on this deployment. Everything else here is live
+          against the same contracts, and <a href="/replay?d=sim&claim=25">the replay</a> plays a settled
+          claim back from its own transactions.
+        </p>
+      )}
+
+      {agents.length === 0 ? (
         <p className="submit-error">
-          No eligible agents. Every agent is either flagged or under-staked, so the protocol would refuse any
-          claim posted right now — which is the mechanism working, not an outage.
+          No agent is currently able to post. An agent has to be eligible on chain and able to cover its
+          bond, and right now none is both — which is the mechanism working, not an outage.
         </p>
       ) : (
         <Submit subjects={subjects} agents={agents} gated={gateEnabled()} />
       )}
+
     </main>
   );
 }

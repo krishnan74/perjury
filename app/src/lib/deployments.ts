@@ -29,6 +29,15 @@ export interface Deployment {
   writer: Address;
   reader: Address;
   sink: Address;
+  /**
+   * The block its first claim landed in.
+   *
+   * Pages used to read a rolling window of recent blocks, which is fine while a
+   * deployment is days old and wrong the moment it is not: the archived cascade
+   * showed two of its twenty-five claims, and the other twenty-three looked like
+   * they had never happened. A deployment has a beginning, so read from it.
+   */
+  fromBlock: bigint;
   /** True for the contracts a new claim would be submitted to. */
   current: boolean;
 }
@@ -50,6 +59,7 @@ const CURRENT: Deployment = {
   writer: env("STANDING_WRITER_ADDRESS")!,
   reader: env("STANDING_READER_ADDRESS")!,
   sink: env("VERDICT_SINK_ADDRESS")!,
+  fromBlock: BigInt(process.env.CLAIM_REGISTRY_FROM_BLOCK ?? 11679414),
   current: true,
 };
 
@@ -70,6 +80,7 @@ const ARCHIVED: Deployment = {
   writer: "0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD",
   reader: "0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55",
   sink: "0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3",
+  fromBlock: 11667347n,
   current: false,
 };
 

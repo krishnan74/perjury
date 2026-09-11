@@ -180,7 +180,7 @@ export async function claimEvents(
   lookback = LOOKBACK,
   deployment: Deployment = currentDeployment(),
 ): Promise<ClaimEvent[]> {
-  return collect([[deployment.registry, CLAIM_EVENTS]], lookback);
+  return collect([[deployment.registry, CLAIM_EVENTS]], lookback, deployment.fromBlock);
 }
 
 /**
@@ -201,6 +201,7 @@ export async function mechanismEvents(
       [deployment.writer, WRITER_EVENTS],
     ],
     lookback,
+    deployment.fromBlock,
   );
 }
 
@@ -208,9 +209,19 @@ export async function mechanismEvents(
 async function collect(
   sources: readonly (readonly [Address, readonly AbiEvent[]])[],
   lookback: bigint,
+  /**
+   * Where this deployment began.
+   *
+   * Without it the window is the last few hours, which is fine while a
+   * deployment is new and wrong the moment it is not — the archived cascade
+   * showed two of its twenty-five claims and the rest looked like they had never
+   * happened. A deployment has a first block, so start there.
+   */
+  since?: bigint,
 ): Promise<ClaimEvent[]> {
   const head = await pub.getBlockNumber();
-  const fromBlock = head > lookback ? head - lookback : 0n;
+  const rolling = head > lookback ? head - lookback : 0n;
+  const fromBlock = since !== undefined ? since : rolling;
 
   // Spans wider than the provider's cap fail whole, not partially, so the window
   // is split before it is asked for rather than after it errors.
@@ -225,7 +236,16 @@ async function collect(
       events.flatMap((event) =>
         spans.map(
           ([from, to]): Promise<Log[]> =>
-            pub.getLogs({ address, event, fromBlock: from, toBlock: to }).catch(() => []),
+            /*
+             * A failed chunk used to become an empty one.
+             *
+             * Silently, and the page then rendered a claim as though the events
+             * in that range had not happened — which produced an intermittent
+             * 404 on a claim that certainly existed. A read that did not happen
+             * is not the same as a read that found nothing, so it throws and the
+             * page fails visibly instead of lying quietly.
+             */
+            pub.getLogs({ address, event, fromBlock: from, toBlock: to }),
         ),
       ),
     ),
