@@ -12,7 +12,7 @@
 import { keccak256, toBytes } from "viem";
 import * as p from "./lib/present";
 import {
-  AGENTS, APPEAL_BOND, BOND, REGISTRY, REGISTRY_ABI, ROSTER, ROSTER_ABI, account, addressOf,
+  AGENTS, APPEAL_BOND, BOND, REGISTRY, REGISTRY_ABI, ROSTER, ROSTER_ABI, VERDICT, account, addressOf,
   awaitWitness, claim, claimantFor, draftEvidence, op, preflight, pub, rosterSnapshot, runTribunal,
   panelEvidence, standingOf,
   walletFor, witnessEvidence,
@@ -110,11 +110,35 @@ p.line("still allowed to judge?", eligible ? "yes" : "no", eligible ? p.c.green 
 p.step("The roster now excludes it");
 p.agentTable(await rosterSnapshot());
 
-p.finale([
-  `${p.c.red}The claim was false, and appealing made it worse.${p.c.reset}`,
-  `${p.c.grey}The forfeited ETH is payable to nobody — not the witness, not us.${p.c.reset}`,
-  `${p.c.grey}Paying it to the witness is what would make fabricating disagreement profitable.${p.c.reset}`,
-]);
+/*
+ * Describe what happened, not what the scene was written to show.
+ *
+ * This printed "the claim was false, and appealing made it worse" whatever the
+ * verdict turned out to be — including a run that settled Unverifiable, where
+ * the bond came back and standing was untouched. A demo that narrates an
+ * outcome it did not check is doing the exact thing this protocol exists to
+ * catch, and it would have been read out over a recording.
+ *
+ * Unverifiable is not a pass and not a conviction. It is the tribunal declining
+ * to judge, which is a real outcome worth naming honestly when it happens.
+ */
+const settled = await claim(claimId);
+const outcome = VERDICT[Number(settled.verdict)];
+
+p.finale(
+  outcome === "Mismatch"
+    ? [
+        `${p.c.red}The claim was false, and appealing made it worse.${p.c.reset}`,
+        `${p.c.grey}The forfeited ETH is payable to nobody — not the witness, not us.${p.c.reset}`,
+        `${p.c.grey}Paying it to the witness is what would make fabricating disagreement profitable.${p.c.reset}`,
+      ]
+    : [
+        `${p.c.yellow}The tribunal returned ${outcome}, not Mismatch.${p.c.reset}`,
+        `${p.c.grey}Unverifiable is not a pass: the bond returns and standing is untouched,${p.c.reset}`,
+        `${p.c.grey}because the tribunal could not compare the two readings rather than${p.c.reset}`,
+        `${p.c.grey}because the claim held up. Worth investigating before recording this.${p.c.reset}`,
+      ],
+);
 
 /** Derived values carry full float precision; two decimals is what a viewer can read. */
 function round2(v: string | undefined): string {
