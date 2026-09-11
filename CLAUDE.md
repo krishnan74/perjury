@@ -69,10 +69,11 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 | `ENSTextStandingReader` | `0xB5A08B0885e221B1fb48EDF0E011c32f614176f5` |
 | `VerdictSink` | `0x572e7b912031267c4163d8F3c785e03b88AEb5b2` (accepts **both** Forwarders) |
 | `PerjuryResolver` | `0xcBd795d211Dd40dB392730034B5e68359c9E8534` — EAC configured per-key, operator write revoked |
+| `perjury.eth` subregistry | `0x087f2A255b8C989a7A739F40e85123BDf3d49eFb` — issues the agent subnames |
 | CRE Forwarder (DON) | `0xF8344CFd5c43616a4366C34E3EEE75af79a74482` |
 | CRE Forwarder (simulator) | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` |
 | VRF subscription | owner = operator, roster registered as consumer |
-| Agents | 5 subnames of `perjury.eth`, all registered and staked |
+| Agents | 5 real subnames of `perjury.eth`, owned by the agents, all registered and staked |
 
 **Challenge window is 90s, not 30s.** At 30s the appeal in scene 2 raced the window and intermittently reverted `WindowClosed` — the gap between the verdict landing and the appeal being mined is one confirmation. It is a constructor parameter, so changing it means a redeploy.
 
@@ -91,7 +92,9 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 - **Tolerances are seconds, not blocks.** 50 blocks is 10 minutes on Ethereum and 12 seconds on Arbitrum; a healthy Arbitrum deployment 149 blocks behind was failing hard. Freshness and tribunal skew are both expressed in seconds and converted per chain, so every assertion carries its `chain`.
 - **A TEE reveals the workflow binary.** Only *data* is confidential (Vault DON secrets, Confidential HTTP payloads, intermediates). `docs/design.md` §3.4 says what is actually true; do not re-inflate the claim.
 - **ENSv2 reads go through ENSIP-10 `resolve(bytes dnsName, bytes data)`.** `text(bytes32,string)` and `text(bytes,string)` both REVERT on a factory-deployed Permissioned Resolver. Writes use `setText(bytes dnsName, ...)`. Two contracts shipped a direct `text()` call and reverted on-chain while unit tests passed; the mock now reverts on `text()` to match production.
-- **Root-resource EAC grants use `grantRootRoles` / `revokeRootRoles` / `hasRootRoles`.** `grantRoles(resource, ...)` reverts for the root resource.
+- **Root-resource EAC grants use `grantRootRoles` / `revokeRootRoles` / `hasRootRoles`.** `grantRoles(resource, ...)` reverts for the root resource. A root grant also satisfies `hasRoles` on every child resource, so revoking a resource-scoped grant does not change what a root holder can do.
+- **A resolver holding records about a name says nothing about whether that name exists.** Until Sep 11 the agent subnames were text-record keys in our own resolver and nothing more: `perjury.eth` had no subregistry and pointed at the deployment's default resolver, so resolving `witness-a.perjury.eth` through the Universal Resolver reverted. Our reader worked only because the resolver address is compiled into it. **Verify ENS work through `universalResolver.resolve()`, never through your own reader.** `npx tsx scripts/deploy-subregistry.ts` (simulates unless `--write`).
+- **Issue agent subnames with `AGENT_SUBNAME_ROLES` (RENEW only).** Granting more hands the agent `SET_RESOLVER` on its own name, which lets it repoint at a resolver it controls and write its own standing — `FORBIDDEN_AGENT_REGISTRY_ROLES` names the four. `scripts/fix-agent-roles.ts` checks and repairs.
 - **Resolver deployment:** `VerifiableFactory.deployProxy(impl, salt, initData)` where initData is `initialize((address,uint256)[] grants, bytes[] calls)`. Grants land on ROOT_RESOURCE. Break the resolver/writer circularity by granting the operator `SET_TEXT | SET_TEXT_ADMIN` at deployment, then granting the writer and revoking the operator's own write.
 - **Subgraph MCP parameters are snake_case** (`ipfs_hash`), not camelCase.
 - **`cre.handlerInTee(trigger, fn, [{tee:'nitro', regions:['us-west-2']}])`**, handler is synchronous. `btoa` does not exist in the WASM runtime — use `hexToBase64(toHex(...))`.

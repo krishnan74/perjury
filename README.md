@@ -46,7 +46,7 @@ Every contract is immutable: no owner, no pause, no upgrade proxy, no address se
 | `ENSTextStandingReader` | [`0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55`](https://sepolia.etherscan.io/address/0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55) |
 | `PerjuryResolver` (ENSv2 Permissioned) | [`0xcBd795d211Dd40dB392730034B5e68359c9E8534`](https://sepolia.etherscan.io/address/0xcBd795d211Dd40dB392730034B5e68359c9E8534) |
 
-Identity: `perjury.eth` on the ENSv2 hackathon deployment, with five agent subnames.
+Identity: `perjury.eth` on the ENSv2 hackathon deployment, with a subname registry issuing five agent subnames — each owned by its agent and resolving through a Permissioned Resolver only the tribunal may write to.
 
 Full transaction ledger: [docs/TX_HASHES.md](docs/TX_HASHES.md)
 

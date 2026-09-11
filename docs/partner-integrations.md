@@ -15,7 +15,11 @@ Technical reference. What each protocol we use is doing, how it is wired, and wh
 
 ## 1. Chainlink CRE
 
-`cre/tribunal/workflow.ts` · sink `0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3` · report writer `0x15fC6ae953E024d975e77382eEeC56A9101f9F88`
+`cre/tribunal/workflow.ts` · sink `0x572e7b912031267c4163d8F3c785e03b88AEb5b2` · Forwarders `0xF8344CFd…4482` (DON) and `0x15fC6ae9…9F88` (simulator), both accepted
+
+**Deployed to the DON, and executing.** Workflow `perjury-tribunal-production`, ID `00a2b49cb8ea5d506cf279fc6feb6b091cab9375efb6b73b88e34db059a81036`, private registry, DON family `zone-a`. Executions run on schedule and succeed: registry read, Confidential HTTP fetch, Vault secrets, adjudication, consensus, `WriteReport`.
+
+**One caveat, stated rather than buried.** `WriteReport` reports success and no transaction reaches Sepolia — not a revert, no transaction at all, confirmed against a probe contract that accepts any sender and any payload and was never called. Every verdict currently settled on chain came through `cre workflow simulate --broadcast`, which writes to the same contracts without trouble. So adjudication runs in a real enclave on the DON; on-chain delivery from that deployment does not yet work, and the question is with the Chainlink team.
 
 ### Capabilities used
 
@@ -32,9 +36,24 @@ cre.handlerInTee(
 | `CronCapability` | Trigger |
 | `HTTPClient` | Confidential HTTP fetch of the sealed evidence bundle |
 | `runtime.getSecret` | Vault DON releases the commitment salt and the evidence private key into the attested enclave |
-| `EVMClient` | `writeReport` back to Sepolia after `usingTheDons()` |
+| `EVMClient` | `callContract` to find the pending claim, and `writeReport` back to Sepolia |
 
-`runtime.usingTheDons()` is the confidentiality boundary. Anything passed to a capability on that runtime executes on Workflow DON nodes. What crosses: verdict, confidence bucket, commitment hash. What never crosses: evidence, methodology, either derived value.
+`runtime.usingTheDons()` is the confidentiality boundary. Anything passed to a capability on that runtime executes on Workflow DON nodes. What crosses: the registry read that finds the claim, then the verdict, confidence bucket and commitment hash. What never crosses: evidence, methodology, either derived value.
+
+The registry read crosses deliberately. `callContract` takes a `Runtime` and `TeeRuntime` is not one, and a claim id and status are public values on a public chain, so a node operator watching that request learns only what anyone reading the registry already knows.
+
+### Finding its own work
+
+A deployed workflow carries the config it was built with, so a claim id in that config pins it to one claim forever. `ClaimRegistry.pendingForTribunal()` returns the oldest claim awaiting a verdict and which kind of report it needs, and the evidence URL is a configured base plus that id. One deployment serves every claim there will ever be, including one submitted a minute ago.
+
+Taking the report kind from chain also closed a hazard rather than only enabling a feature: it had been configured as `panel`, and pointing that workflow at a claim nobody appealed would have judged it by the wrong rule and reached a confident wrong verdict.
+
+### Two things the simulator cannot catch
+
+Both cost hours and neither reproduces locally, because the simulator reads secrets from an env file and never contacts the Vault DON.
+
+1. `cre secrets create` files secrets under namespace `main`; `getSecret({ id })` defaults to `default`. The mismatch surfaces as `relay quorum unreachable: 3 signed responses … need 4`, which reads like a DON outage rather than a name that was never going to resolve.
+2. Two separate `getSecret` calls in one execution failed consistently on the second while the first succeeded, with the same quorum error. Batching both into one `getSecrets` call works.
 
 ### Vault DON secrets
 
@@ -85,11 +104,14 @@ encodeAbiParameters(
 
 ```solidity
 address public immutable CRE_REPORT_WRITER;   // no owner, no setter, no pause
+address public immutable ALT_REPORT_WRITER;   // the tenant's other Forwarder
 function onReport(bytes calldata, bytes calldata report) external {
-    if (msg.sender != CRE_REPORT_WRITER) revert NotTribunal();
+    if (msg.sender != CRE_REPORT_WRITER && msg.sender != ALT_REPORT_WRITER) revert NotTribunal();
 ```
 
-Immutable, so the address was **measured, not guessed**: a throwaway `ScratchSink` was deployed first to record `msg.sender` on a real broadcast. It is a Forwarder contract (4,579 bytes), not the workflow owner EOA. Guessing the owner would have made the sink reject every verdict permanently.
+Both **measured, not guessed** — read from `cre workflow supported-chains` for this tenant, after a throwaway `ScratchSink` first established that reports arrive from a Forwarder contract rather than the workflow owner's EOA.
+
+Two doors because both addresses are immutable and `ClaimRegistry.verdictSink` locks on its first wiring call. Chainlink runs one Forwarder for DON execution and one for the simulator, so committing to either means betting every future verdict on that execution path continuing to work. Both are Chainlink-operated and scoped to the organisation, so this is the same party arriving by a different door rather than a wider trust assumption. Passing zero for the second collapses back to one.
 
 ### Where it is load-bearing
 
@@ -167,9 +189,35 @@ No witness parameter. Not a discouraged path — an absent one, checkable from t
 
 ## 3. ENS v2
 
-Resolver `0xcBd795d211Dd40dB392730034B5e68359c9E8534` (Permissioned, via `VerifiableFactory`) · writer `0x211C7ff47436D43f90f0d8D90e02bf76a6F70BAD` · reader `0x366D0415347b3F996DbDC8549EdFf6f3Ee616C55` · root `perjury.eth`
+Root `perjury.eth` · subregistry `0x087f2A255b8C989a7A739F40e85123BDf3d49eFb` · resolver `0xcBd795d211Dd40dB392730034B5e68359c9E8534` (Permissioned, via `VerifiableFactory`) · writer `0x510035cCb2A7142fD127a52d950124d6B2a0BeE2` · reader `0xB5A08B0885e221B1fb48EDF0E011c32f614176f5`
 
 Built against the **hackathon deployment only**. `universalResolver` must be overridden (`withHackathonResolver()`); viem/ethers ship a different built-in address and every ENS result silently targets the wrong deployment otherwise.
+
+### The hierarchy, and the mistake it corrected
+
+Each agent holds a real subname of `perjury.eth`, issued from a subname registry deployed through the same factory as the resolver:
+
+```ts
+VerifiableFactory.deployProxy(userRegistryImpl, salt, initialize([{ account, roleBitmap }]))
+ETHRegistry.setSubregistry(keccak256("perjury"), subregistry)
+ETHRegistry.setResolver(keccak256("perjury"), resolver)      // parent points at ours, not the default
+subregistry.register(label, agentAddress, 0x0, resolver, roles, expires)
+```
+
+Each name is owned by **its agent**, not by us. Standing is written by the tribunal through the resolver's per-key roles, so the name's owner cannot touch it — which is only true if the owner is not the operator either.
+
+This was added on Sep 11 because it was missing, and its absence had gone unnoticed. `perjury.eth` was registered, the resolver was deployed, the records were written and read — but the parent had no subregistry and pointed at the deployment's *default* resolver, so `witness-a.perjury.eth` did not exist in ENS at all. Resolving it through the Universal Resolver reverted. Our own reader worked because it has the resolver's address compiled into it and calls it directly, which is knowing where to look rather than resolving. The ENS explorer said the name did not exist and was correct.
+
+Two lessons worth more than the fix. A resolver holding records about a name says nothing about whether that name exists. And a component that reads its own dependency by hardcoded address will never notice that the rest of the world cannot reach it.
+
+**Verify (this is the check that would have caught it):**
+
+```bash
+# through the Universal Resolver — what a third party would do
+resolve(dnsEncode("witness-a.perjury.eth"), text(namehash, "com.perjury.agent-standing"))
+```
+
+All five agents return their standing, flag state and address binding. Before the subregistry existed the same call reverted.
 
 ### Records
 
@@ -214,7 +262,9 @@ The `readable` flag separates "no record" from "could not read". `isEligible` re
 
 ### Where it is load-bearing
 
-Reputation outside protocol storage is portable, publicly readable, and survives redeployment — the contracts were redeployed three times during the build and standing went `3 → 4`, not `0 → 1`.
+Reputation outside protocol storage is portable, publicly readable, and survives redeployment. The contracts were redeployed four times during the build, most recently a full cascade on Sep 11, and standing continued from where it was rather than resetting — `operator.perjury.eth` was on 9 before that cascade and went to 10 on the first claim after it.
+
+Publicly readable is the part that only became true on Sep 11. Before the subregistry, the records were readable by anything holding the resolver's address and by nothing else.
 
 **Verify:** `npx tsx scripts/prove-eac.ts` — three transactions, two must revert:
 
@@ -306,11 +356,12 @@ Both agents were handed **identical rows** and their conclusions differ by **24.
 
 ## Known gaps
 
-- **CRE:** runs via the simulator, not a confidential DON. The enclave receives `claimText`, `claimHash` and `witnessAgent` in the bundle and does not yet verify them against chain — an `EVMClient` read of `claimOf(claimId).claimHash` would close it.
+- **CRE:** deployed to the DON and executing, but `WriteReport` produces no transaction, so every settled verdict came through the simulator. The enclave also receives `claimText`, `claimHash` and `witnessAgent` in the bundle and does not verify them against chain — now that it already reads the registry each tick, an `EVMClient` read of `claimOf(claimId).claimHash` would close that.
 - **VRF:** roster is five agents. The 1-in-n collusion argument is far stronger at scale.
-- **ENS:** ENSIP-25 / -26 records not implemented. `revokeSetterRoles` has no inverse.
+- **ENS:** ENSIP-25 / -26 records not implemented. `revokeSetterRoles` has no inverse. Subnames expire in a year and nothing renews them.
 - **The Graph:** 12 of 13 subjects single-source.
 - **Mechanism:** one witness decides an outcome. K-of-N corroboration is the known hole and is not built.
+- **Live submission:** `/submit` runs the agents as real processes, so it needs a host with a long-lived process and the repository on disk. It is disabled on the serverless deployment, which says so rather than failing.
 
 ## Commands
 
@@ -321,7 +372,10 @@ npx tsx scripts/prove-corroboration.ts  # Graph: indexers disagree → Unverifia
 npx tsx scripts/prove-name-binding.ts   # ENS: refuses a name you were not issued
 npx tsx scripts/verify-pinned.ts        # Graph: all 13 pinned deployments, live
 npx tsx scripts/archive-evidence.ts     # CRE: recover evidence via the commitment
+npx tsx scripts/deploy-subregistry.ts   # ENS: subnames of perjury.eth (simulates unless --write)
 
 cd cre && cre workflow simulate tribunal --target staging-settings --broadcast
+cd cre && cre workflow deploy tribunal -T production-settings -e .env   # to the DON
+cre execution list perjury-tribunal-production -T production-settings -e .env
 npx tsx agents/runner/scene2.ts panel-2   # full path on chain, ~7 min
 ```

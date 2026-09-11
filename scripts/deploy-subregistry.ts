@@ -30,7 +30,7 @@ import { createPublicClient, createWalletClient, encodeAbiParameters, encodeFunc
 import { privateKeyToAccount } from "viem/accounts";
 import { namehash } from "viem/ens";
 import { sepolia } from "viem/chains";
-import { ENS_HACKATHON_SEPOLIA as D, dnsEncode } from "@perjury/ens";
+import { AGENT_SUBNAME_ROLES, ENS_HACKATHON_SEPOLIA as D, dnsEncode } from "@perjury/ens";
 
 const write = process.argv.includes("--write");
 
@@ -60,15 +60,32 @@ const AGENTS = [
 ] as const;
 
 /**
- * Every role, so the operator can still fix this afterwards.
+ * Every role, granted to the operator on the registry itself.
  *
  * The docs are explicit that granting a role later needs its _ADMIN variant, so
  * a bitmap that looks tidy now is how you discover in an hour that you cannot
- * add a registrar. This is a hackathon namespace whose only members are five
- * agents we issued ourselves; the interesting access control in this project is
- * on the resolver, where the tribunal writes.
+ * add a registrar.
+ *
+ * This is a ROOT grant on the registry we deployed, and it stays: whoever owns a
+ * namespace can repoint its resolvers, and pretending otherwise would be a
+ * fiction. What it is NOT is the bitmap an agent gets on its own name.
  */
 const ALL_ROLES = 0x1111111111111111111111111111111111111111111111111111111111111111n;
+
+/**
+ * What an agent gets on its own subname: RENEW, and nothing else.
+ *
+ * The first version of this script granted ALL_ROLES here too, which handed
+ * every agent SET_RESOLVER on its own name — the registry-level bypass
+ * design.md §4 calls out as the non-obvious one. An agent holding it repoints
+ * its name at a resolver it controls and writes whatever standing it likes, and
+ * every per-key grant on our resolver stops meaning anything.
+ *
+ * packages/ens already had this constant, with a test naming SET_RESOLVER.
+ * Having the answer and not reaching for it is worse than never having thought
+ * about it. scripts/fix-agent-roles.ts cleaned up the names issued before this.
+ */
+const AGENT_ROLES = AGENT_SUBNAME_ROLES;
 
 const FACTORY_ABI = [
   { type: "function", name: "deployProxy", stateMutability: "nonpayable",
@@ -208,7 +225,7 @@ async function main() {
     try {
       const { request } = await pub.simulateContract({
         account, address: subregistry, abi: SUBREGISTRY_ABI, functionName: "register",
-        args: [a.label, owner, "0x0000000000000000000000000000000000000000", RESOLVER, ALL_ROLES, expires],
+        args: [a.label, owner, "0x0000000000000000000000000000000000000000", RESOLVER, AGENT_ROLES, expires],
       });
       console.log(`  ${a.label.padEnd(10)} -> ${owner}  simulates OK`);
       if (write) {
