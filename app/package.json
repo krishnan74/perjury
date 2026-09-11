@@ -8,6 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "@perjury/claimant": "*",
+    "@perjury/gateway": "*",
+    "@perjury/graph-client": "*",
+    "@perjury/shared": "*",
+    "@perjury/witness": "*",
     "lenis": "^1.3.26",
     "next": "^15.1.3",
     "react": "^19.0.0",

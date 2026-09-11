@@ -41,7 +41,7 @@ export async function GET(
     return NextResponse.json({ error: "claim id must be a number" }, { status: 400 });
   }
 
-  const url = gatewayUrlFor(claimId);
+  const url = await gatewayUrlFor(claimId);
   if (!url) {
     // The ordinary case, not a failure. A witness is assigned the instant the
     // VRF draw fulfils, which is before it has read anything or published
@@ -113,6 +113,6 @@ export async function POST(
     );
   }
 
-  recordGatewayUrl(claimId, body.url);
+  await recordGatewayUrl(claimId, body.url);
   return NextResponse.json({ ok: true, claimId });
 }

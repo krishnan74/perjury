@@ -1,4 +1,5 @@
 import { rosterSnapshot } from "@/lib/roster";
+import { configuredAgents } from "@/lib/live/chain";
 import { pinnedSubjects } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
 import Submit, { type SubjectOption } from "./Submit";
@@ -12,10 +13,13 @@ export default async function SubmitPage() {
   // Only agents the protocol would actually let post. A slashed or flagged agent
   // in the dropdown is an offer the chain will refuse, and watching a demo
   // revert teaches the wrong lesson about why it refused.
+  // Eligible on chain AND holding a key here. Offering an agent this deployment
+  // cannot sign for produces a failure that looks like the protocol refusing.
+  const keyed = configuredAgents();
   const agents = roster
     .filter((a) => a.eligible)
     .map((a) => a.name.replace(/\.perjury\.eth$/, ""))
-    .filter((n) => ["operator", "witness-a", "panel-1", "panel-2", "panel-3"].includes(n));
+    .filter((n) => keyed.includes(n));
 
   const subjects: SubjectOption[] = pinnedSubjects();
 

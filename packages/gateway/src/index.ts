@@ -54,22 +54,83 @@ export interface EvidenceBundle {
  * publishes plaintext, which is retained only so an operator can reproduce the
  * old behaviour deliberately rather than by forgetting a flag.
  */
-export function publishBundle(bundle: EvidenceBundle, publicKey?: string): string {
+/** Seal the bundle if a key was given, and render the bytes that get published. */
+function bodyOf(bundle: EvidenceBundle, publicKey?: string): string {
   const plaintext = JSON.stringify(bundle, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2);
-  const body = publicKey
-    ? JSON.stringify(seal(plaintext, publicKey, bundle.claimId), null, 2)
-    : plaintext;
+  return publicKey ? JSON.stringify(seal(plaintext, publicKey, bundle.claimId), null, 2) : plaintext;
+}
+
+const filenameOf = (claimId: string) => `perjury-claim-${claimId}.json`;
+const descriptionOf = (claimId: string) => `Perjury sealed evidence, claim ${claimId}`;
+/** Raw URL, so the enclave gets JSON rather than a rendered page. */
+const rawUrl = (id: string) => `https://gist.githubusercontent.com/raw/${id}`;
+
+/**
+ * Publish over the GitHub API.
+ *
+ * The CLI version below cannot run anywhere except a developer's machine, which
+ * is the single reason a claim could not be submitted from the deployed site.
+ * This is the same request the CLI was making.
+ *
+ * Secret rather than public, matching `gh gist create` without `--public`. That
+ * is not the confidentiality boundary — the body is sealed to the tribunal's key
+ * and a gist URL was never an access control — but there is no reason to widen
+ * it either.
+ */
+export async function publishBundleViaApi(
+  bundle: EvidenceBundle,
+  token: string,
+  publicKey?: string,
+): Promise<string> {
+  const res = await fetch("https://api.github.com/gists", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      description: descriptionOf(bundle.claimId),
+      public: false,
+      files: { [filenameOf(bundle.claimId)]: { content: bodyOf(bundle, publicKey) } },
+    }),
+  });
+
+  if (!res.ok) {
+    // The body carries GitHub's reason — a scope that is missing, a token that
+    // expired. Losing it here means debugging a 401 with no 401 in front of you.
+    throw new Error(`gist create failed ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+
+  const { id } = (await res.json()) as { id?: string };
+  if (!id) throw new Error("gist created but the response carried no id");
+  return rawUrl(id);
+}
+
+/**
+ * Publish, by whichever route is available.
+ *
+ * Prefers the API when a token is present, because that is the only route a
+ * server has. Falls back to the CLI so a developer with `gh` already logged in
+ * needs no new credential to run the scenes.
+ */
+export async function publishBundle(
+  bundle: EvidenceBundle,
+  publicKey?: string,
+  token = process.env.GITHUB_GIST_TOKEN,
+): Promise<string> {
+  if (token) return publishBundleViaApi(bundle, token, publicKey);
+
   const out = execFileSync(
     "gh",
-    ["gist", "create", "--filename", `perjury-claim-${bundle.claimId}.json`, "--desc",
-     `Perjury sealed evidence, claim ${bundle.claimId}`, "-"],
-    { input: body, encoding: "utf8" },
+    ["gist", "create", "--filename", filenameOf(bundle.claimId), "--desc",
+     descriptionOf(bundle.claimId), "-"],
+    { input: bodyOf(bundle, publicKey), encoding: "utf8" },
   ).trim();
 
   const id = out.split("/").pop();
   if (!id) throw new Error(`could not parse gist url: ${out}`);
-  // Raw URL, so the enclave gets JSON rather than a rendered page.
-  return `https://gist.githubusercontent.com/raw/${id}`;
+  return rawUrl(id);
 }
 
 /**

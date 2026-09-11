@@ -216,7 +216,7 @@ if (phase === "draft") {
   if (!envelopeKey) {
     console.warn("PERJURY_ENVELOPE_PUBKEY unset — publishing PLAINTEXT evidence to the gateway");
   }
-  const url = publishBundle(bundle, envelopeKey);
+  const url = await publishBundle(bundle, envelopeKey);
   console.log(`\ngateway: ${url}${envelopeKey ? "  (sealed)" : "  (plaintext)"}`);
 
   /*
