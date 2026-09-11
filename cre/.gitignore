@@ -1,3 +1,6 @@
 .env
 node_modules/
 .cre_build_tmp.js
+# compiled workflow artifacts, rebuilt by cre workflow build/deploy
+binary.wasm
+binary.wasm.br.b64
