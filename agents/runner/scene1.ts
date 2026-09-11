@@ -22,6 +22,13 @@ import { keccak256, toBytes } from "viem";
 // per run rather than redeploying: npx tsx agents/runner/scene1.ts panel-1
 const who = claimantFor(process.argv.find((a) => !a.startsWith("-") && a.includes("perjury") === false && ["operator","witness-a","panel-1","panel-2","panel-3"].includes(a)));
 const CLAIMANT = who.name;
+
+// Which pinned deployment the claim is about. Defaults to the one the recorded
+// scenes use, so passing nothing reproduces them exactly; the submit page passes
+// whatever the visitor picked. Any subject in pinned-deployments.json works —
+// the protocol needs no code change per subject, which is the point of a
+// standardized query pattern.
+const SUBJECT = process.argv.find((a) => a.startsWith("--subject="))?.slice(10) ?? "aave-v3-ethereum";
 const signer = walletFor(who.pk);
 
 p.scene(1, "A true claim, challenged anyway", "Honest claims should cost nothing and earn standing.");
@@ -37,7 +44,7 @@ const claimId = await pub.readContract({ address: REGISTRY, abi: REGISTRY_ABI, f
 
 p.step("The claimant reads live Graph data and drafts its claim");
 p.note("Nothing is bonded yet. The agent decides what it is willing to stake on before it stakes.");
-const draft = draftEvidence(String(claimId), "honest");
+const draft = draftEvidence(String(claimId), "honest", SUBJECT);
 p.assertion("CLAIMANT", draft.text, `${round2(draft.out.match(/asserts ([\d.]+)%/)?.[1])}%`, p.c.cyan);
 
 p.step("The claimant posts that exact claim, and bonds it");
@@ -46,7 +53,7 @@ p.line("claimHash", `${draft.claimHash.slice(0, 18)}…  = keccak256 of the sent
 p.line("bond", "0.010 ETH   (+ 0.002 witness fee)");
 const submitHash = await signer.writeContract({
   address: REGISTRY, abi: REGISTRY_ABI, functionName: "submitClaim",
-  args: [keccak256(toBytes("aave-v3-ethereum:utilization")), draft.claimHash],
+  args: [keccak256(toBytes(`${SUBJECT}:utilization`)), draft.claimHash],
   value: BOND,
 });
 await pub.waitForTransactionReceipt({ hash: submitHash });
@@ -67,7 +74,7 @@ const claimantLine = draft.text;
 const claimantVal = draft.out.match(/asserts ([\d.]+)%/)?.[1] ?? "?";
 const witnessVal = round2(out.match(/derives ([\d.]+)/)?.[1]);
 p.assertion("CLAIMANT", claimantLine, `${claimantVal}%`, p.c.blue);
-p.assertion("WITNESS", "independently re-derived from Aave v3 via The Graph", `${witnessVal}%`, p.c.magenta);
+p.assertion("WITNESS", `independently re-derived from ${SUBJECT} via The Graph`, `${witnessVal}%`, p.c.magenta);
 
 p.step("The tribunal compares them inside a confidential workflow");
 p.note("Both submissions enter the enclave. Only a verdict comes out.");

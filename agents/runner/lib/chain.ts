@@ -185,10 +185,11 @@ export async function awaitWitness(
 export function draftEvidence(
   claimId: string,
   honesty: "honest" | "false",
+  subject = "aave-v3-ethereum",
 ): { out: string; text: string; claimHash: `0x${string}` } {
   const out = execFileSync(
     "npx",
-    ["tsx", "agents/runner/publish-evidence.ts", "draft", claimId, honesty],
+    ["tsx", "agents/runner/publish-evidence.ts", "draft", claimId, honesty, subject],
     { encoding: "utf8", env: process.env, maxBuffer: 32 * 1024 * 1024 },
   );
   const text = out.match(/^CLAIM_TEXT (.*)$/m)?.[1]?.trim();

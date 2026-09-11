@@ -61,8 +61,13 @@ const seal = (
 if (phase === "draft") {
   const honest = process.argv[4] !== "false";
 
+  // Any pinned deployment works and none of them need a code change, which is
+  // what a standardized query pattern buys. Defaults to the subject the recorded
+  // scenes use so passing nothing reproduces them.
+  const subject = process.argv[5] ?? "aave-v3-ethereum";
+
   const claim = await draftClaim(
-    "aave-v3-ethereum",
+    subject,
     "utilization ratio (total borrowed / total deposited)",
     honest ? { mode: "honest" } : { mode: "false", overstateBy: 0.6 },
     llm,

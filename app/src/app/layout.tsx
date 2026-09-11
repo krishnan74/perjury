@@ -74,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/roster">Roster</a>
           <a href="/claims">Claims</a>
           <a href="/replay">Replay</a>
+          <a href="/submit">Submit</a>
           <a href="https://github.com/krishnan74/perjury">Source</a>
           <span className="spacer" />
           <span className="chip">Sepolia · live</span>

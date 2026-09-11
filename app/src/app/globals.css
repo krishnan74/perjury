@@ -2220,3 +2220,142 @@ body::after {
   }
   .steppad-count { border-block: 0; border-inline: 1px solid var(--rule); padding: 0 0.5rem; align-self: center; }
 }
+
+/* ── Submit ───────────────────────────────────────────────────────────────
+   A live run, shown as it happens. Deliberately quieter than the replay: the
+   replay is a finished argument being presented, this is a thing in progress
+   and should look like one. */
+
+.submit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-2, #fbfaf7);
+}
+
+.submit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 15rem;
+  flex: 1 1 15rem;
+}
+
+.submit-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3, #6b6b6b);
+}
+
+.submit-field select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper, #fff);
+  color: inherit;
+}
+
+.submit-go {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.6rem 1.4rem;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: var(--ink, #1a1a1a);
+  color: var(--paper, #fff);
+  cursor: pointer;
+}
+
+.submit-go[disabled] {
+  cursor: default;
+  opacity: 0.55;
+  /* The label carries a ticking clock while disabled, so it must stay legible
+     rather than fading into the card behind it. */
+}
+
+.submit-hint,
+.submit-error,
+.submit-done {
+  margin-top: 1.25rem;
+  max-width: 62ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.submit-error {
+  color: var(--bad, #8a2b2b);
+}
+
+.submit-steps {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.submit-steps h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.submit-step-n {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.submit-step-body {
+  padding-left: 2.3rem;
+  border-left: 1px solid var(--rule);
+  margin-left: 0.79rem;
+}
+
+.submit-step-body p {
+  margin: 0.2rem 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink-2, #3a3a3a);
+  white-space: pre-wrap;
+}
+
+.submit-mono {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.78rem !important;
+  overflow-wrap: anywhere;
+}
+
+.submit-raw {
+  margin-top: 2.5rem;
+  font-size: 0.82rem;
+}
+
+.submit-raw pre {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2, #fbfaf7);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
