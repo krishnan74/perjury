@@ -50,8 +50,8 @@ export default async function SubmitPage() {
       {!capability.ok ? (
         <div className="submit-unavailable">
           <p>
-            <strong>This deployment cannot post a claim.</strong> Submitting one runs the agents as real
-            processes for about four minutes, which needs {capability.missing.join(", ")}.
+            <strong>This deployment cannot post a claim.</strong> Submitting one runs the agents against
+            live data and spends a bond from a funded wallet, which needs {capability.missing.join(", ")}.
           </p>
           <p>
             Everything else on this site is live against the same contracts, and{" "}
