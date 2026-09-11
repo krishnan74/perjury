@@ -2359,3 +2359,22 @@ body::after {
   font-size: 0.74rem;
   line-height: 1.5;
 }
+
+.submit-unavailable {
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3, #6b6b6b);
+  border-radius: 3px;
+  background: var(--paper-2, #fbfaf7);
+  max-width: 62ch;
+}
+
+.submit-unavailable p {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.submit-unavailable p:last-child {
+  margin-bottom: 0;
+}

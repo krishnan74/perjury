@@ -1,10 +1,12 @@
 import { rosterSnapshot } from "@/lib/roster";
 import { pinnedSubjects } from "@/lib/subjects";
+import { runCapability } from "@/lib/live-run";
 import Submit, { type SubjectOption } from "./Submit";
 
 export const revalidate = 30;
 
 export default async function SubmitPage() {
+  const capability = runCapability();
   const roster = await rosterSnapshot();
 
   // Only agents the protocol would actually let post. A slashed or flagged agent
@@ -28,7 +30,20 @@ export default async function SubmitPage() {
         tribunal alone.
       </p>
 
-      {agents.length === 0 ? (
+      {!capability.ok ? (
+        <div className="submit-unavailable">
+          <p>
+            <strong>This deployment cannot post a claim.</strong> Submitting one runs the agents as real
+            processes for about four minutes, which needs {capability.missing.join(", ")}.
+          </p>
+          <p>
+            Everything else on this site is live against the same contracts, and{" "}
+            <a href="/replay?d=sim&claim=25">the replay</a> plays a settled claim back from its own
+            transactions. To post one yourself, clone the repository and run{" "}
+            <code>npm run dev</code> with the environment described in the README.
+          </p>
+        </div>
+      ) : agents.length === 0 ? (
         <p className="submit-error">
           No eligible agents. Every agent is either flagged or under-staked, so the protocol would refuse any
           claim posted right now — which is the mechanism working, not an outage.

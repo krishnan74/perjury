@@ -18,6 +18,7 @@
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { isPinnedSubject } from "@/lib/subjects";
+import { runCapability } from "@/lib/live-run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,16 @@ export async function GET(request: Request) {
   const AGENTS = ["operator", "witness-a", "panel-1", "panel-2", "panel-3"];
   if (!AGENTS.includes(claimant)) {
     return Response.json({ error: `unknown agent: ${claimant}` }, { status: 400 });
+  }
+
+  // Same check the page makes, repeated here because a route is reachable
+  // without the page and a 503 saying why beats a stack trace.
+  const capability = runCapability();
+  if (!capability.ok) {
+    return Response.json(
+      { error: `this deployment cannot run a claim: missing ${capability.missing.join(", ")}` },
+      { status: 503 },
+    );
   }
 
   if (running) {
