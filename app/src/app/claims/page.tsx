@@ -48,9 +48,10 @@ export default async function Claims({
 
       {!completeness.whole && (
         <p className="submit-error" style={{ marginTop: "1.6rem" }}>
-          Showing {completeness.read} of {completeness.expected} claims. The rest are on chain; this page
-          could not read them, because the node answered a wide log query with a truncated set rather than an
-          error. Nothing is missing from the registry, only from this view.
+          {completeness.expected < 0
+            ? `Showing ${completeness.read} claims, and this page could not check whether that is all of them — the registry read failed.`
+            : `Showing ${completeness.read} of ${completeness.expected} claims. The rest are on chain; this page could not read them, because the node answered a wide log query with a truncated set rather than an error.`}{" "}
+          Nothing is missing from the registry, only from this view.
         </p>
       )}
 

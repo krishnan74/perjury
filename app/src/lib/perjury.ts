@@ -130,7 +130,7 @@ export const LOOKBACK = BigInt(process.env.CHAIN_LOOKBACK_BLOCKS ?? 7200);
  * claims never happened. Smaller windows make that less likely; `claimsAreWhole`
  * is what catches it when it happens anyway.
  */
-const CHUNK = 2000n;
+const CHUNK = 5000n;
 
 /** The events that make up a claim's life, in the order they can occur. */
 export const CLAIM_EVENTS = [
@@ -241,27 +241,41 @@ async function collect(
     spans.push([from, to > head ? head : to]);
   }
 
+  /*
+   * One request per event type per span, and a retry.
+   *
+   * Asking for all of an address's logs in one call is fewer requests but a
+   * public node answers a wide unfiltered query with a truncated set and a 200 —
+   * measured at three of twenty-five claims, and six with the span cut to a
+   * tenth. Filtering per event keeps each response small enough to come back
+   * whole. The retry is for the rate limit that volume earns.
+   *
+   * A failed request is not an empty one. It used to become one silently, and
+   * the page then rendered as though the events in that range had not happened.
+   * After three attempts it throws, because a read that did not happen must not
+   * look like a read that found nothing.
+   */
+  const fetchLogs = async (address: Address, event: AbiEvent, from: bigint, to: bigint): Promise<Log[]> => {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await pub.getLogs({ address, event, fromBlock: from, toBlock: to });
+      } catch (err) {
+        lastError = err;
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  };
+
   const batches = await Promise.all(
     sources.flatMap(([address, events]) =>
-      events.flatMap((event) =>
-        spans.map(
-          ([from, to]): Promise<Log[]> =>
-            /*
-             * A failed chunk used to become an empty one.
-             *
-             * Silently, and the page then rendered a claim as though the events
-             * in that range had not happened — which produced an intermittent
-             * 404 on a claim that certainly existed. A read that did not happen
-             * is not the same as a read that found nothing, so it throws and the
-             * page fails visibly instead of lying quietly.
-             */
-            pub.getLogs({ address, event, fromBlock: from, toBlock: to }),
-        ),
-      ),
+      events.flatMap((event) => spans.map(([from, to]) => fetchLogs(address, event, from, to))),
     ),
   );
 
   const logs = batches.flat();
+
   // One timestamp lookup per block rather than per event.
   const blocks = [...new Set(logs.map((l) => l.blockNumber!))];
   const times = new Map<bigint, number>();
@@ -403,9 +417,14 @@ export async function claimsAreWhole(
     const expected = Number(next) - 1;
     return { whole: rows.length >= expected, read: rows.length, expected };
   } catch {
-    // If even this read fails there is nothing to compare against, and claiming
-    // completeness we cannot check would be the same mistake one level up.
-    return { whole: true, read: rows.length, expected: rows.length };
+    /*
+     * The check itself failed, so completeness is unknown.
+     *
+     * Reporting `whole: true` here was the same mistake one level up: the page
+     * showed zero claims and called it complete. Unknown is not fine, and -1
+     * gives the page something it cannot mistake for a count.
+     */
+    return { whole: false, read: rows.length, expected: -1 };
   }
 }
 
