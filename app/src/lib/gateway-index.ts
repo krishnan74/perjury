@@ -45,7 +45,21 @@ const COMMITTED = join(
   "gateway-index.json",
 );
 
-const key = (claimId: string) => `gateway:${claimId}`;
+/**
+ * Keyed by registry as well as claim id.
+ *
+ * Claim ids restart at one with every cascade, so `gateway:1` names a different
+ * claim after each redeploy and the newer write silently replaces the older
+ * one. That is the same collision that overwrote an archived bundle on disk, and
+ * it survived here because the store was added after the directory layout was
+ * fixed.
+ *
+ * The registry comes from this deployment's own environment rather than from the
+ * caller, so a client cannot write into another deployment's namespace by
+ * claiming to be it.
+ */
+const key = (claimId: string) =>
+  `gateway:${(process.env.CLAIM_REGISTRY_ADDRESS ?? "unknown").toLowerCase()}:${claimId}`;
 
 function committed(): Record<string, string> {
   try {

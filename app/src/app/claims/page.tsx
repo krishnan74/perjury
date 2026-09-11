@@ -1,4 +1,4 @@
-import { claimEvents, claimsIndex, eth, ago, short } from "@/lib/perjury";
+import { claimEvents, claimsAreWhole, claimsIndex, eth, ago, short } from "@/lib/perjury";
 import { rosterSnapshot } from "@/lib/roster";
 import { DEPLOYMENTS, deploymentById } from "@/lib/deployments";
 
@@ -20,6 +20,7 @@ export default async function Claims({
     rosterSnapshot(deployment),
   ]);
   const rows = claimsIndex(events);
+  const completeness = await claimsAreWhole(rows, deployment);
   const name = (addr: string | null) =>
     roster.find((a) => a.address.toLowerCase() === (addr ?? "").toLowerCase())?.name ?? short(addr ?? "—", 8);
 
@@ -44,6 +45,14 @@ export default async function Claims({
         ))}
       </div>
       <p className="note" style={{ marginTop: "0.9rem", maxWidth: "70ch" }}>{deployment.note}</p>
+
+      {!completeness.whole && (
+        <p className="submit-error" style={{ marginTop: "1.6rem" }}>
+          Showing {completeness.read} of {completeness.expected} claims. The rest are on chain; this page
+          could not read them, because the node answered a wide log query with a truncated set rather than an
+          error. Nothing is missing from the registry, only from this view.
+        </p>
+      )}
 
       {rows.length === 0 && (
         <p className="note" style={{ marginTop: "2.4rem" }}>
