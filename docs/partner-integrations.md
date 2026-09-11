@@ -225,7 +225,7 @@ Two lessons worth more than the fix. A resolver holding records about a name say
 resolve(dnsEncode("witness-a.perjury.eth"), text(namehash, "com.perjury.agent-standing"))
 ```
 
-All five agents return their standing, flag state and address binding. Before the subregistry existed the same call reverted.
+All ten agents return their standing, flag state and address binding. Before the subregistry existed the same call reverted.
 
 ### Records
 
