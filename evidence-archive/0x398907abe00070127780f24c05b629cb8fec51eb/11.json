@@ -1,0 +1,106 @@
+{
+  "claimId": "11",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD",
+        "indexedBlock": 93628771,
+        "chainHead": 93628771,
+        "queriedAt": 1789148190466,
+        "queryHash": "8f737cecf132cf064f16485f4b9dce400732443472dc1688cea1bdb87aeee708",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-polygon",
+        "chain": "polygon",
+        "metric": "utilization_ratio",
+        "comparator": "gt",
+        "value": 27.7974,
+        "unit": "percent",
+        "asOfBlock": 93628771
+      },
+      "digest": "5abec77cd840e436014c013950675172818fd3a0c6cf3aca7fed8c1c7ceddb49"
+    },
+    "methodology": "claimant: Aave v3 (Polygon) via messari-lending; Utilization ratio measures the proportion of total deposits currently borrowed, calculated as totalBorrowBalanceUSD divided by totalDepositBalanceUSD.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "id": "0x770ef9f4fe897e59dacc474ef11238303f9552b6",
+          "totalBorrowBalanceUSD": "54327703.84712360127472101573722766",
+          "totalDepositBalanceUSD": "195535398.7284584105171724990333455"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD",
+        "block": {
+          "number": 93628771
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols { id totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witness": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD",
+        "indexedBlock": 93628771,
+        "chainHead": 93628834,
+        "queriedAt": 1789148285047,
+        "queryHash": "2db8cdebe1e7650bb88b5b7d456f45b6eb04baf37552e8b7d78e947583d35d3c",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "aave-v3-polygon",
+        "chain": "polygon",
+        "metric": "utilization_ratio",
+        "comparator": "gt",
+        "value": 27.78,
+        "unit": "percent",
+        "asOfBlock": 93628771
+      },
+      "digest": "41f42d3807f3c1a2c2468658a6b59548081a99330909632f68426c5046cb54ec"
+    },
+    "methodology": "witness: Aave v3 (Polygon) via messari-lending; Utilization ratio is computed as totalBorrowBalanceUSD divided by totalDepositBalanceUSD, expressed as a percentage. [1 independent deployment(s), pinned @ 93628771]",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "54327703.84712360127472101573722766",
+          "totalDepositBalanceUSD": "195535398.7284584105171724990333455"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmZvndp7kSUaMZo3W21bLyggU8wpcYG5LXBbGvu21t4cvD",
+        "block": {
+          "number": 93628771
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta(block: {number: 93628771}) { deployment block { number } hasIndexingErrors } lendingProtocols(block: {number: 93628771}) { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witnessAgent": {
+    "name": "witness-b.perjury.eth",
+    "address": "0x71Fa1B3EC61Ce75DDF101fEc0F87D8df31a9F710"
+  },
+  "claimText": "Aave v3 (Polygon) utilization_ratio is above 26.4%.",
+  "claimHash": "0xb427e17ba652c8b624e260e866cf788af57e3af1b3a3d8916d365e758f77b370",
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/1baa5d53a46cf65805252965211c3b73",
+  "archivedAt": "2026-09-11T17:38:17.794Z"
+}

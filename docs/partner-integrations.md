@@ -356,7 +356,7 @@ Both agents were handed **identical rows** and their conclusions differ by **24.
 
 ## Known gaps
 
-- **CRE:** deployed to the DON and executing, but `WriteReport` produces no transaction, so every settled verdict came through the simulator. The enclave also receives `claimText`, `claimHash` and `witnessAgent` in the bundle and does not verify them against chain — now that it already reads the registry each tick, an `EVMClient` read of `claimOf(claimId).claimHash` would close that.
+- **CRE:** deployed to the DON and executing, but `WriteReport` produces no transaction, so every settled verdict came through the simulator. The enclave now verifies both against chain: `keccak256(claimText)` must equal the bonded `claimHash`, and the bundle's witness must be the address the roster assigned. `npx tsx scripts/prove-claim-binding.ts` demonstrates the refusal.
 - **VRF:** roster is five agents. The 1-in-n collusion argument is far stronger at scale.
 - **ENS:** ENSIP-25 / -26 records not implemented. `revokeSetterRoles` has no inverse. Subnames expire in a year and nothing renews them.
 - **The Graph:** 12 of 13 subjects single-source.
@@ -367,6 +367,7 @@ Both agents were handed **identical rows** and their conclusions differ by **24.
 
 ```bash
 npx tsx scripts/prove-sealed.ts         # CRE: evidence store holds ciphertext
+npx tsx scripts/prove-claim-binding.ts  # CRE: tribunal refuses a claim that was not bonded
 npx tsx scripts/prove-eac.ts            # ENS: two reverts, one success
 npx tsx scripts/prove-corroboration.ts  # Graph: indexers disagree → Unverifiable
 npx tsx scripts/prove-name-binding.ts   # ENS: refuses a name you were not issued

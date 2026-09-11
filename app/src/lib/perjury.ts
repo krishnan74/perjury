@@ -213,9 +213,10 @@ async function collect(
    * Where this deployment began.
    *
    * Without it the window is the last few hours, which is fine while a
-   * deployment is new and wrong the moment it is not — the archived cascade
-   * showed two of its twenty-five claims and the rest looked like they had never
-   * happened. A deployment has a first block, so start there.
+   * deployment is new and wrong the moment it is not. Two symptoms, same cause:
+   * an archived cascade showed two of its twenty-five claims, and the appeal
+   * this project is built around was about an hour from ageing out of the site
+   * entirely. A deployment has a first block, so start there.
    */
   since?: bigint,
 ): Promise<ClaimEvent[]> {

@@ -9,10 +9,12 @@ import {
 import {
 	bytesToHex,
 	decodeAbiParameters,
+	decodeFunctionResult,
 	encodeAbiParameters,
 	encodeFunctionData,
 	keccak256,
 	parseAbiParameters,
+	toBytes,
 	toHex,
 	zeroAddress,
 	type Address,
@@ -84,6 +86,16 @@ export const configSchema = z.object({
 	pinnedReportKind: z.enum(['verdict', 'panel']).optional(),
 
 	verdictSinkAddress: z.string(),
+	/**
+	 * Gas handed to the receiver's `onReport`.
+	 *
+	 * Recording a verdict measures about 86k. The default was not enough, and the
+	 * way it fails is worth knowing: the Forwarder's transaction succeeds, the
+	 * receiver call inside it reverts, and the workflow sees TX_STATUS_SUCCESS
+	 * because the transaction it asked for did land. The only place the failure
+	 * is visible is the Forwarder's own ReportProcessed event, with result false.
+	 */
+	reportGasLimit: z.string().default('400000'),
 	chainSelector: z.string(), // CCIP chain selector; string because JSON has no bigint
 })
 type Config = z.infer<typeof configSchema>
@@ -103,6 +115,29 @@ const PENDING_ABI = [
 		outputs: [
 			{ name: 'claimId', type: 'uint256' },
 			{ name: 'kind', type: 'uint8' },
+		],
+	},
+	{
+		type: 'function',
+		name: 'claimOf',
+		stateMutability: 'view',
+		inputs: [{ name: 'claimId', type: 'uint256' }],
+		outputs: [
+			{
+				type: 'tuple',
+				components: [
+					{ name: 'claimant', type: 'address' },
+					{ name: 'witness', type: 'address' },
+					{ name: 'subject', type: 'bytes32' },
+					{ name: 'claimHash', type: 'bytes32' },
+					{ name: 'evidenceCommitment', type: 'bytes32' },
+					{ name: 'bond', type: 'uint256' },
+					{ name: 'submittedAt', type: 'uint64' },
+					{ name: 'assignedAt', type: 'uint64' },
+					{ name: 'status', type: 'uint8' },
+					{ name: 'verdict', type: 'uint8' },
+				],
+			},
 		],
 	},
 ] as const
@@ -360,6 +395,18 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	const donRuntime = runtime.usingTheDons()
 	const evmClient = new cre.capabilities.EVMClient(BigInt(config.chainSelector))
 
+	/** One eth_call, decoded. Used for discovery and again for verification. */
+	const callRegistry = (data: `0x${string}`) =>
+		evmClient
+			.callContract(donRuntime, {
+				call: encodeCallMsg({
+					from: zeroAddress,
+					to: config.claimRegistryAddress as Address,
+					data,
+				}),
+			})
+			.result()
+
 	let claimId: string
 	let reportKind: 'verdict' | 'panel'
 
@@ -370,15 +417,9 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		claimId = config.pinnedClaimId
 		reportKind = config.pinnedReportKind
 	} else {
-		const call = evmClient
-			.callContract(donRuntime, {
-				call: encodeCallMsg({
-					from: zeroAddress,
-					to: config.claimRegistryAddress as Address,
-					data: encodeFunctionData({ abi: PENDING_ABI, functionName: 'pendingForTribunal' }),
-				}),
-			})
-			.result()
+		const call = callRegistry(
+			encodeFunctionData({ abi: PENDING_ABI, functionName: 'pendingForTribunal' }),
+		)
 
 		const [pendingId, pendingKind] = decodeAbiParameters(
 			parseAbiParameters('uint256, uint8'),
@@ -470,6 +511,10 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		claim: SealedSubmission
 		witness: SealedSubmission
 		panel?: { member: string; submission: SealedSubmission }[]
+		/** The sentence that was bonded. Checked against the chain's claimHash. */
+		claimText?: string
+		/** The agent the roster assigned. Checked against the chain's witness. */
+		witnessAgent?: { name: string; address: string }
 	}
 
 	// The envelope already refuses to open under the wrong claim id, so this is
@@ -477,6 +522,65 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 	// it catches a gateway that serves a well-formed bundle for the wrong claim.
 	if (bundle.claimId !== claimId) {
 		throw new Error(`gateway served claim ${bundle.claimId}, asked for ${claimId}`)
+	}
+
+	/*
+	 * Check the bundle against the chain, rather than believing it.
+	 *
+	 * Everything above this point establishes that the evidence is the evidence
+	 * someone sealed for this claim id. It does not establish that the SENTENCE
+	 * in the bundle is the sentence the claimant actually bonded, or that the
+	 * witness submission came from the agent VRF actually drew. Both of those
+	 * arrived inside the bundle, from the same party that assembled it.
+	 *
+	 * That was the last thing the tribunal took on trust. It matters because the
+	 * whole mechanism rests on a claimant being unable to change its claim after
+	 * the money is down: a bundle carrying a softer sentence than the one on
+	 * chain would be judged against the softer one, and the commitment published
+	 * afterwards would attest to exactly that.
+	 *
+	 * The registry is already being read once per tick to find this claim, so
+	 * reading it again costs one more eth_call and closes the gap. keccak of the
+	 * bundle's text has to equal the claimHash in storage, and the witness in the
+	 * bundle has to be the address the roster assigned.
+	 *
+	 * Fails closed. A bundle that cannot be checked is not a bundle that passes.
+	 */
+	const stored = decodeFunctionResult({
+		abi: PENDING_ABI,
+		functionName: 'claimOf',
+		data: bytesToHex(callRegistry(
+			encodeFunctionData({ abi: PENDING_ABI, functionName: 'claimOf', args: [BigInt(claimId)] }),
+		).data),
+	})
+
+	if (!bundle.claimText) {
+		throw new Error(`claim ${claimId}: bundle carries no claim text, so it cannot be checked against chain`)
+	}
+	const textHash = keccak256(toBytes(bundle.claimText))
+	if (textHash.toLowerCase() !== stored.claimHash.toLowerCase()) {
+		throw new Error(
+			`claim ${claimId}: bundle text hashes to ${textHash}, chain bonded ${stored.claimHash}`,
+		)
+	}
+
+	/*
+	 * The witness check is skipped on an appeal.
+	 *
+	 * `recordPanelVerdict` is decided by the seated panel, and the registry's
+	 * `witness` field still names the original witness — so requiring a match
+	 * here would be checking the wrong party against the wrong record.
+	 */
+	if (reportKind === 'verdict') {
+		const drawn = bundle.witnessAgent?.address
+		if (!drawn) {
+			throw new Error(`claim ${claimId}: bundle does not say which agent produced the witness submission`)
+		}
+		if (drawn.toLowerCase() !== stored.witness.toLowerCase()) {
+			throw new Error(
+				`claim ${claimId}: bundle credits witness ${drawn}, chain assigned ${stored.witness}`,
+			)
+		}
 	}
 
 	// On an appeal the panel's majority decides, not the original witness.
@@ -531,17 +635,54 @@ export const onAdjudicationTrigger = (runtime: TeeRuntime<Config>): string => {
 		})
 		.result()
 
-	// Deliver the signed report on-chain. The receiving contract sees a specific
-	// msg.sender, and the sink's authorised writers are immutable — so those
-	// addresses are read from the tenant's own chain list, never guessed.
-	evmClient
+	/*
+	 * Deliver the signed report on-chain.
+	 *
+	 * `receiver` is a hex string, despite the generated type calling it `bytes`
+	 * and proto JSON encoding bytes as base64. The TS SDK converts the hex
+	 * itself, and base64 is rejected with `Invalid hex string`. Recorded because
+	 * the two encodings fail very differently — base64 throws immediately, which
+	 * is how we learned hex was never the problem.
+	 *
+	 * The report is passed exactly as `.report()` returned it. Rebuilding it,
+	 * cloning it, or unwrapping and re-wrapping it can serialise the report field
+	 * empty, and an empty report is skipped by the write target with a success
+	 * that never touches a chain.
+	 *
+	 * `gasConfig` is what this was missing. Without it the Forwarder hands the
+	 * receiver whatever it defaults to, and our `onReport` needs about 86k —
+	 * recording a verdict writes the claim's status, verdict, commitment and
+	 * challenge deadline. The Forwarder delivered every report and every one
+	 * reverted on the receiver, which it reports as `ReportProcessed(..., result:
+	 * false)` rather than as a failed transaction. From inside the workflow that
+	 * looks like a success, because from the DON's point of view it was one: the
+	 * transaction landed, and the call it made did not.
+	 */
+	const written = evmClient
 		.writeReport(donRuntime, {
 			receiver: config.verdictSinkAddress,
 			report,
+			gasConfig: { gasLimit: config.reportGasLimit },
 		})
 		.result()
 
-	return `claim=${claimId} kind=${reportKind} verdict=${verdict} confidence=${confidence}`
+	/*
+	 * Check what came back, rather than assuming.
+	 *
+	 * The capability call is dispatched eagerly and `.result()` is what retrieves
+	 * the outcome — so code that ignores the reply reports a clean execution
+	 * whatever happened on chain. TX_STATUS_SUCCESS is 2; 1 is reverted and 0 is
+	 * fatal. This is the check whose absence let "every step succeeded and no
+	 * transaction exists" look like a platform problem for a day.
+	 */
+	if (written.txStatus !== 2) {
+		throw new Error(
+			`claim ${claimId}: writeReport returned txStatus ${written.txStatus} (2 is success)`,
+		)
+	}
+
+	const txHash = written.txHash ? bytesToHex(written.txHash) : 'none'
+	return `claim=${claimId} kind=${reportKind} verdict=${verdict} confidence=${confidence} tx=${txHash}`
 }
 
 // ─── Workflow init ──────────────────────────────────────────

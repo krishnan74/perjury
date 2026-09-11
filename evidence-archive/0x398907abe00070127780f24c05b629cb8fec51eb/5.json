@@ -1,0 +1,105 @@
+{
+  "claimId": "5",
+  "claim": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
+        "indexedBlock": 25955214,
+        "chainHead": 25955214,
+        "queriedAt": 1789142402458,
+        "queryHash": "54653e21ed2a3949df04aca90aeb6e86e5356b16b4c3212f1e642707ebfda684",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "spark-ethereum",
+        "chain": "ethereum",
+        "metric": "utilizationRatio",
+        "comparator": "gt",
+        "value": 32.91,
+        "unit": "percent",
+        "asOfBlock": 25955214
+      },
+      "digest": "9ce859279518ce92b330fa9a488b0ead0d4520bc215fe4921daf2f603ce58d78"
+    },
+    "methodology": "claimant: Spark Lend via messari-lending; Measures the percentage of total deposits currently borrowed, with higher values indicating increased liquidation risk.",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "2397282017.907808573438380177052591",
+          "totalDepositBalanceUSD": "7280467588.739112874429145226614915"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
+        "block": {
+          "number": 25955214
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta { deployment block { number } hasIndexingErrors } lendingProtocols { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witness": {
+    "attestation": {
+      "provenance": {
+        "deploymentId": "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
+        "indexedBlock": 25955214,
+        "chainHead": 25955221,
+        "queriedAt": 1789142488691,
+        "queryHash": "dbc84f60f55535b7a152489d8f51aa968e5bc85504ea395bb01826f281781dde",
+        "hasIndexingErrors": false,
+        "corroboration": {
+          "sources": 1,
+          "deploymentIds": [
+            "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X"
+          ],
+          "maxDivergenceBps": 0,
+          "corroborated": false
+        }
+      },
+      "assertion": {
+        "subject": "spark-ethereum",
+        "chain": "ethereum",
+        "metric": "utilizationRatio",
+        "comparator": "gt",
+        "value": 32.9073,
+        "unit": "percent",
+        "asOfBlock": 25955214
+      },
+      "digest": "a05f886eadbdf2af7285fd9e36dbd645f95570f218fda63076a96e1381827c59"
+    },
+    "methodology": "witness: Spark Lend via messari-lending; Utilization ratio is computed as (totalBorrowBalanceUSD / totalDepositBalanceUSD) * 100, allowing verification against the 31.26% threshold. [1 independent deployment(s), pinned @ 25955214]",
+    "evidence": {
+      "lendingProtocols": [
+        {
+          "totalBorrowBalanceUSD": "2397282017.907808573438380177052591",
+          "totalDepositBalanceUSD": "7280467588.739112874429145226614915"
+        }
+      ],
+      "_meta": {
+        "deployment": "QmTVumjhubXWP8MeDx5g114MRX99E4Gie5mFqVurttF99X",
+        "block": {
+          "number": 25955214
+        },
+        "hasIndexingErrors": false
+      }
+    },
+    "query": "{ _meta(block: {number: 25955214}) { deployment block { number } hasIndexingErrors } lendingProtocols(block: {number: 25955214}) { totalBorrowBalanceUSD totalDepositBalanceUSD } }"
+  },
+  "witnessAgent": {
+    "name": "panel-1.perjury.eth",
+    "address": "0x51Dce343aA4D470e2E6cAaDd781C60C1f1516eb9"
+  },
+  "claimText": "Spark Lend utilizationRatio is above 31.26%.",
+  "claimHash": "0x9d0b15ad9349a57017faa829919e0f4e9347bc51574e219bd3fb55fbc549c852",
+  "gatewayUrl": "https://gist.githubusercontent.com/raw/54ebd450fcd1307e069049a53a644ffd",
+  "archivedAt": "2026-09-11T16:01:42.010Z"
+}
