@@ -29,14 +29,16 @@ export const maxDuration = 300;
 const bad = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
 export async function POST(request: Request) {
+  // The password comes first. Checking capability first told anyone who asked
+  // exactly which credentials this deployment is missing, which is a small leak
+  // and an entirely free one to close.
+  if (!passwordOk(request.headers.get("x-perjury-password"))) {
+    return bad("wrong or missing password", 401);
+  }
+
   const capability = runCapability();
   if (!capability.ok) {
     return bad(`this deployment cannot run a claim: missing ${capability.missing.join(", ")}`, 503);
-  }
-
-  // Spending money needs the shared secret. Read-only routes do not.
-  if (!passwordOk(request.headers.get("x-perjury-password"))) {
-    return bad("wrong or missing password", 401);
   }
 
   const body = (await request.json().catch(() => null)) as
