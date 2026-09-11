@@ -5,7 +5,18 @@ import { pinnedSubjects } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
 import Submit, { type SubjectOption } from "./Submit";
 
-export const revalidate = 30;
+/**
+ * Never prerendered.
+ *
+ * This page reads two things that are only true at the moment of asking: which
+ * agents can currently afford a bond, and which credentials this deployment
+ * holds. Baking either at build time gives a reader a page that was correct when
+ * it was built — offering an agent that has since spent its balance, or claiming
+ * a claim cannot be run because a variable was added afterwards. ISR would have
+ * corrected itself within thirty seconds, which is thirty seconds of a judge
+ * reading something false.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function SubmitPage() {
   const capability = runCapability();
