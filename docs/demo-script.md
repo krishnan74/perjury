@@ -17,7 +17,9 @@ cd app && npx next dev -p 3111
 | Tab | URL | State |
 |---|---|---|
 | 1 | `localhost:3111/` | scrolled to the very top |
-| 2 | `localhost:3111/replay?claim=25` | not started, scrolled to top |
+| 2 | `localhost:3111/replay?d=sim&claim=25` | not started, scrolled to top |
+
+> **`?d=sim` is not optional.** The contracts were redeployed on Sep 11 so the verdict sink could accept the Forwarder a DON-deployed workflow reports through, and a new registry starts counting claims at 1. Claim 25 lives on the previous cascade. Without `d=sim` the page reads the live registry, where claim 25 does not exist, and shows you a different claim. Everything it holds is still on chain and still replayable — that is what the parameter is for.
 
 **Use the step pad, not Play.** There is a small fixed control on the right edge of the replay: **▲ / count / ▼**. Each press of ▼ advances exactly one beat and the page scrolls itself to it. That is the whole demo — eleven presses, at whatever pace you are talking. Play exists and runs on a clock; with a room listening you do not want a clock.
 
@@ -25,7 +27,7 @@ cd app && npx next dev -p 3111
 - ▲ steps back. Use it if a question drags you backwards; you will not lose your place.
 - Browser zoom **110–125%**. Shared screens shrink and the replay's mono type is small.
 - **Hands off the scroll wheel.** The page positions each beat for you; scrolling by hand switches that off until you press Reset or Play.
-- Don't touch "Replay another" at the bottom — claims 14–17 are draw probes, 21 settled `Unverifiable`.
+- Don't touch "Replay another" at the bottom — on the archived cascade, claims 14–17 are draw probes and 21 settled `Unverifiable`.
 - *If you would rather let it run:* set the speed to **10×** (6m10s of chain time becomes ~37s) and use Pause at the seal. Everything below still applies, you just stop pressing ▼.
 
 ---
@@ -110,17 +112,27 @@ Press **Reset** and then **Play** at 30× to run the whole thing through in twel
 
 ## If they ask
 
+**"Are those real ENS names?"** — *worth volunteering if ENS is in the room.*
+
+> "They are now, and they weren't until Tuesday. The name was registered, the Permissioned Resolver was deployed, the per-key access control was real — but `perjury.eth` had no subregistry and pointed at the deployment's default resolver, so `witness-a.perjury.eth` didn't exist in ENS at all. Our own reader worked because it has the resolver address compiled into it, which is knowing where to look rather than resolving. The ENS explorer said the name didn't exist and it was right. There's a subregistry now, each agent owns its own subname, and every one resolves through the Universal Resolver and returns its standing."
+
 **"What does the TEE actually do that a server couldn't?"** — the best question you'll get.
 
 > "It's the only party that can read the evidence at all. The key never leaves Chainlink's Vault DON. And the commitment it publishes lets anyone prove afterwards that it judged those exact bytes, without the protocol ever publishing them — we used that to recover three settled claims' evidence and reject seven decoys."
 
 **"Could the two agents just collude?"**
 
-> "They can agree to. They can't arrange to be paired — assignment is pushed by VRF and there's no witness parameter to ask with. With five agents the accomplice comes up about one time in three, so it's throttled, not eliminated. We say that on the page rather than claiming otherwise."
+> "They can agree to. They can't arrange to be paired — assignment is pushed by VRF and there's no witness parameter to ask with. The roster is ten agents now, so an accomplice comes up about one time in ten. It's throttled, not eliminated, and the honest framing is that n is the whole argument — which is why the roster being open to anyone who can post a stake matters more than the number today. In the replay you're watching, the roster was five."
 
-**"Is this a real enclave?"**
+**"Is this a real enclave?"** — *the answer changed on Sep 11. Use this one.*
 
-> "No, and I won't claim it is. We register a real TEE handler and execute it through Chainlink's CLI simulator, which runs locally. Confidential-DON deploy access was requested and not granted."
+> "Partly, and I'll be precise about which part. Deploy access came through, so the workflow is deployed to the Chainlink DON and it does execute in a real enclave — it reads the registry to find its own claim, fetches the sealed evidence over Confidential HTTP, opens it with keys the Vault DON releases into the enclave, adjudicates, and reaches consensus. Every one of those steps succeeds.
+>
+> What doesn't work yet is the last one. `WriteReport` reports success and no transaction reaches Sepolia — not a revert, no transaction at all. I checked that against a throwaway contract that accepts any sender and any payload, and it was never called, so the write isn't being broadcast. That's on the platform side and I've raised it with Chainlink. So every verdict you can see settled on chain came through the CLI simulator, which writes to the same contracts without trouble."
+
+**"So what did deploying actually buy you?"**
+
+> "The sentence I just said. Before Tuesday the honest version was 'we register a TEE handler and run it locally.' Now adjudication genuinely happens inside an enclave on their network. Two bugs came out of doing it that the simulator can't catch, because it reads secrets from a local file: the CLI files secrets under one namespace and the SDK asks for another, and two separate secret reads in one execution fail on the second while the first succeeds. Both are in the feedback I sent them."
 
 ## Never say
 
@@ -157,8 +169,9 @@ nothing else. The loser forfeits its bond, its stake, and its ENS reputation.
 The forfeited bond is paid to NOBODY, including the witness. Paying the
 witness is exactly what would make fabricating disagreement profitable.
 
-Live on Sepolia, claim 25 — the one to look at. It ran for real, took 6m10s
-end to end, and the site replays it from its own transactions:
+Live at https://perjury.vercel.app — claim 25 is the one to look at. It ran for
+real, took 6m10s end to end, and the site replays it from its own transactions:
+https://perjury.vercel.app/replay?d=sim&claim=25
 · claimant said 64.66%, witness derived 40.43%, from IDENTICAL rows
 · seed % 5 landed on the claimant; the roster walk stepped past it
 · appealed, and a panel of three upheld it
@@ -172,38 +185,44 @@ Partners:
   and a commitment hash, and nothing else ever leaves. The commitment lets
   anyone later verify it judged those exact bytes — we used that to recover
   three settled claims' evidence and reject seven decoys.
-  (Executed via the CLI simulator, which runs locally. Not a real enclave.)
+  Deployed to the DON and executing in a real enclave: it reads the registry
+  to find its own claim, fetches, opens, adjudicates, reaches consensus.
+  WriteReport reports success and lands no transaction, which is open with
+  the Chainlink team — so every verdict settled on chain came through the CLI
+  simulator against the same contracts.
 · Chainlink VRF v2.5 — draws every witness and appeal panel. submitClaim
   takes a subject and a commitment; there is no witness parameter.
-· ENS v2 — agents are subnames of perjury.eth, standing is a text record,
-  Enhanced Access Control scopes the write to the tribunal contract alone.
-  The operator that deployed everything and owns the name REVERTS.
+· ENS v2 — a subname registry under perjury.eth issues each agent a real
+  subname it owns itself. Standing is a text record, and Enhanced Access
+  Control scopes the write to the tribunal contract alone: the operator that
+  deployed everything and owns the name REVERTS. Resolve any of them through
+  the Universal Resolver and you get the standing back.
 · The Graph — 13 pinned deployments, 2 schema families, 5 chains, live
   Gateway only. A deployment id is a hash of the mapping code, which is why
   two reads are independent and an RPC cannot offer that.
 
 Check it async:
+· live: https://perjury.vercel.app
+· the roster: https://perjury.vercel.app/roster
 · repo: https://github.com/krishnan74/perjury
 · technical integrations: docs/partner-integrations.md
 · ledger of every tx: docs/TX_HASHES.md
-· registry 0x8CDa96E615E96f97073C19Cc2167E4D242487A88 on Sepolia
+· registry 0x398907AbE00070127780F24C05B629cb8fEC51eb on Sepolia
+  (claims 1+; the earlier cascade at 0x8CDa96E6...87A88 holds claims 1-25,
+   including the appeal above — ids restart when the sink is redeployed)
 
 Run the proofs yourself:
   npx tsx scripts/prove-sealed.ts         # evidence store holds ciphertext
   npx tsx scripts/prove-eac.ts            # two reverts, one success
   npx tsx scripts/prove-corroboration.ts  # indexers disagree → Unverifiable
 
-Known limits, up front: the CRE workflow runs via the simulator, not a real
-enclave. 12 of 13 pinned subjects are single-source, so corroboration is real
-for one and labelled absent for the rest. No live triggering from the browser.
+Known limits, up front: the deployed workflow's WriteReport lands no
+transaction, so settled verdicts came via the simulator. 12 of 13 pinned
+subjects are single-source, so corroboration is real for one and labelled
+absent for the rest. One witness decides an outcome; K-of-N is not built.
 ```
 
-**No live URL yet, because the site is not deployed.** A mentor has to clone and run rather than click. Deploying is the highest-value hour before any session. Once it is up, add these and drop the repo to third:
-
-```
-· live: <url>/replay?claim=25
-· the roster: <url>/roster
-```
+**The site is deployed.** A mentor can click rather than clone.
 
 ## Ask them
 

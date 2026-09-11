@@ -180,7 +180,7 @@ export async function claimEvents(
   lookback = LOOKBACK,
   deployment: Deployment = currentDeployment(),
 ): Promise<ClaimEvent[]> {
-  return collect([[deployment.registry, CLAIM_EVENTS]], lookback);
+  return collect([[deployment.registry, CLAIM_EVENTS]], lookback, deployment.fromBlock);
 }
 
 /**
@@ -201,6 +201,7 @@ export async function mechanismEvents(
       [deployment.writer, WRITER_EVENTS],
     ],
     lookback,
+    deployment.fromBlock,
   );
 }
 
@@ -208,9 +209,18 @@ export async function mechanismEvents(
 async function collect(
   sources: readonly (readonly [Address, readonly AbiEvent[]])[],
   lookback: bigint,
+  /**
+   * Where this deployment began.
+   *
+   * Without it the window is the last few hours, so a claim simply ages out of
+   * the site — the appeal this project is built around was about an hour from
+   * becoming invisible when this was noticed. A deployment has a first block.
+   */
+  since?: bigint,
 ): Promise<ClaimEvent[]> {
   const head = await pub.getBlockNumber();
-  const fromBlock = head > lookback ? head - lookback : 0n;
+  const rolling = head > lookback ? head - lookback : 0n;
+  const fromBlock = since !== undefined ? since : rolling;
 
   // Spans wider than the provider's cap fail whole, not partially, so the window
   // is split before it is asked for rather than after it errors.
