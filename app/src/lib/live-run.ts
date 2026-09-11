@@ -12,7 +12,26 @@
  * deployment either has or does not, and a missing one should produce a sentence
  * rather than a stack trace in front of whoever pressed the button.
  */
+import { spawnSync } from "node:child_process";
 import { configuredAgents } from "./live/chain";
+
+/**
+ * Is a command line tool available here?
+ *
+ * Two credentials have a working fallback through a tool a developer already has
+ * logged in: the model through `claude`, and publishing through `gh`. Demanding
+ * the API key regardless would block local development for no reason, and
+ * pretending the fallback exists on a server would fail at the worst moment. So
+ * the question is asked rather than assumed.
+ */
+function hasCommand(cmd: string): boolean {
+  try {
+    return spawnSync("which", [cmd], { stdio: "ignore" }).status === 0;
+  } catch {
+    // No shell, or spawning is not permitted. Either way, not available.
+    return false;
+  }
+}
 
 export interface RunCapability {
   ok: boolean;
@@ -29,16 +48,22 @@ export function runCapability(): RunCapability {
   // Both agents read through the paid Gateway. Mocked data disqualifies the track.
   if (!process.env.GRAPH_STUDIO_KEY) missing.push("a Graph Gateway key");
 
-  // The agents fall back to the `claude -p` command line otherwise, which needs
-  // Claude Code installed and logged in as a person. No server has that.
-  if (!process.env.ANTHROPIC_API_KEY) missing.push("a model API key");
+  // The agents fall back to the `claude -p` command line, which needs Claude
+  // Code installed and logged in as a person — fine on a laptop, absent on any
+  // server.
+  if (!process.env.ANTHROPIC_API_KEY && !hasCommand("claude")) {
+    missing.push("a model API key (ANTHROPIC_API_KEY)");
+  }
 
   // Evidence is sealed to the tribunal's public half before it goes anywhere.
   // Without it a run would publish plaintext, which is worse than not running.
   if (!process.env.PERJURY_ENVELOPE_PUBKEY) missing.push("the evidence envelope public key");
 
-  // Publishing needs the GitHub API, because no serverless runtime has the CLI.
-  if (!process.env.GITHUB_GIST_TOKEN) missing.push("a GitHub token for publishing evidence");
+  // Publishing goes through the GitHub API when a token is set, and through the
+  // CLI otherwise. No serverless runtime has the CLI.
+  if (!process.env.GITHUB_GIST_TOKEN && !hasCommand("gh")) {
+    missing.push("a GitHub token for publishing evidence (GITHUB_GIST_TOKEN)");
+  }
 
   return { ok: missing.length === 0, missing };
 }
