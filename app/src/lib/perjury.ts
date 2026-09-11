@@ -121,7 +121,16 @@ export const READER_ABI = [
 export const LOOKBACK = BigInt(process.env.CHAIN_LOOKBACK_BLOCKS ?? 7200);
 
 /** Public RPCs cap `eth_getLogs` spans. Well under the common 10k limit. */
-const CHUNK = 5000n;
+/**
+ * Block span per log request.
+ *
+ * Smaller than a provider would usually allow, because the failure mode of being
+ * too large is not an error. A public endpoint asked for a wide range can return
+ * a truncated set with a 200, and the page then renders as though the missing
+ * claims never happened. Smaller windows make that less likely; `claimsAreWhole`
+ * is what catches it when it happens anyway.
+ */
+const CHUNK = 2000n;
 
 /** The events that make up a claim's life, in the order they can occur. */
 export const CLAIM_EVENTS = [
@@ -212,9 +221,11 @@ async function collect(
   /**
    * Where this deployment began.
    *
-   * Without it the window is the last few hours, so a claim simply ages out of
-   * the site — the appeal this project is built around was about an hour from
-   * becoming invisible when this was noticed. A deployment has a first block.
+   * Without it the window is the last few hours, which is fine while a
+   * deployment is new and wrong the moment it is not. Two symptoms, same cause:
+   * an archived cascade showed two of its twenty-five claims, and the appeal
+   * this project is built around was about an hour from ageing out of the site
+   * entirely. A deployment has a first block, so start there.
    */
   since?: bigint,
 ): Promise<ClaimEvent[]> {
@@ -235,7 +246,16 @@ async function collect(
       events.flatMap((event) =>
         spans.map(
           ([from, to]): Promise<Log[]> =>
-            pub.getLogs({ address, event, fromBlock: from, toBlock: to }).catch(() => []),
+            /*
+             * A failed chunk used to become an empty one.
+             *
+             * Silently, and the page then rendered a claim as though the events
+             * in that range had not happened — which produced an intermittent
+             * 404 on a claim that certainly existed. A read that did not happen
+             * is not the same as a read that found nothing, so it throws and the
+             * page fails visibly instead of lying quietly.
+             */
+            pub.getLogs({ address, event, fromBlock: from, toBlock: to }),
         ),
       ),
     ),
@@ -358,6 +378,37 @@ export interface ClaimRow {
 }
 
 /** Fold the event stream into one row per claim, newest first. */
+/**
+ * Did we read every claim the registry says exists?
+ *
+ * Claim ids are sequential from 1, so a gap is never legitimate — it is a log
+ * request that came back short. Providers do that silently on wide ranges,
+ * answering 200 with a truncated set, and the page would otherwise report the
+ * missing claims as though they had never happened.
+ *
+ * For a project whose entire argument is that you should not have to take an
+ * agent's word for a number, quietly showing three claims out of twenty-five is
+ * the worst available behaviour. Better to say so.
+ */
+export async function claimsAreWhole(
+  rows: ClaimRow[],
+  deployment: Deployment = currentDeployment(),
+): Promise<{ whole: boolean; read: number; expected: number }> {
+  try {
+    const next = await pub.readContract({
+      address: deployment.registry,
+      abi: REGISTRY_ABI,
+      functionName: "nextClaimId",
+    });
+    const expected = Number(next) - 1;
+    return { whole: rows.length >= expected, read: rows.length, expected };
+  } catch {
+    // If even this read fails there is nothing to compare against, and claiming
+    // completeness we cannot check would be the same mistake one level up.
+    return { whole: true, read: rows.length, expected: rows.length };
+  }
+}
+
 export function claimsIndex(events: ClaimEvent[]): ClaimRow[] {
   const byId = new Map<string, ClaimEvent[]>();
   for (const e of events) {

@@ -17,23 +17,21 @@
  * Two layers, because live claims and recorded ones have different lifetimes:
  *
  *   1. A committed index, for claims that already happened. Read-only, present
- *      in the deployment, works on any host.
- *   2. A writable overlay, for claims created after the deployment was built.
- *      Written by the submit route in the same process that publishes the gist.
+ *      in the deployment, works on any host, filed under the registry that
+ *      issued them because claim ids restart at one with every cascade.
+ *   2. The shared store, for claims created after the deployment was built.
  *
- * The overlay is per-instance. A host that spreads requests across instances can
- * answer a fetch from an instance that never saw the write, which shows up as a
- * 404 and resolves itself when the enclave retries against a warm one. Good
- * enough for a demo running one server; not what you would build to run this for
- * real, and that is written down rather than discovered later.
+ * Layer 2 used to be a file in `/tmp`, which is private to one instance: a write
+ * and a later read could land on different machines, and the failure looked like
+ * evidence that had never been published. See ./live/store.ts.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { get, set } from "./live/store";
 
 /**
- * Committed, ships with the build, and filed under the registry that issued the
- * claims — because claim ids restart at one with every cascade, so an id alone
- * names two different claims.
+ * Committed, ships with the build, filed under the registry that issued the
+ * claims.
  *
  * Only the live registry is served here. The archived cascade's evidence is read
  * from disk by the replay page and never fetched by a workflow, because its sink
@@ -48,43 +46,43 @@ const COMMITTED = join(
 );
 
 /**
- * Writable, per-instance. `/tmp` because a serverless filesystem is read-only
- * everywhere else, and because losing it costs a retry rather than the evidence.
+ * Keyed by registry as well as claim id.
+ *
+ * Claim ids restart at one with every cascade, so `gateway:1` names a different
+ * claim after each redeploy and the newer write silently replaces the older
+ * one. That is the same collision that overwrote an archived bundle on disk, and
+ * it survived here because the store was added after the directory layout was
+ * fixed.
+ *
+ * The registry comes from this deployment's own environment rather than from the
+ * caller, so a client cannot write into another deployment's namespace by
+ * claiming to be it.
  */
-const OVERLAY = process.env.PERJURY_GATEWAY_INDEX ?? "/tmp/perjury-gateway-index.json";
+const key = (claimId: string) =>
+  `gateway:${(process.env.CLAIM_REGISTRY_ADDRESS ?? "unknown").toLowerCase()}:${claimId}`;
 
-type Index = Record<string, string>;
-
-function read(path: string): Index {
+function committed(): Record<string, string> {
   try {
-    if (!existsSync(path)) return {};
-    return JSON.parse(readFileSync(path, "utf8")) as Index;
+    if (!existsSync(COMMITTED)) return {};
+    return JSON.parse(readFileSync(COMMITTED, "utf8")) as Record<string, string>;
   } catch {
-    // A corrupt or unreadable index must not take the route down with it. An
-    // empty layer produces a 404, which the caller already knows how to retry.
     return {};
   }
 }
 
 /** The URL a claim's sealed evidence was published to, or null. */
-export function gatewayUrlFor(claimId: string): string | null {
-  const overlay = read(OVERLAY);
-  if (overlay[claimId]) return overlay[claimId];
-  const committed = read(COMMITTED);
-  return committed[claimId] ?? null;
+export async function gatewayUrlFor(claimId: string): Promise<string | null> {
+  // The store wins. A claim can only be in both if it was re-published, and the
+  // newer publish is the one the tribunal should read.
+  const live = await get(key(claimId));
+  if (live) return live;
+  return committed()[claimId] ?? null;
 }
 
-/** Record where a claim's evidence went. Overlay only — the committed file is an artifact. */
-export function recordGatewayUrl(claimId: string, url: string): void {
-  const overlay = read(OVERLAY);
-  overlay[claimId] = url;
-  mkdirSync(dirname(OVERLAY), { recursive: true });
-  writeFileSync(OVERLAY, `${JSON.stringify(overlay, null, 2)}\n`);
-}
+/** Record where a claim's evidence went. */
+export const recordGatewayUrl = (claimId: string, url: string): Promise<void> =>
+  set(key(claimId), url);
 
-/** Every claim this instance can serve. Used by the submit page to show progress. */
-export function knownClaimIds(): string[] {
-  return [...new Set([...Object.keys(read(COMMITTED)), ...Object.keys(read(OVERLAY))])].sort(
-    (a, b) => Number(a) - Number(b),
-  );
-}
+/** Claims that shipped with this build. Used where a list is more useful than a lookup. */
+export const committedClaimIds = (): string[] =>
+  Object.keys(committed()).sort((a, b) => Number(a) - Number(b));

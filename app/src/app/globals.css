@@ -2378,3 +2378,65 @@ body::after {
 .submit-unavailable p:last-child {
   margin-bottom: 0;
 }
+
+/* A step the claim has not reached yet is visible but quiet: the reader should
+   see where this is going before it gets there, without the unreached steps
+   competing with the one that is happening. */
+.submit-steps li[data-state="pending"] { opacity: 0.4; }
+.submit-steps li[data-state="current"] h3 { font-weight: 700; }
+.submit-steps li[data-state="current"] .submit-step-n { border-color: currentColor; border-width: 2px; }
+.submit-steps li[data-state="done"] .submit-step-n { background: var(--ink, #1a1a1a); color: var(--paper, #fff); }
+
+.submit-waiting {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.submit-step-body a { overflow-wrap: anywhere; }
+
+.submit-field input {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper, #fff);
+  color: inherit;
+}
+
+.submit-unavailable-note {
+  margin: 0 0 1.5rem;
+  max-width: 62ch;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  padding: 0.9rem 1.1rem;
+  border-left: 3px solid var(--rule);
+  background: var(--paper-2, #fbfaf7);
+}
+
+/* Which set of contracts a page is reading. Present because claim ids restart
+   with every cascade, so the number alone is ambiguous and a feed that showed
+   only the newest contracts would quietly hide everything that came before. */
+.deployment-switch {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.6rem;
+}
+
+.deployment-switch a {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.deployment-switch a[aria-current="page"] {
+  opacity: 1;
+  border-color: currentColor;
+  font-weight: 600;
+}

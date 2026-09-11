@@ -1,9 +1,22 @@
 import { rosterSnapshot } from "@/lib/roster";
+import { fundedAgents } from "@/lib/live/chain";
+import { gateEnabled } from "@/lib/live/gate";
 import { pinnedSubjects } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
 import Submit, { type SubjectOption } from "./Submit";
 
-export const revalidate = 30;
+/**
+ * Never prerendered.
+ *
+ * This page reads two things that are only true at the moment of asking: which
+ * agents can currently afford a bond, and which credentials this deployment
+ * holds. Baking either at build time gives a reader a page that was correct when
+ * it was built — offering an agent that has since spent its balance, or claiming
+ * a claim cannot be run because a variable was added afterwards. ISR would have
+ * corrected itself within thirty seconds, which is thirty seconds of a judge
+ * reading something false.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function SubmitPage() {
   const capability = runCapability();
@@ -12,10 +25,14 @@ export default async function SubmitPage() {
   // Only agents the protocol would actually let post. A slashed or flagged agent
   // in the dropdown is an offer the chain will refuse, and watching a demo
   // revert teaches the wrong lesson about why it refused.
+  // Eligible on chain, holding a key here, and able to afford the bond. Offering
+  // an agent that fails any of the three produces an error a reader will read as
+  // the protocol refusing them.
+  const keyed = await fundedAgents();
   const agents = roster
     .filter((a) => a.eligible)
     .map((a) => a.name.replace(/\.perjury\.eth$/, ""))
-    .filter((n) => ["operator", "witness-a", "panel-1", "panel-2", "panel-3"].includes(n));
+    .filter((n) => keyed.includes(n));
 
   const subjects: SubjectOption[] = pinnedSubjects();
 
@@ -30,27 +47,35 @@ export default async function SubmitPage() {
         tribunal alone.
       </p>
 
-      {!capability.ok ? (
-        <div className="submit-unavailable">
-          <p>
-            <strong>This deployment cannot post a claim.</strong> Submitting one runs the agents as real
-            processes for about four minutes, which needs {capability.missing.join(", ")}.
-          </p>
-          <p>
-            Everything else on this site is live against the same contracts, and{" "}
-            <a href="/replay?d=sim&claim=25">the replay</a> plays a settled claim back from its own
-            transactions. To post one yourself, clone the repository and run{" "}
-            <code>npm run dev</code> with the environment described in the README.
-          </p>
-        </div>
-      ) : agents.length === 0 ? (
+      {/*
+        The form is public; the password gates the action, not the page.
+        A judge who is only reading should be able to see that live submission
+        exists and what it would do, and nobody should be able to spend a bond
+        without the shared secret.
+
+        What is deliberately NOT here is which credential a deployment is
+        missing. The API keeps that behind the password too — telling a stranger
+        exactly what is unconfigured is a small leak and a free one to close, and
+        saying it on one side while hiding it on the other would be worse than
+        doing neither.
+      */}
+      {!capability.ok && (
+        <p className="submit-unavailable-note">
+          Live submission is not currently available on this deployment. Everything else here is live
+          against the same contracts, and <a href="/replay?d=sim&claim=25">the replay</a> plays a settled
+          claim back from its own transactions.
+        </p>
+      )}
+
+      {agents.length === 0 ? (
         <p className="submit-error">
-          No eligible agents. Every agent is either flagged or under-staked, so the protocol would refuse any
-          claim posted right now — which is the mechanism working, not an outage.
+          No agent is currently able to post. An agent has to be eligible on chain and able to cover its
+          bond, and right now none is both — which is the mechanism working, not an outage.
         </p>
       ) : (
-        <Submit subjects={subjects} agents={agents} />
+        <Submit subjects={subjects} agents={agents} gated={gateEnabled()} />
       )}
+
     </main>
   );
 }

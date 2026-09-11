@@ -1,4 +1,5 @@
-import { claimEvents, claimsIndex, eth, short, EXPLORER, REGISTRY, SINK } from "@/lib/perjury";
+import { claimEvents, claimsIndex, eth, short, EXPLORER, SINK } from "@/lib/perjury";
+import { deploymentById } from "@/lib/deployments";
 import { rosterSnapshot } from "@/lib/roster";
 import { notFound } from "next/navigation";
 import { Redacted } from "../Redacted";
@@ -18,9 +19,21 @@ const STAGE_LABEL: Record<string, string> = {
   Settled: "Settled",
 };
 
-export default async function ClaimDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClaimDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ d?: string }>;
+}) {
   const { id } = await params;
-  const [events, roster] = await Promise.all([claimEvents(), rosterSnapshot()]);
+  // An id alone does not identify a claim: ids restart with every cascade.
+  const { d } = await searchParams;
+  const deployment = deploymentById(d);
+  const [events, roster] = await Promise.all([
+    claimEvents(undefined, deployment),
+    rosterSnapshot(deployment),
+  ]);
   const claim = claimsIndex(events).find((c) => c.id === id);
   if (!claim) notFound();
 
@@ -156,7 +169,7 @@ export default async function ClaimDetail({ params }: { params: Promise<{ id: st
           or bias the draw.
         </p>
         <div className="actions">
-          <a className="btn ghost" href={`${EXPLORER}/address/${REGISTRY}`}>Registry on Etherscan</a>
+          <a className="btn ghost" href={`${EXPLORER}/address/${deployment.registry}`}>Registry on Etherscan</a>
           {verdictEvent && (
             <a className="btn ghost" href={`${EXPLORER}/tx/${verdictEvent.tx}`}>The verdict transaction</a>
           )}

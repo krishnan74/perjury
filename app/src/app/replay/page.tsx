@@ -2,7 +2,7 @@ import { REGISTRY_ABI, claimEvents, claimsIndex, mechanismEvents, pub } from "@/
 import { deploymentById } from "@/lib/deployments";
 import { rosterSnapshot } from "@/lib/roster";
 import { buildScript } from "@/lib/replay";
-import { claimTextVerified, readArchive, readToleranceBps } from "@/lib/evidence";
+import { claimTextVerified, readArchiveAsync, readToleranceBps } from "@/lib/evidence";
 import Replay from "./Replay";
 
 export const revalidate = 30;
@@ -43,7 +43,7 @@ export default async function ReplayPage({
 
   // The archive is a record of a run, not a source of truth about the chain.
   // Everything it asserts that CAN be checked against chain is checked here.
-  const archive = readArchive(chosen.id, deployment.registry);
+  const archive = await readArchiveAsync(chosen.id, deployment.registry);
   // claimHash is storage, not an event field — ClaimSubmitted carries only the
   // subject and the bond — so it is read from the registry.
   const stored = await pub

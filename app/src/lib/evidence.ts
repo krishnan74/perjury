@@ -19,6 +19,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { canonicalize, sha256 } from "@perjury/shared";
+import { getJson } from "./live/store";
 import { keccak256, toBytes } from "viem";
 
 export interface Provenance {
@@ -96,6 +97,25 @@ export function readToleranceBps(): number | null {
  * the evidence for a claim that really settled. It happened once, to the archive
  * for the very first claim, which is why the path carries the registry.
  */
+/**
+ * The store copy, for claims made after this build shipped.
+ *
+ * A claim submitted from the site has no file on disk and never will — a
+ * serverless filesystem is read-only, and the runner that writes those files is
+ * not running. Without this, a live claim replays as a row of transactions with
+ * no agent reads, and the page that exists to show how a verdict was reached
+ * shows everything except that.
+ *
+ * Checked first, because a claim can only be in both if it was re-run.
+ */
+export const archiveKey = (claimId: string, registry: string) =>
+  `archive:${registry.toLowerCase()}:${claimId}`;
+
+export async function readArchiveAsync(claimId: string, registry: string): Promise<Archive | null> {
+  const stored = await getJson<Archive>(archiveKey(claimId, registry));
+  return stored ?? readArchive(claimId, registry);
+}
+
 export function readArchive(claimId: string, registry: string): Archive | null {
   const dir = registry.toLowerCase();
   for (const root of ROOTS) {

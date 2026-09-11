@@ -32,10 +32,10 @@ export interface Deployment {
   /**
    * The block its first claim landed in.
    *
-   * Pages read a rolling window of recent blocks otherwise, which is fine while
-   * a deployment is hours old and wrong the moment it is not: the archived
-   * cascade would show its newest claims and the rest would look like they had
-   * never happened. A deployment has a beginning, so read from it.
+   * Pages used to read a rolling window of recent blocks, which is fine while a
+   * deployment is days old and wrong the moment it is not: an archived cascade
+   * showed two of its twenty-five claims and the rest looked like they had never
+   * happened. A deployment has a beginning, so read from it.
    */
   fromBlock: bigint;
   /** True for the contracts a new claim would be submitted to. */
