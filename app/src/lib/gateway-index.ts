@@ -30,8 +30,22 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-/** Committed, ships with the build. */
-const COMMITTED = join(process.cwd(), "..", "evidence-archive", "gateway-index.json");
+/**
+ * Committed, ships with the build, and filed under the registry that issued the
+ * claims — because claim ids restart at one with every cascade, so an id alone
+ * names two different claims.
+ *
+ * Only the live registry is served here. The archived cascade's evidence is read
+ * from disk by the replay page and never fetched by a workflow, because its sink
+ * cannot accept a report any more.
+ */
+const COMMITTED = join(
+  process.cwd(),
+  "..",
+  "evidence-archive",
+  (process.env.CLAIM_REGISTRY_ADDRESS ?? "").toLowerCase(),
+  "gateway-index.json",
+);
 
 /**
  * Writable, per-instance. `/tmp` because a serverless filesystem is read-only

@@ -38,7 +38,8 @@ const config = JSON.parse(readFileSync("cre/tribunal/config.staging.json", "utf8
 // id has to come from the command line and the URL is built the way the workflow
 // builds it — base plus id. Anything else would be proving a different fetch
 // than the one that matters.
-const index = JSON.parse(readFileSync("evidence-archive/gateway-index.json", "utf8")) as Record<string, string>;
+const dir = `evidence-archive/${(process.env.CLAIM_REGISTRY_ADDRESS ?? "unknown").toLowerCase()}`;
+const index = JSON.parse(readFileSync(`${dir}/gateway-index.json`, "utf8")) as Record<string, string>;
 const id = claimId ?? Object.keys(index).sort((a, b) => Number(b) - Number(a))[0];
 if (!id) throw new Error("no claim id given and the gateway index is empty");
 const url = `${config.evidenceGatewayBaseUrl}/${id}`;
@@ -97,7 +98,7 @@ console.log(`✓ opens           with the key the Vault DON releases into the en
 console.log(`  bundle claim    ${bundle.claimId}`);
 
 try {
-  const archived = readFileSync(`evidence-archive/${bundle.claimId}.json`, "utf8");
+  const archived = readFileSync(`${dir}/${bundle.claimId}.json`, "utf8");
   const a = JSON.parse(archived) as Record<string, unknown>;
   const same = JSON.stringify(a.claim) === JSON.stringify(bundle.claim)
     && JSON.stringify(a.witness) === JSON.stringify(bundle.witness);

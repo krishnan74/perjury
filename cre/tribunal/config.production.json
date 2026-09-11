@@ -1,11 +1,11 @@
 {
   "schedule": "0 */1 * * * *",
   "evidenceGatewayBaseUrl": "https://perjury.vercel.app/api/evidence",
-  "claimRegistryAddress": "0x8CDa96E615E96f97073C19Cc2167E4D242487A88",
+  "claimRegistryAddress": "0x398907AbE00070127780F24C05B629cb8fEC51eb",
   "secretId": "COMMITMENT_SALT",
   "envelopeSecretId": "ENVELOPE_KEY",
   "toleranceBps": 50,
-  "verdictSinkAddress": "0xedABb806dDFe7ACa46707713E2D649f2dd0d86D3",
+  "verdictSinkAddress": "0x572e7b912031267c4163d8F3c785e03b88AEb5b2",
   "chainSelector": "16015286601757825753",
   "pinnedDeployments": [
     "QmcXE5QVcBcvcaJddPxd8mFs6W9xt7STmwfgguoiM6ddAd",
@@ -23,5 +23,6 @@
     "QmdAoDVjfSByKvTW1HrCDK1eJJKRRZxdj8bcqVqQLCofN4",
     "QmRkp5iisPLn14S7eZcE69AhWUntS7uFYLEkUw1TzqeuMi"
   ],
-  "freshnessSeconds": 600
+  "freshnessSeconds": 600,
+  "reportKind": "verdict"
 }

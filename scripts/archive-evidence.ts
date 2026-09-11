@@ -122,9 +122,10 @@ console.log(`\nverified ${matched.size} of ${commitments.size} settled claims`);
 if (!WRITE) {
   console.log("dry run — pass --write to archive");
 } else {
-  mkdirSync("evidence-archive", { recursive: true });
+  const dir = `evidence-archive/${(process.env.CLAIM_REGISTRY_ADDRESS ?? "unknown").toLowerCase()}`;
+  mkdirSync(dir, { recursive: true });
   for (const [claimId, { gist, bundle }] of matched) {
-    const path = `evidence-archive/${claimId}.json`;
+    const path = `${dir}/${claimId}.json`;
     writeFileSync(
       path,
       `${JSON.stringify(

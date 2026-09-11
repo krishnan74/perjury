@@ -87,10 +87,20 @@ export function readToleranceBps(): number | null {
   return null;
 }
 
-export function readArchive(claimId: string): Archive | null {
+/**
+ * Archives are filed under the registry that issued the claim.
+ *
+ * Claim ids restart at one with every cascade, so a flat directory makes claim 1
+ * of one deployment and claim 1 of the next the same file. That is not a naming
+ * inconvenience: the second run overwrites the first, and the overwritten run is
+ * the evidence for a claim that really settled. It happened once, to the archive
+ * for the very first claim, which is why the path carries the registry.
+ */
+export function readArchive(claimId: string, registry: string): Archive | null {
+  const dir = registry.toLowerCase();
   for (const root of ROOTS) {
     try {
-      return JSON.parse(readFileSync(join(root, `${claimId}.json`), "utf8")) as Archive;
+      return JSON.parse(readFileSync(join(root, dir, `${claimId}.json`), "utf8")) as Archive;
     } catch {
       // Try the next root; a genuinely missing archive returns null below and
       // the page says the claim has none.

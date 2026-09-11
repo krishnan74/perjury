@@ -43,7 +43,7 @@ export default async function ReplayPage({
 
   // The archive is a record of a run, not a source of truth about the chain.
   // Everything it asserts that CAN be checked against chain is checked here.
-  const archive = readArchive(chosen.id);
+  const archive = readArchive(chosen.id, deployment.registry);
   // claimHash is storage, not an event field — ClaimSubmitted carries only the
   // subject and the bond — so it is read from the registry.
   const stored = await pub

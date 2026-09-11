@@ -232,8 +232,12 @@ if (phase === "draft") {
    * and it was never eternal. The gateway gist has been world-readable from the
    * first run.
    */
-  mkdirSync("evidence-archive", { recursive: true });
-  const archive = `evidence-archive/${claimId}.json`;
+  // Filed under the registry that issued the claim. Claim ids restart at one with
+  // every cascade, so a flat directory silently overwrote a settled claim's
+  // evidence with a new claim that happened to reuse its number.
+  const dir = `evidence-archive/${(process.env.CLAIM_REGISTRY_ADDRESS ?? "unknown").toLowerCase()}`;
+  mkdirSync(dir, { recursive: true });
+  const archive = `${dir}/${claimId}.json`;
   writeFileSync(
     archive,
     `${JSON.stringify({ ...bundle, gatewayUrl: url, archivedAt: new Date().toISOString() }, null, 2)}\n`,
@@ -250,7 +254,7 @@ if (phase === "draft") {
    * so nothing about it changes per run and the only thing that has to be
    * recorded is which store holds which claim.
    */
-  const indexPath = "evidence-archive/gateway-index.json";
+  const indexPath = `${dir}/gateway-index.json`;
   const index: Record<string, string> = existsSync(indexPath)
     ? JSON.parse(readFileSync(indexPath, "utf8"))
     : {};
