@@ -13,8 +13,15 @@
  * one: it is a shared secret that keeps a public URL from being a faucet.
  *
  * Leaving the password unset leaves the gate open, which is correct for local
- * development and wrong for a deployment. The submit page says which it is, so
- * an unset password is visible rather than silent.
+ * development and, on ETHGlobal's advice, correct for the judged deployment too:
+ * "the harder you make it for Partners to use / test your project the lower your
+ * chances are of winning a bounty." So the shipped configuration is open, and the
+ * thing the password was really protecting — a paid model key that a single
+ * enthusiastic afternoon could drain — is protected by a daily cap instead.
+ *
+ * A cap is the better instrument anyway. A password stops everyone who does not
+ * have it, including the people we want; a cap stops nobody until the money is
+ * actually gone, and then says so plainly instead of failing like a bug.
  */
 import { get, set } from "./store";
 
@@ -39,6 +46,52 @@ export function passwordOk(supplied: string | null): boolean {
   const expected = PASSWORD();
   if (!expected) return true;
   return typeof supplied === "string" && sameSecret(supplied, expected);
+}
+
+/**
+ * Claims per UTC day, across everyone.
+ *
+ * Each claim pays for a model call, two indexer reads and four transactions, so
+ * the ceiling is money rather than load. Twenty-five is roughly a day of
+ * genuine trying by several people at once and well short of a bill worth
+ * caring about. Set `PERJURY_DAILY_CLAIM_LIMIT` to change it, or `0` to lift it.
+ */
+const DAILY_LIMIT = () => {
+  const raw = process.env.PERJURY_DAILY_CLAIM_LIMIT;
+  const n = raw === undefined ? 25 : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 25;
+};
+
+/** Counter key. Dated, so it resets itself and no cron has to. */
+const budgetKey = (): string => `live:budget:${new Date().toISOString().slice(0, 10)}`;
+
+export interface Budget {
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
+export async function budget(): Promise<Budget> {
+  const limit = DAILY_LIMIT();
+  const used = Number((await get(budgetKey())) ?? 0) || 0;
+  return { used, limit, remaining: limit === 0 ? Infinity : Math.max(0, limit - used) };
+}
+
+/**
+ * Spend one claim against today's budget, or refuse.
+ *
+ * Counted at the point a claim is drafted rather than when it settles, because
+ * drafting is the step that makes the model call — a run abandoned halfway has
+ * still cost what the cap exists to bound.
+ */
+export async function spendFromBudget(): Promise<Budget | null> {
+  const limit = DAILY_LIMIT();
+  if (limit === 0) return { used: 0, limit: 0, remaining: Infinity };
+  const key = budgetKey();
+  const used = Number((await get(key)) ?? 0) || 0;
+  if (used >= limit) return null;
+  await set(key, String(used + 1));
+  return { used: used + 1, limit, remaining: limit - used - 1 };
 }
 
 const LOCK = "live:lock";

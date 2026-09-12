@@ -15,7 +15,7 @@ import { assignment, draft, finalize, loadRun, runWitness, submit, verdict } fro
 import { configuredAgents } from "@/lib/live/chain";
 import { isPinnedSubject } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
-import { acquireLock, passwordOk, releaseLock } from "@/lib/live/gate";
+import { acquireLock, passwordOk, releaseLock, spendFromBudget } from "@/lib/live/gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,6 +59,16 @@ export async function POST(request: Request) {
         // told to wait after the model call has already been paid for.
         if (!(await acquireLock("pending"))) {
           return bad("a claim is already running — one at a time, so the bonds do not collide", 409);
+        }
+        // Charged before the model call, and the lock is handed back on refusal
+        // so a spent budget does not also look like a stuck queue.
+        const spent = await spendFromBudget();
+        if (!spent) {
+          await releaseLock();
+          return bad(
+            "today's live-claim budget is spent — this page pays for a real model call and real gas on every run, so it is capped per day rather than gated behind a password. It resets at 00:00 UTC. Everything already settled is still replayable.",
+            429,
+          );
         }
         const state = await draft(body.subject, body.claimant);
         await acquireLock(state.runId);

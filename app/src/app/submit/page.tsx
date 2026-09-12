@@ -1,6 +1,6 @@
 import { rosterSnapshot } from "@/lib/roster";
 import { fundedAgents } from "@/lib/live/chain";
-import { gateEnabled } from "@/lib/live/gate";
+import { budget, gateEnabled } from "@/lib/live/gate";
 import { pinnedSubjects } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
 import Submit, { type SubjectOption } from "./Submit";
@@ -35,6 +35,7 @@ export default async function SubmitPage() {
     .filter((n) => keyed.includes(n));
 
   const subjects: SubjectOption[] = pinnedSubjects();
+  const today = await budget();
 
   return (
     <main className="wrap wide section">
@@ -48,17 +49,33 @@ export default async function SubmitPage() {
       </p>
 
       {/*
-        The form is public; the password gates the action, not the page.
-        A judge who is only reading should be able to see that live submission
-        exists and what it would do, and nobody should be able to spend a bond
-        without the shared secret.
+        Open, with a cap. ETHGlobal's guidance is explicit that making a project
+        harder for partners to try costs more than it protects, so the shared
+        password is off in this deployment and the paid model key is bounded by
+        a per-day budget instead. When the budget is spent the page says so and
+        says when it returns, which is a better answer than a login box.
 
-        What is deliberately NOT here is which credential a deployment is
-        missing. The API keeps that behind the password too — telling a stranger
-        exactly what is unconfigured is a small leak and a free one to close, and
-        saying it on one side while hiding it on the other would be worse than
-        doing neither.
+        What is deliberately NOT shown is which credential a deployment is
+        missing, if any. Telling a stranger exactly what is unconfigured is a
+        small leak and a free one to close.
       */}
+      {today.limit > 0 && (
+        <p className={today.remaining > 0 ? "note" : "submit-unavailable-note"}>
+          {today.remaining > 0 ? (
+            <>
+              Anyone can run this, no password. Every run pays for a model call and real gas, so it is
+              capped at {today.limit} claims a day rather than gated —{" "}
+              <b>{today.remaining} left today</b>, resetting at 00:00 UTC.
+            </>
+          ) : (
+            <>
+              Today&apos;s {today.limit} live claims are spent, and the budget resets at 00:00 UTC. Every
+              claim already settled is still replayable from its own transactions, and every proof in the
+              repo still runs.
+            </>
+          )}
+        </p>
+      )}
       {!capability.ok && (
         <p className="submit-unavailable-note">
           Live submission is not currently available on this deployment. Everything else here is live
