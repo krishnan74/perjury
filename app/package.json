@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@perjury/claimant": "*",
+    "@perjury/ens": "*",
     "@perjury/gateway": "*",
     "@perjury/graph-client": "*",
     "@perjury/shared": "*",

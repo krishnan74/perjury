@@ -1312,6 +1312,27 @@ body::after {
   color: var(--muted);
 }
 
+/* The two deployment ids a corroborated read compared, sitting under the
+   margin that separates them. */
+/* The Universal Resolver cross-check beside each roster name. */
+.fleet-ur {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.fleet-ur[data-state="differs"],
+.fleet-ur[data-state="absent"] { color: var(--mismatch); }
+
+.agent-read-sources {
+  margin: 0.3rem 0 0;
+  font-size: 0.6rem;
+  color: var(--muted);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
 .agent-read-toggle {
   margin-top: 0.55rem;
   padding: 0;

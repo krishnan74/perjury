@@ -23,11 +23,30 @@ export default function AgentRead({ read, who }: { read: Read; who?: Identity })
   const [showQuery, setShowQuery] = useState(false);
 
   if (read.unverifiableReason) {
+    const split = divergence(read.unverifiableReason);
     return (
       <div className="agent-read" data-role={read.role}>
         <p className="agent-read-bad">
           Could not verify: {read.unverifiableReason}. No value was asserted.
         </p>
+        {/*
+          The case corroboration was built for, and the one it is hardest to
+          believe without seeing: two independently written mappings, the same
+          protocol, the same block, and numbers that do not match. Naming both
+          deployments and the margin turns a sentence into something a reader
+          can go and check.
+        */}
+        {split && (
+          <p className="agent-read-sources mono">
+            {split.ids.map((id, i) => (
+              <span key={id} title={id}>
+                {i > 0 && <span className="muted"> vs </span>}
+                {short(id)}
+              </span>
+            ))}
+            <span className="muted"> — {split.bps} bps apart, tolerance {split.max}</span>
+          </p>
+        )}
       </div>
     );
   }
@@ -72,7 +91,22 @@ export default function AgentRead({ read, who }: { read: Read; who?: Identity })
 
       <p className="agent-read-meta">
         <span>{read.sources === 1 ? "1 deployment" : `${read.sources} deployments`}</span>
-        <span>{read.corroborated ? "corroborated" : "not corroborated"}</span>
+        {/*
+          The margin, not just the verdict. Two independently written mappings
+          landing within a few basis points of each other at the same block is
+          the whole corroboration argument, and a reader cannot weigh it against
+          a word. Where no second index exists this says so plainly instead of
+          leaving a bare "not corroborated" that reads like a failure.
+        */}
+        {read.corroborated ? (
+          <span className="ok">
+            agree within {fmtBps(read.maxDivergenceBps)}
+          </span>
+        ) : (
+          <span className="muted">
+            {read.sources === 1 ? "no independent second index exists" : "not corroborated"}
+          </span>
+        )}
         {read.hasIndexingErrors && <span className="bad">indexing errors</span>}
         {/*
           A check, not a badge. The archived document either reproduces the hash
@@ -84,6 +118,17 @@ export default function AgentRead({ read, who }: { read: Read; who?: Identity })
         {read.queryOk === false && <span className="bad">query does not match its hash</span>}
         {read.queryOk === null && <span className="muted">query not archived</span>}
       </p>
+
+      {read.corroborated && read.deploymentIds && read.deploymentIds.length > 1 && (
+        <p className="agent-read-sources mono">
+          {read.deploymentIds.map((id, i) => (
+            <span key={id} title={id}>
+              {i > 0 && <span className="muted"> vs </span>}
+              {short(id)}
+            </span>
+          ))}
+        </p>
+      )}
 
       {read.query && (
         <>
@@ -101,6 +146,24 @@ export default function AgentRead({ read, who }: { read: Read; who?: Identity })
     </div>
   );
 }
+
+/**
+ * Pull the two deployment ids and the margin back out of a corroboration
+ * failure. The guard writes the reason as prose because it also has to travel
+ * through the enclave and onto a terminal, so the structure is recovered here
+ * rather than duplicating the field on every attestation.
+ */
+function divergence(reason: string): { bps: string; max: string; ids: string[] } | null {
+  const m = /disagree by ([\d.]+) bps \(max (\d+)\): (\S+) vs (\S+)/.exec(reason);
+  return m ? { bps: m[1]!, max: m[2]!, ids: [m[3]!, m[4]!] } : null;
+}
+
+/**
+ * Basis points, at a precision that does not overstate the measurement.
+ * Two mappings agreeing exactly is worth saying as "exactly", not "0.0 bps".
+ */
+const fmtBps = (bps: number | null) =>
+  bps === null ? "tolerance" : bps === 0 ? "the last decimal" : `${bps.toFixed(1)} bps`;
 
 const short = (id: string) => (id.length > 18 ? `${id.slice(0, 10)}…${id.slice(-4)}` : id);
 

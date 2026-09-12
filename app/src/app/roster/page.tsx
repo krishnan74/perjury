@@ -53,6 +53,51 @@ function Strikes({ n }: { n: number }) {
   );
 }
 
+/**
+ * The same record, fetched the way a third party would fetch it.
+ *
+ * Three states rather than a tick: it resolves and agrees, it resolves and
+ * disagrees, or the name does not resolve publicly at all. The last one is the
+ * failure this project actually shipped for a week without noticing, so it gets
+ * said in words.
+ */
+function UniversalResolverCheck({
+  ours,
+  resolver,
+  theirs,
+}: {
+  ours: number;
+  resolver: string | null;
+  theirs: number | null;
+}) {
+  if (!resolver) {
+    return (
+      <span className="fleet-ur" data-state="absent" title="The ENS registry gives a third party no resolver for this name">
+        does not resolve publicly
+      </span>
+    );
+  }
+  if (theirs === null) {
+    return (
+      <span className="fleet-ur" data-state="ok" title={`Resolves through the ENS Universal Resolver to ${resolver}. No standing record has been written, because this agent has never been judged.`}>
+        resolves publicly · never judged
+      </span>
+    );
+  }
+  if (theirs !== ours) {
+    return (
+      <span className="fleet-ur" data-state="differs" title="Our reader and the Universal Resolver disagree about this record">
+        Universal Resolver says {theirs > 0 ? `+${theirs}` : theirs}
+      </span>
+    );
+  }
+  return (
+    <span className="fleet-ur" data-state="ok" title={`Resolved through the ENS Universal Resolver by ENSIP-10, with no resolver address supplied. It found ${resolver}.`}>
+      resolves publicly · agrees
+    </span>
+  );
+}
+
 function Row({ a, domain }: { a: FleetAgent; domain: { lo: number; hi: number } }) {
   return (
     <div className="fleet-row" data-eligible={a.eligible}>
@@ -73,6 +118,14 @@ function Row({ a, domain }: { a: FleetAgent; domain: { lo: number; hi: number } 
           <a className="fleet-addr" href={`${EXPLORER}/address/${a.who.address}`}>
             {short(a.who.address, 10)}
           </a>
+          {/*
+            Proof the name is public, not just readable by us. This number came
+            back from the ENS Universal Resolver walking the registry, with no
+            resolver address supplied — the same path a wallet or an explorer
+            takes. When it disagrees with the protocol's own reader, that is the
+            interesting fact on this page and it is not smoothed over.
+          */}
+          <UniversalResolverCheck ours={a.standing} resolver={a.publicResolver} theirs={a.publicStanding} />
         </span>
       </div>
 
@@ -196,6 +249,16 @@ export default async function Roster() {
         events{fleet.fromBlock ? ` since block ${Number(fleet.fromBlock).toLocaleString("en")}` : ""},
         so an agent can carry a low standing and show no strikes because the writes that earned it
         are older than the window.
+      </p>
+
+      <p className="note">
+        Every name on this page is read twice. Once through the protocol's own reader contract, which
+        is what actually decides eligibility, and once through the ENS Universal Resolver by ENSIP-10,
+        which is what a wallet or a block explorer would do. The second read is the one that matters
+        for trusting the first: our reader has the resolver address compiled into it, so it would keep
+        answering for a name that had quietly stopped existing in ENS — which is exactly what happened
+        here before <span className="mono">perjury.eth</span> had a subname registry. Both numbers are
+        shown, and a disagreement is printed rather than resolved in our favour.
       </p>
 
       <p className="note">

@@ -77,6 +77,18 @@ export interface AgentRead {
   queryOk: boolean | null;
   sources: number;
   corroborated: boolean;
+  /**
+   * Every deployment consulted, primary first, and how far apart the furthest
+   * two were.
+   *
+   * The count alone was not evidence of anything. "2 deployments" reads as a
+   * reassurance until you can see which two and by how much they differed —
+   * agreement within a few basis points across two independently written
+   * mappings is the claim, and it is only checkable if the margin is shown.
+   * Null on reads archived before corroboration was recorded.
+   */
+  deploymentIds: string[] | null;
+  maxDivergenceBps: number | null;
   hasIndexingErrors: boolean;
   rows: { label: string; value: string }[];
   reasoning: string;
@@ -434,6 +446,8 @@ function readBeat(
     queryOk: queryVerified(s),
     sources: p.corroboration?.sources ?? 1,
     corroborated: p.corroboration?.corroborated ?? false,
+    deploymentIds: p.corroboration?.deploymentIds ?? null,
+    maxDivergenceBps: p.corroboration?.maxDivergenceBps ?? null,
     hasIndexingErrors: p.hasIndexingErrors,
     rows: evidenceRows(s),
     reasoning: reasoning(s),

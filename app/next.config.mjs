@@ -10,6 +10,17 @@ export default {
   // them and a deployment would ship without them — the evidence route would
   // 404 every claim and the replay would render a claim with no agent reads.
   // Listing them here is what puts them in the bundle.
+  // @perjury/ens is the one workspace package that re-exports across files, and
+  // it does so with the ESM-correct `./eac.js` specifiers pointing at .ts
+  // sources. Node and tsx resolve those; webpack does not without being told.
+  webpack(config) {
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+      ".js": [".ts", ".tsx", ".js"],
+    };
+    return config;
+  },
+
   outputFileTracingRoot: new URL("..", import.meta.url).pathname,
   outputFileTracingIncludes: {
     "/api/evidence/[claimId]": ["../evidence-archive/**/gateway-index.json"],

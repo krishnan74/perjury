@@ -8,7 +8,28 @@
  */
 import { ROSTER_ABI, READER_ABI, pub } from "./perjury";
 import { currentDeployment, type Deployment } from "./deployments";
-import type { Address } from "viem";
+import { withHackathonResolver } from "@perjury/ens";
+import { createPublicClient, http, type Address } from "viem";
+import { sepolia } from "viem/chains";
+
+/**
+ * A second client that goes through the ENS Universal Resolver.
+ *
+ * The protocol's own reader has the resolver address compiled into it, which
+ * means it can read a name that nobody else can reach — and for a while it did.
+ * `perjury.eth` had no subname registry and pointed at the default resolver, so
+ * the agent names did not exist in ENS at all, every explorer said so, and our
+ * reader kept returning standing regardless. Resolving the same record the way
+ * any third party would is the check that would have caught it, so the page now
+ * does both and shows when they disagree.
+ */
+const ens = createPublicClient({
+  chain: withHackathonResolver(sepolia),
+  transport: http(process.env.SEPOLIA_RPC_URL),
+});
+
+/** Text key holding an agent's standing. Kept here to avoid a wider import. */
+const STANDING_KEY = "com.perjury.agent-standing";
 
 export interface Agent {
   address: Address;
@@ -22,6 +43,20 @@ export interface Agent {
   standing: number;
   /** False when the ENS record could not be read at all — which fails closed. */
   standingReadable: boolean;
+  /**
+   * The resolver the ENS registry hands back for this name when asked by the
+   * Universal Resolver, with nothing supplied but the name. Null means the name
+   * does not exist as far as any third party is concerned — the failure this
+   * project shipped unnoticed, because our own reader has the address compiled
+   * in and never has to ask.
+   */
+  publicResolver: Address | null;
+  /**
+   * Standing as that public path reports it. Null is not a failure on its own:
+   * an agent that has never been judged has no standing record to read, which
+   * is a different thing from a name nobody can reach.
+   */
+  publicStanding: number | null;
   stake: bigint;
   eligible: boolean;
   flaggedUntil: number;
@@ -66,6 +101,8 @@ export async function rosterSnapshot(deployment: Deployment = currentDeployment(
         `0x${string}`, `0x${string}`, boolean, bigint, bigint,
       ];
 
+      const name = decodeDnsName(dnsName);
+
       // Read standing exactly as the protocol does — through ENS, not a mirror.
       let standing = 0;
       let standingReadable = false;
@@ -79,12 +116,29 @@ export async function rosterSnapshot(deployment: Deployment = currentDeployment(
         standingReadable = false;
       }
 
+      // And again, the way anyone else would: ENSIP-10 through the Universal
+      // Resolver, which has to walk the registry to find the resolver instead of
+      // being told where it is.
+      const [publicResolver, publicStanding] = name
+        ? await Promise.all([
+            ens.getEnsResolver({ name }).catch(() => null),
+            ens
+              .getEnsText({ name, key: STANDING_KEY })
+              .then((t) => (t && Number.isFinite(Number(t)) ? Number(t) : null))
+              .catch(() => null),
+          ])
+        : [null, null];
+
       return {
         address,
-        name: decodeDnsName(dnsName) || address,
+        name: name || address,
         ensNode,
         standing,
         standingReadable,
+        publicResolver: publicResolver && publicResolver !== "0x0000000000000000000000000000000000000000"
+          ? publicResolver
+          : null,
+        publicStanding,
         stake,
         eligible,
         flaggedUntil: Number(flagged),

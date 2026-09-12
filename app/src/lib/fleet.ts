@@ -26,6 +26,10 @@ export interface FleetAgent {
   who: Identity;
   standing: number;
   standingReadable: boolean;
+  /** The resolver the ENS registry gives a third party for this name, if any. */
+  publicResolver: string | null;
+  /** Standing as that public path reports it; null when none is written yet. */
+  publicStanding: number | null;
   eligible: boolean;
   stake: bigint;
   registeredAt: number;
@@ -141,6 +145,8 @@ export function buildFleet(roster: Agent[], claims: ClaimEvent[], mechanism: Cla
       who: identityOf(a.name, a.address, "protocol"),
       standing: a.standing,
       standingReadable: a.standingReadable,
+      publicResolver: a.publicResolver,
+      publicStanding: a.publicStanding,
       eligible: a.eligible,
       stake: a.stake,
       registeredAt: a.registeredAt,
