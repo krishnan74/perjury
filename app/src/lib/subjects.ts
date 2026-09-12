@@ -16,6 +16,23 @@ import { join } from "node:path";
 export interface Subject {
   subject: string;
   chain: string;
+  /** Human name of the protocol the claim is about. */
+  protocolName: string;
+  /** Messari schema family. Two of them cover all thirteen deployments. */
+  schema: string;
+  /**
+   * The pinned deployment id — a content hash of the mapping code.
+   *
+   * Surfaced to the reader because it is the whole reason two reads can be
+   * called independent. A subgraph redeploying under the same name serves a
+   * different hash, which is the substitution the guard rejects, and none of
+   * that is visible if the picker only offers a slug.
+   */
+  deploymentId: string;
+  /** Other deployments independently indexing the same protocol. */
+  corroborators: number;
+  /** Metrics the standardized query pattern exposes for this subject. */
+  metrics: string[];
 }
 
 const ROOTS = [join(process.cwd(), ".."), process.cwd()];
@@ -27,8 +44,18 @@ export function pinnedSubjects(): Subject[] {
         join(root, "packages", "shared", "src", "pinned-deployments.json"),
         "utf8",
       );
-      const { deployments } = JSON.parse(raw) as { deployments: Subject[] };
-      return deployments.map((d) => ({ subject: d.subject, chain: d.chain }));
+      const { deployments } = JSON.parse(raw) as {
+        deployments: (Subject & { corroborators?: unknown[] })[];
+      };
+      return deployments.map((d) => ({
+        subject: d.subject,
+        chain: d.chain,
+        protocolName: d.protocolName,
+        schema: d.schema,
+        deploymentId: d.deploymentId,
+        corroborators: (d.corroborators ?? []).length,
+        metrics: d.metrics ?? [],
+      }));
     } catch {
       // Try the next root.
     }

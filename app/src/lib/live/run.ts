@@ -25,10 +25,30 @@ import { publishBundle, type EvidenceBundle } from "@perjury/gateway";
 import { archiveKey } from "../evidence";
 import { recordGatewayUrl } from "../gateway-index";
 import { getJson, setJson } from "./store";
+import { pinnedSubjects } from "../subjects";
 import { REGISTRY, STATUS, SUBMIT_VALUE, VERDICT, WRITE_ABI, pub, walletFor } from "./chain";
 
-/** The metric every scene asserts. Held constant so two agents answer the same question. */
-const METRIC = "utilization ratio (total borrowed / total deposited)";
+/**
+ * The metric a claim is about, by schema family.
+ *
+ * Held constant per family so the claimant and the witness answer the same
+ * question — but it cannot be one constant across all thirteen subjects. A
+ * Messari DEX subgraph exposes `totalValueLockedUSD` and `cumulativeVolumeUSD`
+ * and has no borrow or deposit fields at all, so asking the four DEX subjects
+ * for a utilization ratio asked them for a number their schema cannot express.
+ * `verify-pinned.ts` already made this split; the live runner did not.
+ */
+const METRIC_BY_SCHEMA: Record<string, string> = {
+  "messari-lending": "utilization ratio (total borrowed / total deposited)",
+  "messari-dex": "total value locked in USD",
+};
+const FALLBACK_METRIC = METRIC_BY_SCHEMA["messari-lending"]!;
+
+/** The schema family a pinned subject belongs to. */
+function metricFor(subject: string): string {
+  const hit = pinnedSubjects().find((p) => p.subject === subject);
+  return (hit && METRIC_BY_SCHEMA[hit.schema]) ?? FALLBACK_METRIC;
+}
 
 export type Phase = "drafted" | "submitted" | "assigned" | "sealed" | "adjudicated" | "settled";
 
@@ -85,7 +105,7 @@ const seal = (a: {
  * to match whatever the witness happens to find.
  */
 export async function draft(subject: string, claimant: string): Promise<RunState> {
-  const claim = await draftClaim(subject, METRIC, { mode: "honest" });
+  const claim = await draftClaim(subject, metricFor(subject), { mode: "honest" });
   const text = claim.text;
 
   const state: RunState = {
