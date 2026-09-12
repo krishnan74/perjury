@@ -364,12 +364,12 @@ Both agents were handed **identical rows** and their conclusions differ by **24.
 
 ## Known gaps
 
-- **CRE:** deployed to the DON and executing, but `WriteReport` produces no transaction, so every settled verdict came through the simulator. The enclave now verifies both against chain: `keccak256(claimText)` must equal the bonded `claimHash`, and the bundle's witness must be the address the roster assigned. `npx tsx scripts/prove-claim-binding.ts` demonstrates the refusal.
+- **CRE:** the workflow binary is public by design — only the data it computes over is confidential. The enclave verifies the bundle against chain (`keccak256(claimText)` must equal the bonded `claimHash`, and the bundle's witness must be the address the roster assigned), so `npx tsx scripts/prove-claim-binding.ts` shows it refusing a tampered claim.
 - **VRF:** roster is ten agents, so an accomplice is drawn about one time in ten. Throttled, not eliminated, and n is the whole argument — which is why the roster being open to anyone who can post a stake matters more than today's number.
 - **ENS:** ENSIP-25 / -26 records not implemented. `revokeSetterRoles` has no inverse. Subnames expire in a year and nothing renews them.
 - **The Graph:** 12 of 13 subjects single-source.
 - **Mechanism:** one witness decides an outcome. K-of-N corroboration is the known hole and is not built.
-- **Live submission:** `/submit` runs the agents as real processes, so it needs a host with a long-lived process and the repository on disk. It is disabled on the serverless deployment, which says so rather than failing.
+- **Live submission:** `/submit` needs five credentials the read-only site does not — an agent key, a Graph key, a model key, the envelope public key and a GitHub token. Missing any and the page says so rather than failing, but only to someone holding the shared password.
 
 ## Commands
 
