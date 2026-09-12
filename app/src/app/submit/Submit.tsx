@@ -3,12 +3,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ReplayScript } from "@/lib/replay";
+import { hueOf, monogramOf } from "@/lib/identity";
+import { PartnerMark } from "../Partners";
 import Lanes from "../replay/Lanes";
 import Standing from "../replay/Standing";
 
 export interface SubjectOption {
   subject: string;
   chain: string;
+  protocolName: string;
+  schema: string;
+  deploymentId: string;
+  corroborators: number;
+  metrics: string[];
+}
+
+export interface AgentOption {
+  /** The ENS label, which is also the key the runner looks a wallet up by. */
+  label: string;
+  name: string;
+  address: string;
+  standing: number;
+  publiclyResolvable: boolean;
 }
 
 interface RunState {
@@ -55,6 +71,120 @@ const PHASES = [
 
 const phaseIndex = (p: string) => PHASES.findIndex((b) => b.phase === p);
 
+/** Schema family, as a reader would say it rather than as the file spells it. */
+const SCHEMA_LABEL: Record<string, string> = {
+  "messari-lending": "Messari lending",
+  "messari-dex": "Messari DEX",
+};
+
+const short = (id: string) => `${id.slice(0, 8)}…${id.slice(-6)}`;
+
+/**
+ * What a claim about this subject will actually assert.
+ *
+ * Per schema family, not one label for all thirteen: a DEX subgraph has no
+ * borrow or deposit fields, so a card promising a utilization ratio was
+ * describing a number that subject cannot produce.
+ */
+const CLAIM_METRIC: Record<string, string> = {
+  "messari-lending": "utilization ratio",
+  "messari-dex": "total value locked",
+};
+
+/**
+ * Choosing a subject is choosing a subgraph, so the card says so.
+ *
+ * A dropdown of slugs hid the only part of this step that is interesting. What
+ * a claim is *about* is a pinned Graph deployment, and the deployment id is a
+ * content hash of the mapping code — which is the entire reason two agents
+ * reading it can be said to have derived an answer independently rather than
+ * repeated one source. None of that survives being collapsed into
+ * `aave-v3-ethereum`.
+ *
+ * The corroborator count is shown where it exists and its absence is shown
+ * where it does not, because one of thirteen subjects has a genuine second
+ * index and pretending otherwise would be the easiest lie on this page.
+ */
+function SubjectCard({
+  s,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  s: SubjectOption;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="pick"
+      data-selected={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      aria-pressed={selected}
+    >
+      <span className="pick-head">
+        <b>{s.protocolName}</b>
+        <span className="pick-chain">{s.chain}</span>
+      </span>
+      <span className="pick-metric">{CLAIM_METRIC[s.schema] ?? "utilization ratio"}</span>
+      <span className="pick-meta">
+        <span className="pick-schema">{SCHEMA_LABEL[s.schema] ?? s.schema}</span>
+        {s.corroborators > 0 ? (
+          <span className="pick-corrob">{s.corroborators + 1} independent indexes</span>
+        ) : (
+          <span className="pick-single">single index</span>
+        )}
+      </span>
+      <span className="pick-id mono" title={s.deploymentId}>
+        {short(s.deploymentId)}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Choosing a claimant is choosing a name with a history.
+ *
+ * Standing is the thing this protocol exists to move, so it belongs on the
+ * card rather than behind a slug — a reader picking an agent on −6 should be
+ * able to see that they are picking one that has already been caught.
+ */
+function AgentCard({
+  a,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  a: AgentOption;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="pick pick-agent"
+      data-selected={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      aria-pressed={selected}
+      style={{ ["--agent-hue" as string]: String(hueOf(a.address)) }}
+    >
+      <span className="pick-mono" aria-hidden="true">{monogramOf(a.name)}</span>
+      <span className="pick-agent-id">
+        <b>{a.name}</b>
+        <span className="pick-agent-meta">
+          standing <b data-down={a.standing < 0}>{a.standing > 0 ? `+${a.standing}` : a.standing}</b>
+          {a.publiclyResolvable && <span className="pick-resolves">resolves publicly</span>}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export default function Submit({
   subjects,
   agents,
@@ -62,7 +192,7 @@ export default function Submit({
   runnable,
 }: {
   subjects: SubjectOption[];
-  agents: string[];
+  agents: AgentOption[];
   /** Whether this deployment requires the shared password to spend anything. */
   gated: boolean;
   /**
@@ -75,7 +205,7 @@ export default function Submit({
   runnable: boolean;
 }) {
   const [subject, setSubject] = useState(subjects[0]?.subject ?? "aave-v3-ethereum");
-  const [claimant, setClaimant] = useState(agents[0] ?? "operator");
+  const [claimant, setClaimant] = useState(agents[0]?.label ?? "operator");
   const [run, setRun] = useState<RunState | null>(null);
   const [script, setScript] = useState<ReplayScript | null>(null);
   const [busy, setBusy] = useState(false);
@@ -199,23 +329,91 @@ export default function Submit({
 
   return (
     <>
+      <div className="pick-group">
+        <div className="pick-legend">
+          <span className="pick-step">1</span>
+          <div>
+            <h2 className="pick-title">
+              What should it claim?
+              <a
+                className="pick-partner"
+                href="https://thegraph.com"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="The Graph"
+                title="The Graph"
+              >
+                <PartnerMark id="graph" size={15} />
+              </a>
+            </h2>
+            {/*
+              The Graph's role, said where it actually happens. A subject is a
+              pinned subgraph deployment, and the id under each card is a
+              content hash of the mapping code — which is what makes two reads
+              of it independent derivations rather than one source quoted twice.
+            */}
+            <p className="pick-help">
+              Each card is a subgraph deployment pinned by content hash and served by the live Graph
+              Gateway. Thirteen of them, two Messari schema families, five chains — and one query
+              pattern reads all of them, so adding a protocol is a config line rather than code. Both
+              agents will write their own GraphQL against the deployment you pick and read it at the
+              same block. Where a subject has a second, independently written index, both are read and
+              must agree or the claim comes back <span className="warn">Unverifiable</span>.
+            </p>
+          </div>
+        </div>
+        <div className="pick-grid">
+          {subjects.map((s) => (
+            <SubjectCard
+              key={s.subject}
+              s={s}
+              selected={s.subject === subject}
+              disabled={busy}
+              onSelect={() => setSubject(s.subject)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="pick-group">
+        <div className="pick-legend">
+          <span className="pick-step">2</span>
+          <div>
+            <h2 className="pick-title">
+              Who is staking on it?
+              <a
+                className="pick-partner"
+                href="https://ens.domains"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="ENS"
+                title="ENS"
+              >
+                <PartnerMark id="ens" size={15} />
+              </a>
+            </h2>
+            <p className="pick-help">
+              Every agent owns a subname of <span className="mono">perjury.eth</span>, and its standing
+              is a text record on that name that only the tribunal can write. Only agents the chain
+              would actually accept are listed here: eligible on the roster, holding a key, and able to
+              cover the bond.
+            </p>
+          </div>
+        </div>
+        <div className="pick-grid pick-grid-agents">
+          {agents.map((a) => (
+            <AgentCard
+              key={a.label}
+              a={a}
+              selected={a.label === claimant}
+              disabled={busy}
+              onSelect={() => setClaimant(a.label)}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="submit-controls">
-        <label className="submit-field">
-          <span className="submit-label">Subject</span>
-          <select value={subject} onChange={(e) => setSubject(e.target.value)} disabled={busy}>
-            {subjects.map((s) => (
-              <option key={s.subject} value={s.subject}>{s.subject} · {s.chain}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="submit-field">
-          <span className="submit-label">Claimant</span>
-          <select value={claimant} onChange={(e) => setClaimant(e.target.value)} disabled={busy}>
-            {agents.map((a) => <option key={a} value={a}>{a}.perjury.eth</option>)}
-          </select>
-        </label>
-
         {gated && (
           <label className="submit-field">
             <span className="submit-label">Password</span>

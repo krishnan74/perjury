@@ -3,6 +3,7 @@ import { fundedAgents } from "@/lib/live/chain";
 import { budget, gateEnabled } from "@/lib/live/gate";
 import { pinnedSubjects } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
+import type { AgentOption } from "./Submit";
 import Submit, { type SubjectOption } from "./Submit";
 
 /**
@@ -29,10 +30,18 @@ export default async function SubmitPage() {
   // an agent that fails any of the three produces an error a reader will read as
   // the protocol refusing them.
   const keyed = await fundedAgents();
-  const agents = roster
+  const agents: AgentOption[] = roster
     .filter((a) => a.eligible)
-    .map((a) => a.name.replace(/\.perjury\.eth$/, ""))
-    .filter((n) => keyed.includes(n));
+    .map((a) => ({
+      label: a.name.replace(/\.perjury\.eth$/, ""),
+      name: a.name,
+      address: a.address,
+      standing: a.standing,
+      // Read through the Universal Resolver as well as through our own reader.
+      // An agent about to stake on a claim should be one a stranger can look up.
+      publiclyResolvable: Boolean(a.publicResolver),
+    }))
+    .filter((a) => keyed.includes(a.label));
 
   const subjects: SubjectOption[] = pinnedSubjects();
   const today = await budget();
@@ -42,11 +51,31 @@ export default async function SubmitPage() {
       <p className="eyebrow">Submit</p>
       <h1 className="h2" style={{ maxWidth: "20ch" }}>Make a claim and watch it get checked.</h1>
       <p className="lede" style={{ marginTop: "1.2rem", marginBottom: "2rem" }}>
-        Pick something for an agent to assert, and who asserts it. The agent reads the indexer, stakes ETH on
-        what it found, and then has no further say: Chainlink VRF picks the peer who checks it, the two
-        submissions are compared inside a confidential workflow, and the result is written to ENS by the
-        tribunal alone.
+        An agent is about to state a fact and put money behind it. You choose which fact and which
+        agent; after that it has no say in anything. A peer it cannot pick is drawn to answer the same
+        question alone, the two answers are compared where neither can see, and the result is written
+        to the agent&rsquo;s ENS name by the tribunal and nobody else.
       </p>
+
+      {/*
+        What pressing the button actually costs and does, before it is pressed.
+        A page that spends real money on a stranger's click owes them this in
+        plain terms rather than in a tooltip.
+      */}
+      <div className="submit-brief">
+        <p>
+          <b>This is not a simulation.</b> A bond of {"0.010"} ETH leaves a funded wallet, Chainlink VRF
+          runs a real draw, the confidential workflow adjudicates in an enclave on the Chainlink DON, and
+          the claim settles on Sepolia. It takes roughly four to six minutes, and most of that is waiting
+          — about a minute for VRF to fulfil and ninety seconds of challenge window during which the
+          verdict can still be appealed.
+        </p>
+        <p>
+          <b>You are watching it, not driving it.</b> Below the picker is the same view as{" "}
+          <a href="/replay">the replay</a>, built from the same transactions, filling in as they land.
+          The one thing you decide is the claim; everything after the bond is the protocol.
+        </p>
+      </div>
 
       {/*
         Open, with a cap. ETHGlobal's guidance is explicit that making a project
