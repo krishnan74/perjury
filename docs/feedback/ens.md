@@ -90,14 +90,24 @@ Two things would have saved us the round trip:
   first — worth stating plainly, because the natural mental model is that holding the admin role lets
   you undo what you granted.
 
-## 8. Answered, and worth writing down
+## 8. Verifying a per-key grant is harder than making one
+
+Having applied the pattern in item 7, we wanted a script that asserts it — a judge should be able to check "the tribunal holds `SET_TEXT` on this key and nothing else" rather than take it on faith. Two things made that harder than expected, and both produced a *silent wrong answer* rather than an error.
+
+First, `IEnhancedAccessControl` types every resource as `uint256`, while the rest of ENS speaks `bytes32` and the resource itself is a keccak256 hash. We called `hasRoles(bytes32,uint256,address)`. Same 32 bytes on the wire, different function selector, so the call reverted with empty return data. Our script had been reporting the tribunal's forbidden roles as "correctly absent" for days — every one of those checks was a reverting call, and a proof that cannot execute proves nothing.
+
+Second, the deployed Permissioned Resolver exposes `hasRootRoles` but not the per-resource views. `hasRoles`, `roles`, `roleCount` and `hasAssignees` are all in the interface and all revert on the deployment; only after fixing the type did the per-resource query start working, which means the interface and the deployment did agree and the type was the whole problem. We spent an hour probing selectors because a bare revert cannot distinguish "wrong function" from "not exposed".
+
+**Suggestion.** Two small things. State the `uint256` resource type prominently on the EAC page, ideally with a one-line note that it is a hash used as an integer — it reads as a typo until you find the interface. And have the resolver revert with a named error rather than empty data on an unknown selector, so an integrator gets "no such function" instead of a blank. A worked "assert your grants" snippet alongside the grant recipe would close the loop, since the grant is the easy half.
+
+## 9. Answered, and worth writing down
 
 Two questions we couldn't answer from the docs, both answered quickly in the channel:
 
 - **Unauthorized `setText` reverts** with `EACUnauthorizedAccountRoles`. It does not silently no-op. This determines how anyone writes tests and demos against EAC, and belongs in the resolver docs.
 - **A contract can hold EAC roles exactly as an EOA can.** Obvious in hindsight, but the whole write path of any protocol-controlled record depends on it, and it isn't stated.
 
-## 9. The registration app blocked teams, and the channel was the only signal
+## 10. The registration app blocked teams, and the channel was the only signal
 
 We did **not** hit this ourselves — but only because we read the channel first. Multiple teams reported the "Deploy resolver" step failing with `gas limit too high (cap: 16777216, tx: 21000000)` across three separate RPC providers, plus a malformed `initialize` payload. Registration is the very first thing any project does, so absent that warning we would have spent hours there before suspecting the app rather than our own setup.
 
@@ -105,7 +115,7 @@ The team's response was fast and correct — the app is a convenience layer, reg
 
 **Suggestion.** When a known-broken path exists during an event, a banner in the app saying "resolver deploy is currently failing, register directly against the contracts — see docs" would reach every team rather than the ones reading the channel at the right moment. A hardcoded 21M gas limit above what most providers accept is also worth a fix regardless.
 
-## 10. Hackathon deployment domains trip wallet warnings
+## 11. Hackathon deployment domains trip wallet warnings
 
 The deployment is served from `*.workers.dev` and `*.pages.dev`, and MetaMask flagged the app domain as potentially malicious when we went to open it. Very likely a domain-reputation false positive on the shared subdomain rather than anything wrong with the deployment — but it is hard to verify independently, and it made us stop before connecting a wallet.
 

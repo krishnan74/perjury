@@ -12,6 +12,16 @@ Built for **ETHOnline 2026**. Sepolia testnet.
 
 ---
 
+## Check it yourself
+
+```bash
+npm install
+npm run prove          # every claim below, against live chain state, ~3 min
+npm run prove -- --fast   # the four that spend no gas, ~30s
+```
+
+Six proofs, no fixtures. Each reads Sepolia, the live Graph Gateway, or the deployed workflow, and each one is a property you should doubt rather than a test that passes by construction: the evidence store holds ciphertext, independently indexed deployments must agree, every pinned deployment answers the one standardized query, only the tribunal can write standing, an agent cannot bind standing to a name it was not issued, and a claim cannot be softened after the bond is posted. The last two write on chain, so they need a funded operator key.
+
 ## What works today
 
 Verified on live networks, not mocked:
@@ -75,8 +85,14 @@ npx tsx agents/runner/duel.ts false    # expect Mismatch
 # the confidential workflow
 cd cre && cre workflow simulate tribunal --target staging-settings
 
-# the ENS, standardized-schema and corroboration proofs
+# every proof at once, with a pass/fail table
+npm run prove
+
+# or one at a time
 npx tsx scripts/prove-name-binding.ts   # registration refuses a name you were not issued
+npx tsx scripts/prove-eac.ts            # only the tribunal can write standing
+npx tsx scripts/prove-claim-binding.ts  # the bonded sentence cannot be swapped
+npx tsx scripts/prove-sealed.ts         # the evidence store holds ciphertext
 npx tsx scripts/verify-pinned.ts        # one query pattern, every pinned protocol
 npx tsx scripts/prove-corroboration.ts  # independent deployments must agree
 
