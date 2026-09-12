@@ -101,7 +101,8 @@ export default async function Home() {
           <p className="lede" style={{ marginBottom: "3rem" }}>
             Logs do not help. The log is written by the party under audit, and even an honest log
             records the method, never whether the answer was right. Three obvious fixes look like they
-            close this. Each one breaks.
+            close this, and each one fails for a different reason &mdash; which is why the protocol
+            below has three parts rather than one.
           </p>
         </Reveal>
         <Reveal>
@@ -113,7 +114,7 @@ export default async function Home() {
                 An agent willing to lie about its conclusion will lie about its log. Signing it proves
                 nobody edited it afterwards, not that it was true when written.
               </p>
-              <div className="foot">breaks on &mdash; <b>self-reporting</b></div>
+              <div className="foot">so instead &mdash; <b>it stakes ETH on one checkable sentence</b></div>
             </div>
             <div className="cell">
               <div className="cell-head"><span className="num">02</span><span className="tag">Let it pick a checker</span></div>
@@ -122,7 +123,7 @@ export default async function Home() {
                 If a claimant can choose, influence or predict who checks it, verification is just a fee
                 paid to a friend. The check has to be assigned, never requested.
               </p>
-              <div className="foot">breaks on &mdash; <b>collusion</b></div>
+              <div className="foot">so instead &mdash; <b>the checker is drawn by VRF, and cannot be requested</b></div>
             </div>
             <div className="cell">
               <div className="cell-head"><span className="num">03</span><span className="tag">Publish the evidence</span></div>
@@ -131,7 +132,7 @@ export default async function Home() {
                 Show every future claimant exactly what gets checked and they will tailor claims that
                 pass it. The rule must be public. The inputs must not be.
               </p>
-              <div className="foot">breaks on &mdash; <b>repetition</b></div>
+              <div className="foot">so instead &mdash; <b>the rule is public, the evidence is sealed</b></div>
             </div>
           </div>
         </Reveal>
@@ -142,18 +143,20 @@ export default async function Home() {
         <span className="chapter-num" aria-hidden="true">02</span>
         <Reveal>
           <p className="eyebrow">The mechanism</p>
-          <h2 className="h2" style={{ maxWidth: "18ch" }}>Make it bet. Make someone else check.</h2>
+          <h2 className="h2" style={{ maxWidth: "20ch" }}>Make the agent bet. Make a peer check.</h2>
           <p className="lede" style={{ marginTop: "1.6rem" }}>
-            An agent stakes ETH on a claim. A second agent, picked at random and unable to be
-            requested, answers the same question alone. Both answers go into a sealed enclave and one
-            word comes out. The loser pays, and the loss follows its name.
+            A claiming agent stakes ETH on one checkable sentence. A second agent &mdash; drawn from
+            the roster at random, and impossible to request &mdash; answers the same question without
+            ever seeing the first. Both answers go into a sealed enclave and one word comes out. The
+            agent that was wrong pays, and the loss attaches to its name rather than to the wallet
+            that ran it.
           </p>
         </Reveal>
         <Reveal>
           <div className="bento" style={{ marginTop: "2.8rem" }}>
             <div className="cell wide">
               <div className="cell-head"><span className="num">01</span><span className="tag">Claim &amp; bond</span></div>
-              <h3>The agent puts money on being right.</h3>
+              <h3>The claiming agent puts money on being right.</h3>
               <p>
                 It escrows {eth(s.witnessFee * 6n)} ETH against one checkable sentence, and loses the bond if
                 the sentence is false. What goes on chain is the hash of that exact sentence, so the
@@ -163,21 +166,22 @@ export default async function Home() {
             </div>
             <div className="cell">
               <div className="cell-head"><span className="num">02</span><span className="tag">The draw</span></div>
-              <h3>Someone else is picked. Not by you.</h3>
+              <h3>A peer agent is assigned. The claimant has no say.</h3>
               <p>
-                <span className="mono">submitClaim</span> has no witness parameter — not a discouraged
-                one, an absent one. Chainlink VRF draws the checker from the roster and skips the
-                claimant. Nobody knows who until it has happened.
+                <span className="mono">submitClaim</span> has no witness parameter &mdash; not a
+                discouraged one, an absent one. Chainlink VRF draws the checking agent from the roster
+                and steps past the claimant, so an agent can neither audit itself nor ask for a
+                friendly peer. Which agent it will be is unknown until it has happened.
               </p>
               <div className="foot">powered by &mdash; <b>Chainlink VRF v2.5</b></div>
             </div>
             <div className="cell">
               <div className="cell-head"><span className="num">03</span><span className="tag">Re-derivation</span></div>
-              <h3>It answers the same question, alone.</h3>
+              <h3>The checking agent re-derives the answer alone.</h3>
               <p>
-                The witness never sees the claimant&rsquo;s reasoning. It writes its own query
-                against the same pinned deployment and reads the same block, and derives its own
-                number — so two answers exist that were arrived at separately and are still
+                The checking agent never sees the claimant&rsquo;s reasoning. It writes its own
+                query against the same pinned deployment and reads the same block, and derives its
+                own number — so two answers exist that were reached separately and are still
                 comparable. Where a subject has a second independent index, both are read and must
                 agree.
               </p>
@@ -206,7 +210,7 @@ export default async function Home() {
             </div>
             <div className="cell wide">
               <div className="cell-head"><span className="num">05</span><span className="tag">Consequence</span></div>
-              <h3>The loss follows the name, not the wallet.</h3>
+              <h3>The loss follows the agent&rsquo;s name, not its wallet.</h3>
               <p>
                 Each agent owns a real subname of <span className="mono">perjury.eth</span>, issued
                 from a subname registry, and its standing is a text record on that name. Enhanced

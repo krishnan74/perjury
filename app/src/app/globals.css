@@ -2139,8 +2139,17 @@ body::after {
   text-decoration: none;
   color: inherit;
 }
-.partner:hover { background: var(--paper-2); }
-.partner-mark { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; }
+/* The row is no longer a link, so it no longer lights up on hover — only the
+   mark, which is the one thing that still navigates. */
+.partner-mark {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 3px;
+  opacity: 0.9;
+}
+.partner-mark:hover { opacity: 1; background: var(--paper-2); }
 .partner-id b {
   display: block;
   font-family: var(--serif);
@@ -2457,3 +2466,127 @@ body::after {
   border-color: currentColor;
   font-weight: 600;
 }
+
+/* ── /submit pickers ───────────────────────────────────────────────────────
+   Choosing a subject and a claimant used to be two <select> elements. That hid
+   the two things worth seeing at this step: a subject is a pinned Graph
+   deployment addressed by a content hash, and a claimant is an ENS name with a
+   standing already attached to it. Both are cards now, and the card carries the
+   evidence rather than a slug. */
+
+.submit-brief {
+  margin: 0 0 2.6rem;
+  padding: 1.1rem 1.3rem;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--muted);
+  border-radius: 3px;
+  background: var(--paper-2);
+  max-width: 68ch;
+}
+.submit-brief p { margin: 0 0 0.7rem; font-size: 0.86rem; line-height: 1.65; }
+.submit-brief p:last-child { margin-bottom: 0; }
+
+.pick-group { margin-bottom: 2.6rem; }
+
+.pick-legend {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  margin-bottom: 1.1rem;
+}
+
+.pick-step {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pick-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+/* The only link in the header. The partner's mark carries it, so the prose can
+   stay prose instead of turning into a row of anchors. */
+.pick-partner { display: inline-flex; line-height: 0; opacity: 0.85; }
+.pick-partner:hover { opacity: 1; }
+
+.pick-help {
+  margin: 0;
+  max-width: 74ch;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.6rem;
+}
+.pick-grid-agents { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
+
+.pick {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pick:hover:not(:disabled) { border-color: var(--muted); }
+.pick:disabled { cursor: default; opacity: 0.55; }
+/* Selection is a solid left edge rather than a tick: the card is the control,
+   and a checkbox on top of it would be two affordances for one choice. */
+.pick[data-selected="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.pick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.pick-head b { font-size: 0.92rem; }
+.pick-chain {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pick-metric { font-size: 0.74rem; color: var(--ink-2); }
+.pick-meta { display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; font-size: 0.6rem; letter-spacing: 0.04em; }
+.pick-schema { color: var(--muted); }
+.pick-corrob { color: var(--match); }
+.pick-single { color: var(--muted); opacity: 0.75; }
+.pick-id { font-size: 0.58rem; color: var(--muted); overflow-wrap: anywhere; }
+
+.pick-agent { grid-template-columns: auto 1fr; align-items: center; gap: 0.65rem; }
+.pick-mono {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: hsl(var(--agent-hue, 220) 42% 38%);
+}
+.pick-agent-id { display: grid; gap: 0.15rem; min-width: 0; }
+.pick-agent-id > b { font-size: 0.78rem; overflow-wrap: anywhere; }
+.pick-agent-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.62rem; color: var(--muted); }
+.pick-agent-meta b[data-down="true"] { color: var(--mismatch); }
+.pick-resolves { opacity: 0.8; }

@@ -35,27 +35,27 @@ export const PARTNERS: Record<PartnerId, Partner> = {
   chainlink: {
     id: "chainlink",
     name: "Chainlink",
-    layer: "Confidential compute, then randomness",
+    layer: "CRE Confidential Workflows · VRF v2.5",
     blurb:
-      "CRE is the centre of it, and it is deployed rather than described: the workflow runs on the DON in an attested enclave and writes verdicts on chain from there. It finds its own pending claim, opens both submissions with a key the Vault DON releases into the enclave and nowhere else, and returns four fields and a commitment hash. VRF is the second half — it draws every witness and every appeal panel, so a claimant cannot choose who checks it.",
+      "CRE runs the adjudication. A TEE handler on a cron trigger reads pendingForTribunal() to find its own claim, fetches both sealed submissions over Confidential HTTP, and opens them with an envelope key the Vault DON releases into the enclave. It recomputes both values from the raw rows rather than trusting either agent's stated conclusion, then writes a verdict and a commitment hash through a Forwarder. Deployed on the DON in an AWS Nitro enclave, settling on chain from there. VRF v2.5 supplies the assignment: every witness and every three-seat appeal panel is drawn from it.",
     colour: "#375bd2",
     href: "https://chain.link",
   },
   ens: {
     id: "ens",
     name: "ENS",
-    layer: "Identity and reputation",
+    layer: "ENSv2 · subname registry, per-key Enhanced Access Control",
     blurb:
-      "The reputation is not ours to edit, which is the whole reason it is worth anything. A subname registry under perjury.eth issues each agent a name it owns itself, and standing is a text record on that name. Enhanced Access Control scopes the write per record key: the tribunal holds it on two, has no grant on the record saying whose name it is, and the operator that deployed everything and owns the parent is refused. Resolve any agent through the Universal Resolver and the standing comes back.",
+      "Agent identity and reputation live in ENS rather than in our contracts. A subname registry deployed under perjury.eth issues each agent a subname it owns, and standing is a text record on that name. Enhanced Access Control scopes SET_TEXT per record key: the tribunal's writer holds it on two keys, holds nothing on the record that says whose name it is, and the operator that deployed every contract and owns the parent reverts when it tries. Reads go through ENSIP-10 resolve() — text() reverts on a factory-deployed Permissioned Resolver — and WitnessRoster.isEligible() resolves the record on chain at the moment of the draw.",
     colour: "#0080bc",
     href: "https://ens.domains",
   },
   graph: {
     id: "graph",
     name: "The Graph",
-    layer: "The facts under dispute",
+    layer: "Gateway · Subgraph MCP · Messari standardized schemas",
     blurb:
-      "Without it there is nothing to check. Both agents compose their own queries — thirteen pinned deployments, two schema families, five chains, one standardised pattern — and read the live Gateway at a pinned block, so two answers are comparable rather than taken minutes apart. A deployment id is a hash of the mapping code, so where a subject has a second index, agreement between them means something two RPC nodes agreeing does not. Disagreement returns Unverifiable rather than a verdict.",
+      "The Graph supplies the facts a claim is about, and the agents have no other data source. Each agent uses the Subgraph MCP to find a subgraph, read its schema and compose its own GraphQL, then a deterministic guard decides whether the result may be used at all. Thirteen deployments pinned by content hash, two Messari schema families, five chains, one selection set and one derivation across all of them. Reads are pinned to a block and the served block must match. Where a subject has a second independently written index both are read and must agree within tolerance, or the claim returns Unverifiable rather than a verdict.",
     // The chip tint follows the mark. The Graph's logomark is monochrome, so a
     // purple chip around a near-black logo would look like a mistake.
     colour: "#0c0a1d",
@@ -110,21 +110,37 @@ export function PartnerChip({ id }: { id: PartnerId }) {
   );
 }
 
-/** The partners section, as a list of who does what rather than a logo wall. */
+/**
+ * The partners section, as a list of who does what rather than a logo wall.
+ *
+ * The row is not a link. It used to be, and that made the whole block — three
+ * paragraphs of the most load-bearing technical detail on the page — one large
+ * click target pointing away from the project. A reader who wants chain.link
+ * can have it from the mark; a reader who wants to select a sentence should be
+ * able to, and a reader skimming should not be invited off the page at the
+ * exact moment the substance arrives.
+ */
 export function PartnerList() {
   return (
     <div className="partners">
       {Object.values(PARTNERS).map((p) => (
-        <a className="partner" key={p.id} href={p.href} target="_blank" rel="noreferrer">
-          <span className="partner-mark">
+        <div className="partner" key={p.id}>
+          <a
+            className="partner-mark"
+            href={p.href}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={p.name}
+            title={p.name}
+          >
             <PartnerMark id={p.id} size={30} />
-          </span>
+          </a>
           <span className="partner-id">
             <b>{p.name}</b>
             <span className="partner-layer">{p.layer}</span>
           </span>
           <span className="partner-blurb">{p.blurb}</span>
-        </a>
+        </div>
       ))}
     </div>
   );
