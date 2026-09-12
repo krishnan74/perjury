@@ -16,11 +16,11 @@ Built for **ETHOnline 2026**. Sepolia testnet.
 
 ```bash
 npm install
-npm run prove          # every claim below, against live chain state, ~3 min
-npm run prove -- --fast   # the four that spend no gas, ~30s
+npm run prove          # four read-only proofs against live chain state, ~10s
+npm run prove -- --all # plus the two that write on chain, ~3 min
 ```
 
-Six proofs, no fixtures. Each reads Sepolia, the live Graph Gateway, or the deployed workflow, and each one is a property you should doubt rather than a test that passes by construction: the evidence store holds ciphertext, independently indexed deployments must agree, every pinned deployment answers the one standardized query, only the tribunal can write standing, an agent cannot bind standing to a name it was not issued, and a claim cannot be softened after the bond is posted. The last two write on chain, so they need a funded operator key.
+Six proofs, no fixtures. Each reads Sepolia, the live Graph Gateway, or the deployed workflow, and each one is a property you should doubt rather than a test that passes by construction: the evidence store holds ciphertext, independently indexed deployments must agree, every pinned deployment answers the one standardized query, only the tribunal can write standing, an agent cannot bind standing to a name it was not issued, and a claim cannot be softened after the bond is posted. The four read-only ones run concurrently and need only a Sepolia RPC and a Graph key. The last two spend gas and are off by default, because one of them registers a control agent on the live roster to prove the success case — running that should be a decision, not a side effect.
 
 ## What works today
 

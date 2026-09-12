@@ -74,7 +74,7 @@ Scenes take a claimant argument because scene 2 slashes its claimant — pass a 
 | CRE Forwarder (DON) | `0xF8344CFd5c43616a4366C34E3EEE75af79a74482` |
 | CRE Forwarder (simulator) | `0x15fC6ae953E024d975e77382eEeC56A9101f9F88` |
 | VRF subscription | owner = operator, roster registered as consumer |
-| Agents | 10 real subnames of `perjury.eth`, owned by the agents, all registered and staked |
+| Agents | 10 real subnames of `perjury.eth`, owned by the agents, all registered and staked. `agentList` also holds inert `prover-*` rows — the control registration from `prove-name-binding.ts`, withdrawn and deregistered. Read `active`, not the list length |
 | Deployed workflow | `perjury-tribunal-production`, private registry, DON family `zone-a` — **ACTIVE, settling verdicts from the enclave** |
 | Live site | https://perjury.vercel.app — production tracks `main` |
 
@@ -150,7 +150,9 @@ Redeploying is a **cascade** — each contract holds the next immutably, so chan
 
 **Deployed at https://perjury.vercel.app**, production tracking `main`. Pages that read live state render per request; the rest is ISR at 30s against Sepolia and the Gateway.
 
-Submitting a claim needs five credentials beyond the read-only set: an agent key, `GRAPH_STUDIO_KEY`, `ANTHROPIC_API_KEY`, `PERJURY_ENVELOPE_PUBKEY`, `GITHUB_GIST_TOKEN`. Missing any and the page says so instead of failing — but only to someone holding `PERJURY_SUBMIT_PASSWORD`, since telling a stranger which credential is absent is a free leak.
+Submitting a claim needs five credentials beyond the read-only set: an agent key, `GRAPH_STUDIO_KEY`, `ANTHROPIC_API_KEY`, `PERJURY_ENVELOPE_PUBKEY`, `GITHUB_GIST_TOKEN`. Missing any and the page says the feature is unavailable without naming which one, since telling a stranger what is unconfigured is a free leak.
+
+**`/submit` is open, and capped rather than gated.** ETHGlobal's guidance is that making a project harder for partners to try costs more than it protects, so `PERJURY_SUBMIT_PASSWORD` is unset in production and the paid model key is bounded by `PERJURY_DAILY_CLAIM_LIMIT` (default 25 claims per UTC day, `0` lifts it). The counter lives in the shared store under a dated key, so it resets itself. The password code still works and is the right thing locally; the single-flight lock is unchanged and independent.
 
 **Vercel defaults new env vars to Secret, which hides them from the build.** Use `--no-sensitive`. This broke two deployments before it was spotted.
 

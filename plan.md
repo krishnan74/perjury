@@ -20,7 +20,7 @@
 | T1 CRE tribunal | ● **deployed to the DON and settling from the enclave.** Reads its own claim from chain, fetches sealed evidence over Confidential HTTP, opens it with Vault DON keys, and writes through the production Forwarder. The simulator still works and remains the fast loop |
 | T2 Contracts | ● all deployed, wired, immutable. 60 Foundry tests |
 | T3 Randomness | ● live VRF v2.5 rounds assigning witnesses and seating appeal panels, repeatedly |
-| T4 ENSv2 | ● subregistry under `perjury.eth`, five agent-owned subnames, per-key EAC, operator write revoked, standing written by the tribunal alone and readable through the Universal Resolver |
+| T4 ENSv2 | ● subregistry under `perjury.eth`, ten agent-owned subnames, per-key EAC, operator write revoked, standing written by the tribunal alone and readable through the Universal Resolver |
 | T5 Graph | ● live Gateway + guard + MCP + LLM agents. 13 deployments, 2 schema families, 5 chains on one standardized query pattern; corroborated reads across independent deployments; claim and verification pinned to one block. 89 TS tests |
 | T6 Dashboard | ● deployed at https://perjury.vercel.app. Reads three cascades, and `/submit` posts a real claim step by step from the browser |
 | T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
@@ -56,7 +56,7 @@ They were not before. `perjury.eth` was registered, the Permissioned Resolver wa
 
 Nobody caught it because nothing tested the path a third party would use. The ENS explorer did, and was ignored as a broken link.
 
-Now: a subname registry attached to `perjury.eth`, the parent pointed at our resolver, and five names owned by their agents. All five resolve publicly and return standing, flag state and address binding. Two follow-ups came out of it — the `ethRegistry` address in the ENS config was wrong and nothing read it, and the first issuance granted the agents `SET_RESOLVER` on their own names, which `scripts/fix-agent-roles.ts` revoked.
+Now: a subname registry attached to `perjury.eth`, the parent pointed at our resolver, and ten names owned by their agents. All ten resolve publicly and return standing, flag state and address binding, and `/roster` checks that second path on every render rather than trusting our own reader. Two follow-ups came out of it — the `ethRegistry` address in the ENS config was wrong and nothing read it, and the first issuance granted the agents `SET_RESOLVER` on their own names, which `scripts/fix-agent-roles.ts` revoked.
 
 ### What changed on Sep 11
 
