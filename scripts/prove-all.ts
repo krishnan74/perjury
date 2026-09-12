@@ -1,8 +1,8 @@
 /**
  * Run every claim this project makes, and print whether it held.
  *
- *   npm run prove              everything, including the two that write on chain
- *   npm run prove -- --fast    read-only proofs only, no gas, ~1 minute
+ *   npm run prove              the four read-only proofs, no gas, ~30 seconds
+ *   npm run prove -- --all     plus the two that write on chain, ~3 minutes
  *
  * The individual proofs already existed, and each demonstrates a property
  * against live state rather than asserting it. What was missing was a way to
@@ -20,7 +20,9 @@
  * markers below are a second opinion: `absent` catches a script that exits 0
  * without having done its work.
  */
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
+import { existsSync as fileExists } from "node:fs";
 import { existsSync } from "node:fs";
 
 // The proofs read the same `.env` the runners do, and have always been invoked
@@ -28,6 +30,17 @@ import { existsSync } from "node:fs";
 // so the root file is handed to each child. Node does not overwrite variables
 // that are already set, so an exported shell environment still wins.
 const envFlags = existsSync(".env") ? ["--env-file-if-exists=.env"] : [];
+
+/**
+ * Call the local tsx binary, not `npx tsx`.
+ *
+ * `npx` takes a lock while it resolves, so four concurrent `npx` calls queue up
+ * behind each other and the parallel run took exactly as long as a sequential
+ * one. Falls back to npx where the binary is not linked.
+ */
+const TSX = fileExists("node_modules/.bin/tsx") ? "node_modules/.bin/tsx" : "npx";
+const tsxArgs = (script: string) =>
+  TSX === "npx" ? ["tsx", ...envFlags, script] : [...envFlags, script];
 
 /**
  * The claim-binding proof shells out to the `cre` CLI, which lives in ~/.cre/bin
@@ -48,7 +61,14 @@ interface Proof {
   /** The property, phrased as a sceptic would put it back to you. */
   claim: string;
   script: string;
-  /** True if the proof spends gas or writes on chain. Skipped under --fast. */
+  /**
+   * True if the proof spends gas or writes on chain. Off by default.
+   *
+   * `prove-name-binding` registers a control agent on the live roster to show
+   * the success case and withdraws immediately, which deregisters it — but
+   * `agentList` is append-only, so each run leaves an inert row behind. Running
+   * it should be a decision, not a side effect of typing `npm run prove`.
+   */
   writes?: boolean;
   /** Must appear in the output; absence means the script exited early. */
   present: RegExp;
@@ -112,11 +132,47 @@ const c = {
   red: "\x1b[31m", yellow: "\x1b[33m", bold: "\x1b[1m",
 };
 
+const execFileAsync = promisify(execFile);
+
+/**
+ * Read-only proofs run concurrently; writing ones do not.
+ *
+ * The four read-only proofs are independent network reads and spend most of
+ * their time waiting, so running them one after another made a twenty-second
+ * command out of eight seconds of work. The two writing proofs share the
+ * operator's nonce and must stay sequential — two transactions built against
+ * the same nonce is one of them silently replacing the other.
+ */
+async function runAsync(p: Proof): Promise<{ ok: boolean; detail: string }> {
+  let out = "";
+  let exitOk = true;
+  try {
+    const r = await execFileAsync(TSX, tsxArgs(p.script), {
+      encoding: "utf8",
+      env: childEnv,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    out = r.stdout;
+  } catch (err) {
+    const e = err as { stdout?: string; stderr?: string; message?: string };
+    out = `${e.stdout ?? ""}${e.stderr ?? ""}` || (e.message ?? "");
+    exitOk = false;
+  }
+  return judge(p, out, exitOk);
+}
+
+function judge(p: Proof, out: string, exitOk: boolean): { ok: boolean; detail: string } {
+  if (!exitOk) return { ok: false, detail: lastLine(out) };
+  if (!p.present.test(out)) return { ok: false, detail: "exited clean without finishing its work" };
+  if (p.absent?.test(out)) return { ok: false, detail: lastLine(out) };
+  return { ok: true, detail: "" };
+}
+
 function run(p: Proof): { ok: boolean; detail: string } {
   let out = "";
   let exitOk = true;
   try {
-    out = execFileSync("npx", ["tsx", ...envFlags, p.script], {
+    out = execFileSync(TSX, tsxArgs(p.script), {
       encoding: "utf8",
       env: childEnv,
       maxBuffer: 32 * 1024 * 1024,
@@ -127,10 +183,7 @@ function run(p: Proof): { ok: boolean; detail: string } {
     out = `${e.stdout ?? ""}${e.stderr ?? ""}` || (e.message ?? "");
     exitOk = false;
   }
-  if (!exitOk) return { ok: false, detail: lastLine(out) };
-  if (!p.present.test(out)) return { ok: false, detail: "exited clean without finishing its work" };
-  if (p.absent?.test(out)) return { ok: false, detail: lastLine(out) };
-  return { ok: true, detail: "" };
+  return judge(p, out, exitOk);
 }
 
 /** The most useful line of a failure is usually the last non-empty one. */
@@ -139,28 +192,45 @@ function lastLine(out: string): string {
   return (line ?? "no output").slice(0, 110);
 }
 
-const fast = process.argv.includes("--fast");
-const selected = fast ? PROOFS.filter((p) => !p.writes) : PROOFS;
+const all = process.argv.includes("--all");
+const selected = all ? PROOFS : PROOFS.filter((p) => !p.writes);
 
 console.log(`\n${c.bold}Perjury — every claim, checked against live state${c.reset}`);
 console.log(`${c.grey}Sepolia, the live Graph Gateway, and the deployed workflow. No fixtures.${c.reset}`);
-if (fast) console.log(`${c.yellow}--fast: skipping the ${PROOFS.length - selected.length} proofs that spend gas${c.reset}`);
+if (!all)
+  console.log(
+    `${c.yellow}Skipping the ${PROOFS.length - selected.length} proofs that write on chain. Add --all to run them.${c.reset}`,
+  );
 console.log();
 
 const results: { p: Proof; ok: boolean; detail: string; ms: number }[] = [];
 const width = Math.max(...selected.map((p) => p.claim.length));
 
-for (const p of selected) {
-  // Only on a terminal: piped output keeps every carriage return, so the
-  // "running" line and its result would both survive into a log.
-  if (process.stdout.isTTY) process.stdout.write(`  ${c.grey}· ${p.claim}${c.reset}`);
+const report = (p: Proof, r: { ok: boolean; detail: string }, ms: number) => {
+  const mark = r.ok ? `${c.green}✓${c.reset}` : `${c.red}✗${c.reset}`;
+  console.log(`  ${mark} ${p.claim.padEnd(width)}  ${c.grey}${(ms / 1000).toFixed(0)}s${c.reset}`);
+};
+
+// Rows land as each proof answers, so the table fills in rather than appearing
+// after a silent wait. Read-only proofs go together; the writing ones cannot.
+await Promise.all(
+  selected
+    .filter((p) => !p.writes)
+    .map(async (p) => {
+      const started = Date.now();
+      const r = await runAsync(p);
+      const ms = Date.now() - started;
+      results.push({ p, ...r, ms });
+      report(p, r, ms);
+    }),
+);
+
+for (const p of selected.filter((p) => p.writes)) {
   const started = Date.now();
   const r = run(p);
   const ms = Date.now() - started;
   results.push({ p, ...r, ms });
-  const mark = r.ok ? `${c.green}✓${c.reset}` : `${c.red}✗${c.reset}`;
-  // Overwrite the in-progress line rather than leaving both.
-  process.stdout.write(`${process.stdout.isTTY ? "\r" : ""}  ${mark} ${p.claim.padEnd(width)}  ${c.grey}${(ms / 1000).toFixed(0)}s${c.reset}\n`);
+  report(p, r, ms);
 }
 
 const failed = results.filter((r) => !r.ok);
@@ -168,7 +238,7 @@ console.log();
 
 if (failed.length === 0) {
   console.log(`${c.green}${c.bold}All ${results.length} held.${c.reset}`);
-  if (fast) console.log(`${c.grey}Run without --fast for the two that write on chain.${c.reset}`);
+  if (!all) console.log(`${c.grey}npm run prove -- --all adds the two that write on chain.${c.reset}`);
   console.log();
 } else {
   console.log(`${c.red}${c.bold}${failed.length} of ${results.length} did not hold.${c.reset}\n`);

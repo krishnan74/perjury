@@ -139,8 +139,11 @@ await pub.waitForTransactionReceipt({ hash: issue });
 console.log(`  ${c.grey}operator issues ${fqdn} -> ${stranger.address}${c.reset}\n`);
 await attempt("holder registers the name it was issued", strangerPk, fqdn, false);
 
-// Leave the roster as we found it — the control registration was a probe, not
-// an agent, and an extra eligible witness would skew the collusion scene.
+// Withdraw, which also deregisters, so the probe can never be drawn and cannot
+// skew the collusion scene. It does NOT vanish: `agentList` is append-only, so
+// an inert row stays on the roster and on the site, labelled there as a probe.
+// Saying "roster left as found" would have been the comfortable phrasing and it
+// was not true.
 try {
   const w = createWalletClient({ account: stranger, chain, transport });
   const hash = await w.writeContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "withdrawStake" });
