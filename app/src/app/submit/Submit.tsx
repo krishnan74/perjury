@@ -59,11 +59,20 @@ export default function Submit({
   subjects,
   agents,
   gated,
+  runnable,
 }: {
   subjects: SubjectOption[];
   agents: string[];
   /** Whether this deployment requires the shared password to spend anything. */
   gated: boolean;
+  /**
+   * Whether this deployment has what a run needs.
+   *
+   * The button used to be live regardless, and a deployment missing a
+   * credential answered a press with a 503. An offer that cannot be honoured is
+   * worse than no offer, so it is disabled here and the page says so above.
+   */
+  runnable: boolean;
 }) {
   const [subject, setSubject] = useState(subjects[0]?.subject ?? "aave-v3-ethereum");
   const [claimant, setClaimant] = useState(agents[0] ?? "operator");
@@ -221,8 +230,13 @@ export default function Submit({
           </label>
         )}
 
-        <button type="button" className="submit-go" onClick={start} disabled={busy || (gated && !password)}>
-          {busy ? `Running · ${mmss}` : run ? "Submit another" : "Submit a claim"}
+        <button
+          type="button"
+          className="submit-go"
+          onClick={start}
+          disabled={busy || !runnable || (gated && !password)}
+        >
+          {busy ? `Running · ${mmss}` : !runnable ? "Unavailable" : run ? "Submit another" : "Submit a claim"}
         </button>
       </div>
 

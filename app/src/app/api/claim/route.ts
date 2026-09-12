@@ -15,7 +15,7 @@ import { assignment, draft, finalize, loadRun, runWitness, submit, verdict } fro
 import { configuredAgents } from "@/lib/live/chain";
 import { isPinnedSubject } from "@/lib/subjects";
 import { runCapability } from "@/lib/live-run";
-import { acquireLock, passwordOk, releaseLock, spendFromBudget } from "@/lib/live/gate";
+import { acquireLock, gateEnabled, passwordOk, releaseLock, spendFromBudget } from "@/lib/live/gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,16 +29,27 @@ export const maxDuration = 300;
 const bad = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
 export async function POST(request: Request) {
-  // The password comes first. Checking capability first told anyone who asked
-  // exactly which credentials this deployment is missing, which is a small leak
-  // and an entirely free one to close.
-  if (!passwordOk(request.headers.get("x-perjury-password"))) {
-    return bad("wrong or missing password", 401);
-  }
+  const authorised = passwordOk(request.headers.get("x-perjury-password"));
+  if (!authorised) return bad("wrong or missing password", 401);
 
+  /*
+   * Name the missing credential only to someone holding the password.
+   *
+   * This check used to sit behind a password that was always set, so listing
+   * what a deployment lacks was a message to the operator. With the gate open —
+   * which is how the judged deployment runs — the same list is an inventory of
+   * this server's gaps, published to anyone who presses the button. The
+   * unconfigured case is rare and the reader needs to know it cannot run, not
+   * which key is absent.
+   */
   const capability = runCapability();
   if (!capability.ok) {
-    return bad(`this deployment cannot run a claim: missing ${capability.missing.join(", ")}`, 503);
+    return bad(
+      gateEnabled()
+        ? `this deployment cannot run a claim: missing ${capability.missing.join(", ")}`
+        : "live submission is not configured on this deployment",
+      503,
+    );
   }
 
   const body = (await request.json().catch(() => null)) as

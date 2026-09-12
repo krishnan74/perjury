@@ -90,7 +90,7 @@ export default async function SubmitPage() {
           bond, and right now none is both — which is the mechanism working, not an outage.
         </p>
       ) : (
-        <Submit subjects={subjects} agents={agents} gated={gateEnabled()} />
+        <Submit subjects={subjects} agents={agents} gated={gateEnabled()} runnable={capability.ok} />
       )}
 
     </main>
