@@ -26,6 +26,8 @@ export interface FleetAgent {
   who: Identity;
   standing: number;
   standingReadable: boolean;
+  /** False once the agent has withdrawn its stake and deregistered. */
+  active: boolean;
   /** The resolver the ENS registry gives a third party for this name, if any. */
   publicResolver: string | null;
   /** Standing as that public path reports it; null when none is written yet. */
@@ -75,6 +77,11 @@ export interface Fleet {
  */
 function exclusionReason(a: Agent): string | null {
   if (a.eligible) return null;
+  // Checked before the stake, because withdrawing zeroes the stake too and the
+  // two read identically from the balance alone. One agent was punished; the
+  // other left. Calling a departure a slashing is a false accusation on a page
+  // whose entire subject is who may be trusted.
+  if (!a.active) return "withdrew its stake and left the roster";
   if (!a.standingReadable) return "ENS record unreadable — eligibility fails closed";
   if (a.stake === 0n) return "stake slashed to zero — flagged until it tops up";
   if (a.flaggedUntil > Date.now() / 1000) return "serving the mismatch cooldown";
@@ -145,6 +152,7 @@ export function buildFleet(roster: Agent[], claims: ClaimEvent[], mechanism: Cla
       who: identityOf(a.name, a.address, "protocol"),
       standing: a.standing,
       standingReadable: a.standingReadable,
+      active: a.active,
       publicResolver: a.publicResolver,
       publicStanding: a.publicStanding,
       eligible: a.eligible,

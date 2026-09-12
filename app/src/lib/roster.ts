@@ -41,6 +41,14 @@ export interface Agent {
    */
   ensNode: `0x${string}`;
   standing: number;
+  /**
+   * False once an agent has called `withdrawStake`, which deregisters it.
+   *
+   * `agentList` is append-only, so a departed agent keeps its row forever. Left
+   * unread, that row is indistinguishable from a slashed one and the page said
+   * "stake slashed to zero" about agents nothing had slashed.
+   */
+  active: boolean;
   /** False when the ENS record could not be read at all — which fails closed. */
   standingReadable: boolean;
   /**
@@ -97,7 +105,7 @@ export async function rosterSnapshot(deployment: Deployment = currentDeployment(
         pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "isEligible", args: [address] }),
         pub.readContract({ address: ROSTER, abi: ROSTER_ABI, functionName: "flaggedUntil", args: [address] }),
       ]);
-      const [ensNode, dnsName, , registeredAt, stake] = record as unknown as [
+      const [ensNode, dnsName, active, registeredAt, stake] = record as unknown as [
         `0x${string}`, `0x${string}`, boolean, bigint, bigint,
       ];
 
@@ -133,6 +141,7 @@ export async function rosterSnapshot(deployment: Deployment = currentDeployment(
         address,
         name: name || address,
         ensNode,
+        active,
         standing,
         standingReadable,
         publicResolver: publicResolver && publicResolver !== "0x0000000000000000000000000000000000000000"

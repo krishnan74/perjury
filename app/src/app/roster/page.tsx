@@ -170,8 +170,14 @@ export default async function Roster() {
 
   // Excluded first: the interesting agent on this page is the one that cannot be
   // drawn, and burying it under the healthy ones is how a registry hides its
-  // only news.
-  const ordered = [...fleet.agents].sort((a, b) => Number(a.eligible) - Number(b.eligible));
+  // only news. Agents that left go last — they are not news, they are residue,
+  // and putting them at the top would bury the one that was actually punished.
+  const ordered = [...fleet.agents].sort(
+    (a, b) =>
+      Number(b.active) - Number(a.active) || Number(a.eligible) - Number(b.eligible),
+  );
+
+  const departed = fleet.agents.filter((a) => !a.active).length;
 
   return (
     <main className="wrap section">
@@ -186,8 +192,12 @@ export default async function Roster() {
       <div className="assertions fleet-stats">
         <div className="assertion">
           <span className="k">Agents</span>
-          <span className="v">{fleet.agents.length}</span>
-          <span className="n">subnames of perjury.eth</span>
+          <span className="v">{fleet.agents.length - departed}</span>
+          <span className="n">
+            {departed === 0
+              ? "subnames of perjury.eth"
+              : `subnames of perjury.eth · ${departed} more withdrew and left`}
+          </span>
         </div>
         <div className="assertion">
           <span className="k">Drawable now</span>
@@ -250,6 +260,19 @@ export default async function Roster() {
         so an agent can carry a low standing and show no strikes because the writes that earned it
         are older than the window.
       </p>
+
+      {departed > 0 && (
+        <p className="note">
+          {departed === 1 ? "One row is" : `${departed} rows are`} an agent that withdrew its stake and
+          deregistered. <span className="mono">agentList</span> is append-only, so a departed agent
+          keeps its row here forever — it cannot be drawn, and it is shown rather than filtered out
+          because a registry that quietly drops entries is not a registry. The rows named{" "}
+          <span className="mono">prover-*</span> are the control registration from{" "}
+          <span className="mono">scripts/prove-name-binding.ts</span>, which proves on the live roster
+          that a name you were issued registers and a name you were not is refused. It withdraws
+          afterwards, which is why they are here and inert.
+        </p>
+      )}
 
       <p className="note">
         Every name on this page is read twice. Once through the protocol's own reader contract, which
