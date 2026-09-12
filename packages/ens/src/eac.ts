@@ -28,6 +28,15 @@ export const adminOf = (role: bigint): bigint => role << 128n;
 export const textResource = (key: string): `0x${string}` => keccak256(toBytes(key));
 
 /**
+ * The same resource as `textResource`, as the uint256 the contract actually
+ * takes. `IEnhancedAccessControl` types every resource as uint256, not bytes32
+ * — identical 32 bytes on the wire, but a different function selector, so a
+ * bytes32 call reverts with no data and reads as "the role is missing" rather
+ * than "you called the wrong function".
+ */
+export const textResourceId = (key: string): bigint => BigInt(textResource(key));
+
+/**
  * Exactly what the tribunal is granted — and, by omission, everything it is not.
  *
  * It receives SET_TEXT scoped to two keys. It receives no SET_ADDRESS, no
@@ -230,7 +239,7 @@ export const PERMISSIONED_RESOLVER_ABI = [
     type: "function",
     name: "grantRoles",
     inputs: [
-      { name: "resource", type: "bytes32" },
+      { name: "resource", type: "uint256" },
       { name: "roleBitmap", type: "uint256" },
       { name: "account", type: "address" },
     ],
@@ -241,7 +250,7 @@ export const PERMISSIONED_RESOLVER_ABI = [
     type: "function",
     name: "revokeRoles",
     inputs: [
-      { name: "resource", type: "bytes32" },
+      { name: "resource", type: "uint256" },
       { name: "roleBitmap", type: "uint256" },
       { name: "account", type: "address" },
     ],
@@ -252,7 +261,7 @@ export const PERMISSIONED_RESOLVER_ABI = [
     type: "function",
     name: "hasRoles",
     inputs: [
-      { name: "resource", type: "bytes32" },
+      { name: "resource", type: "uint256" },
       { name: "roleBitmap", type: "uint256" },
       { name: "account", type: "address" },
     ],

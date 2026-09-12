@@ -10,7 +10,8 @@
   "scripts": {
     "test": "vitest run",
     "test:contracts": "forge test",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prove": "tsx scripts/prove-all.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

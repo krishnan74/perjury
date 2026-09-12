@@ -16,12 +16,13 @@
  *
  *   npx tsx scripts/prove-eac.ts
  */
-import { createPublicClient, createWalletClient, http, type Address } from "viem";
+import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { namehash } from "viem/ens";
 import { sepolia } from "viem/chains";
 import {
   ENS_HACKATHON_SEPOLIA, RECORD_KEYS, PERMISSIONED_RESOLVER_ABI,
-  ROLE, adminOf, textResource, dnsEncode, FORBIDDEN_TRIBUNAL_ROLES,
+  ROLE, adminOf, textResource, textResourceId, dnsEncode, FORBIDDEN_TRIBUNAL_ROLES,
   withHackathonResolver,
 } from "@perjury/ens";
 
@@ -32,9 +33,32 @@ const need = (k: string): string => {
 };
 
 const RPC = need("SEPOLIA_RPC_URL");
-const AGENT_NAME = process.env.AGENT_NAME ?? "alice.perjury.eth";
-const RESOLVER = (process.env.AGENT_RESOLVER ?? ENS_HACKATHON_SEPOLIA.publicResolverV2) as Address;
+const AGENT_NAME = process.env.AGENT_NAME ?? "witness-a.perjury.eth";
+// Our own Permissioned Resolver, not the hackathon deployment's shared one —
+// the EAC grants this script checks live on ours. The fallback is kept only so
+// the script still says something useful against a bare environment.
+const RESOLVER = (process.env.PERJURY_RESOLVER_ADDRESS ?? process.env.AGENT_RESOLVER
+  ?? ENS_HACKATHON_SEPOLIA.publicResolverV2) as Address;
 const STANDING_WRITER = need("STANDING_WRITER_ADDRESS") as Address;
+const STANDING_READER = need("STANDING_READER_ADDRESS") as Address;
+
+/** `cast` tolerates a bare key; viem does not. */
+const hexKey = (k: string): Hex => (k.startsWith("0x") ? k : `0x${k}`) as Hex;
+
+/**
+ * Read standing the way the protocol does — through the on-chain ENSIP-10
+ * reader, the same contract the VRF callback consults.
+ *
+ * The direct `text(bytes32,string)` this used to call REVERTS on a
+ * factory-deployed Permissioned Resolver, so the script died before it reached
+ * a single one of its assertions. Reading it any other way would also be a lie
+ * about what the protocol relies on.
+ */
+const READER_ABI = [{
+  type: "function", name: "standingOfNameChecked", stateMutability: "view",
+  inputs: [{ type: "bytes32" }, { type: "bytes" }],
+  outputs: [{ name: "standing", type: "int256" }, { name: "readable", type: "bool" }],
+}] as const;
 
 const chain = withHackathonResolver(sepolia);
 const pub = createPublicClient({ chain, transport: http(RPC) });
@@ -68,21 +92,21 @@ async function main() {
   console.log(`  record:   ${RECORD_KEYS.standing}`);
   console.log(`  resource: ${textResource(RECORD_KEYS.standing)}\n`);
 
-  const before = await pub.readContract({
-    address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "text",
-    args: [process.env.AGENT_NODE as `0x${string}`, RECORD_KEYS.standing],
+  const [before, readable] = await pub.readContract({
+    address: STANDING_READER, abi: READER_ABI, functionName: "standingOfNameChecked",
+    args: [namehash(AGENT_NAME), dnsName],
   });
-  console.log(`  standing before: "${before}"\n`);
+  console.log(`  standing before: ${readable ? before.toString() : "UNREADABLE"}\n`);
 
   // 1 & 2 — these MUST fail.
-  await attemptWrite("agent writes its own standing", need("AGENT_PK"), "9999", "revert");
-  await attemptWrite("operator writes the standing", need("DEPLOYER_PK"), "9999", "revert");
+  await attemptWrite("agent writes its own standing", hexKey(need("AGENT_1_PK")), "9999", "revert");
+  await attemptWrite("operator writes the standing", hexKey(need("OPERATOR_PRIVATE_KEY")), "9999", "revert");
 
   // 3 — the only path that may work: through the contract holding the role.
   //     Driven via VerdictSink in the full flow; here we assert the role itself.
   const writerHasRole = await pub.readContract({
     address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "hasRoles",
-    args: [textResource(RECORD_KEYS.standing), ROLE.SET_TEXT, STANDING_WRITER],
+    args: [textResourceId(RECORD_KEYS.standing), ROLE.SET_TEXT, STANDING_WRITER],
   });
   results.push({
     step: "tribunal writer holds SET_TEXT on the standing key",
@@ -95,7 +119,7 @@ async function main() {
   for (const f of FORBIDDEN_TRIBUNAL_ROLES) {
     const has = await pub.readContract({
       address: RESOLVER, abi: PERMISSIONED_RESOLVER_ABI, functionName: "hasRoles",
-      args: [textResource(RECORD_KEYS.standing), f.role, STANDING_WRITER],
+      args: [textResourceId(RECORD_KEYS.standing), f.role, STANDING_WRITER],
     });
     results.push({
       step: `tribunal does NOT hold ${f.name}`,

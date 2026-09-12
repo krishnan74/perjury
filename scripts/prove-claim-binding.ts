@@ -20,14 +20,32 @@
  * It restores the gateway index afterwards, including if it throws.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { keccak256, toBytes } from "viem";
 import { publishBundle, type EvidenceBundle } from "@perjury/gateway";
 
-const claimId = process.argv[2] ?? "6";
 const registry = (process.env.CLAIM_REGISTRY_ADDRESS ?? "").toLowerCase();
 const dir = `evidence-archive/${registry}`;
 const indexPath = `${dir}/gateway-index.json`;
+
+/**
+ * Default to the newest archived bundle rather than a fixed id.
+ *
+ * Claim ids restart at 1 on every redeploy of the cascade, so a hardcoded
+ * default went stale the first time the contracts moved and the script died
+ * before reaching its assertion — a proof that cannot run proves nothing.
+ */
+function newestArchived(): string {
+  if (!existsSync(dir)) throw new Error(`no evidence archive for registry ${registry} — run a scene first`);
+  const ids = readdirSync(dir)
+    .filter((f) => /^\d+\.json$/.test(f))
+    .map((f) => Number(f.slice(0, -5)))
+    .sort((a, b) => b - a);
+  if (ids.length === 0) throw new Error(`no archived bundles under ${dir} — run a scene first`);
+  return String(ids[0]);
+}
+
+const claimId = process.argv[2] ?? newestArchived();
 const archivePath = `${dir}/${claimId}.json`;
 
 const need = (k: string) => {
