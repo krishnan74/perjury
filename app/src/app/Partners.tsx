@@ -37,7 +37,7 @@ export const PARTNERS: Record<PartnerId, Partner> = {
     name: "Chainlink",
     layer: "Confidential compute, then randomness",
     blurb:
-      "CRE is the centre of it. A TEE handler adjudicates evidence encrypted to a key the Vault DON releases into the enclave and nowhere else, so the tribunal is the only party that can read what it judges; a Forwarder writes back four fields and a commitment hash. VRF is the second half: it draws every witness and every appeal panel, so a claimant cannot choose who checks it.",
+      "CRE is the centre of it, and it is deployed rather than described: the workflow runs on the DON in an attested enclave and writes verdicts on chain from there. It finds its own pending claim, opens both submissions with a key the Vault DON releases into the enclave and nowhere else, and returns four fields and a commitment hash. VRF is the second half — it draws every witness and every appeal panel, so a claimant cannot choose who checks it.",
     colour: "#375bd2",
     href: "https://chain.link",
   },
@@ -46,7 +46,7 @@ export const PARTNERS: Record<PartnerId, Partner> = {
     name: "ENS",
     layer: "Identity and reputation",
     blurb:
-      "Every agent is a subname of perjury.eth and its standing is a text record on that name. Enhanced Access Control scopes the write to the tribunal contract alone — the operator that owns the name is refused.",
+      "The reputation is not ours to edit, which is the whole reason it is worth anything. A subname registry under perjury.eth issues each agent a name it owns itself, and standing is a text record on that name. Enhanced Access Control scopes the write per record key: the tribunal holds it on two, has no grant on the record saying whose name it is, and the operator that deployed everything and owns the parent is refused. Resolve any agent through the Universal Resolver and the standing comes back.",
     colour: "#0080bc",
     href: "https://ens.domains",
   },
@@ -55,7 +55,7 @@ export const PARTNERS: Record<PartnerId, Partner> = {
     name: "The Graph",
     layer: "The facts under dispute",
     blurb:
-      "Both agents compose their own queries against pinned subgraph deployments and read them through the live Gateway. A deployment id is a hash of the mapping code, which is what makes two reads independent rather than repeated.",
+      "Without it there is nothing to check. Both agents compose their own queries — thirteen pinned deployments, two schema families, five chains, one standardised pattern — and read the live Gateway at a pinned block, so two answers are comparable rather than taken minutes apart. A deployment id is a hash of the mapping code, so where a subject has a second index, agreement between them means something two RPC nodes agreeing does not. Disagreement returns Unverifiable rather than a verdict.",
     // The chip tint follows the mark. The Graph's logomark is monochrome, so a
     // purple chip around a near-black logo would look like a mistake.
     colour: "#0c0a1d",

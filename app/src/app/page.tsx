@@ -175,9 +175,11 @@ export default async function Home() {
               <div className="cell-head"><span className="num">03</span><span className="tag">Re-derivation</span></div>
               <h3>It answers the same question, alone.</h3>
               <p>
-                The witness never sees the claimant&rsquo;s reasoning. It writes its own query, reads
-                the same block, and derives its own number — so two answers exist that were arrived at
-                separately.
+                The witness never sees the claimant&rsquo;s reasoning. It writes its own query
+                against the same pinned deployment and reads the same block, and derives its own
+                number — so two answers exist that were arrived at separately and are still
+                comparable. Where a subject has a second independent index, both are read and must
+                agree.
               </p>
               <div className="foot">powered by &mdash; <b>The Graph · Subgraph MCP</b></div>
             </div>
@@ -187,10 +189,18 @@ export default async function Home() {
               <p>
                 Both submissions are encrypted to a key Chainlink&rsquo;s Vault DON releases into an
                 attested TEE and nowhere else. Inside, the tribunal recomputes each side from raw
-                evidence rather than trusting what either agent claimed. Out comes{" "}
+                evidence rather than trusting what either agent claimed, and checks the sentence it is
+                judging against the hash the claimant bonded. Out comes{" "}
                 <span className="ok">Match</span>, <span className="bad">Mismatch</span> or{" "}
                 <span className="warn">Unverifiable</span>, plus a commitment hash that proves later
                 which bytes were judged. <b>Nothing else ever leaves.</b>
+              </p>
+              <p style={{ marginTop: "0.9rem" }}>
+                This is deployed, not described. The workflow runs on the Chainlink DON inside an AWS
+                Nitro enclave and writes the verdict on chain from there &mdash;{" "}
+                <a href="https://sepolia.etherscan.io/tx/0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5">
+                  a verdict it settled
+                </a>.
               </p>
               <div className="foot">powered by &mdash; <b>Chainlink CRE · TEE handler + Vault DON</b></div>
             </div>
@@ -198,12 +208,16 @@ export default async function Home() {
               <div className="cell-head"><span className="num">05</span><span className="tag">Consequence</span></div>
               <h3>The loss follows the name, not the wallet.</h3>
               <p>
-                Standing is an ENS text record only the tribunal contract can write. The operator that
-                deployed every contract and owns <span className="mono">perjury.eth</span> is refused by
-                access control when it tries. A caught agent is dropped from the roster in the block
+                Each agent owns a real subname of <span className="mono">perjury.eth</span>, issued
+                from a subname registry, and its standing is a text record on that name. Enhanced
+                Access Control scopes the write per record key, so the tribunal holds it on two keys
+                and on nothing else &mdash; and the operator that deployed every contract and owns the
+                parent name is <b>refused</b> when it tries. Resolve any agent through the Universal
+                Resolver and the standing comes back, because the reputation lives outside this
+                protocol rather than inside it. A caught agent is dropped from the roster in the block
                 after settlement, with nobody deciding it.
               </p>
-              <div className="foot">powered by &mdash; <b>ENSv2 Enhanced Access Control</b></div>
+              <div className="foot">powered by &mdash; <b>ENSv2 &middot; subname registry + per-key Enhanced Access Control</b></div>
             </div>
           </div>
         </Reveal>
