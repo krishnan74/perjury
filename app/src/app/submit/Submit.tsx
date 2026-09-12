@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { ReplayScript } from "@/lib/replay";
+import Lanes from "../replay/Lanes";
+import Standing from "../replay/Standing";
+
 export interface SubjectOption {
   subject: string;
   chain: string;
@@ -26,23 +30,30 @@ interface RunState {
 }
 
 /**
- * The beats, in the order they happen.
+ * The phases, only as a status line.
  *
- * Listed up front rather than appended as they occur, so a reader can see where
- * the claim is going before it gets there. Four minutes of a progress bar with
- * no destination is indistinguishable from four minutes of nothing.
+ * This page used to render these six as its own numbered list, with a sentence
+ * of prose under each. That was a second and much thinner account of the same
+ * protocol: the replay could show which rows an agent read and this page could
+ * only say that it had read some, which meant the version a judge watches
+ * happen live was the less convincing of the two.
+ *
+ * The account is now the replay's, rendered from the same builder against the
+ * claim that is currently running. What survives here is the one thing a live
+ * page needs and a replay does not — which stage is in progress, and what it is
+ * waiting on, so a minute of no visible movement reads as VRF rather than as a
+ * page that has stopped working.
  */
-const BEATS = [
-  { phase: "drafted", title: "The claimant reads the indexer and drafts a claim" },
-  { phase: "submitted", title: "It stakes ETH on that exact sentence" },
-  { phase: "assigned", title: "Chainlink VRF picks who checks it" },
-  { phase: "sealed", title: "The checker derives its own answer, and both are sealed" },
-  { phase: "adjudicated", title: "The tribunal reads them inside the enclave" },
-  { phase: "settled", title: "Settlement, and the record follows the name" },
+const PHASES = [
+  { phase: "drafted", label: "Reading the indexer" },
+  { phase: "submitted", label: "Bonded, waiting on the draw" },
+  { phase: "assigned", label: "Checker drawn" },
+  { phase: "sealed", label: "Both halves sealed" },
+  { phase: "adjudicated", label: "Verdict returned" },
+  { phase: "settled", label: "Settled" },
 ] as const;
 
-const EXPLORER = "https://sepolia.etherscan.io/tx";
-const phaseIndex = (p: string) => BEATS.findIndex((b) => b.phase === p);
+const phaseIndex = (p: string) => PHASES.findIndex((b) => b.phase === p);
 
 export default function Submit({
   subjects,
@@ -57,6 +68,7 @@ export default function Submit({
   const [subject, setSubject] = useState(subjects[0]?.subject ?? "aave-v3-ethereum");
   const [claimant, setClaimant] = useState(agents[0] ?? "operator");
   const [run, setRun] = useState<RunState | null>(null);
+  const [script, setScript] = useState<ReplayScript | null>(null);
   const [busy, setBusy] = useState(false);
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +84,32 @@ export default function Submit({
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - run.startedAt) / 1000)), 500);
     return () => clearInterval(t);
   }, [busy, run]);
+
+  /**
+   * Poll the script independently of the step machine.
+   *
+   * The steps advance when work finishes; beats appear when the chain says so,
+   * and those are not the same moment. Polling separately means the draw shows
+   * up the second VRF fulfils rather than when the next step happens to run,
+   * and a stage that is only waiting still has something arriving on screen.
+   */
+  const refreshScript = useCallback(async (runId: string) => {
+    try {
+      const res = await fetch(`/api/live-script?runId=${encodeURIComponent(runId)}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as { script: ReplayScript | null };
+      if (!cancelled.current && json.script) setScript(json.script);
+    } catch {
+      // A missed poll costs one refresh. The next one is four seconds away, and
+      // failing the claim because a read timed out would be absurd.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!busy || !run?.runId) return;
+    const id = setInterval(() => void refreshScript(run.runId), 4000);
+    return () => clearInterval(id);
+  }, [busy, run?.runId, refreshScript]);
 
   const call = useCallback(async (body: Record<string, unknown>): Promise<RunState> => {
     const res = await fetch("/api/claim", {
@@ -111,6 +149,7 @@ export default function Submit({
     cancelled.current = false;
     setError(null);
     setRun(null);
+    setScript(null);
     setElapsed(0);
     setBusy(true);
     try {
@@ -119,11 +158,14 @@ export default function Submit({
 
       const submitted = await call({ step: "submit", runId: drafted.runId });
       setRun(submitted);
+      await refreshScript(submitted.runId);
 
       await pollUntil(submitted.runId, "assignment", (s) => s.phase !== "submitted", "the VRF draw", 5 * 60_000);
+      await refreshScript(submitted.runId);
 
       const sealed = await call({ step: "witness", runId: submitted.runId });
       setRun(sealed);
+      await refreshScript(sealed.runId);
 
       // Nothing here produces a verdict. The tribunal is the confidential
       // workflow, and this watches for what it writes.
@@ -131,6 +173,9 @@ export default function Submit({
 
       const settled = await call({ step: "finalize", runId: sealed.runId });
       setRun(settled);
+      // One last read after settlement, because standing is written here and the
+      // final beat is the one the whole page exists to show.
+      await refreshScript(settled.runId);
     } catch (e) {
       if ((e as Error).message !== "cancelled") setError((e as Error).message);
     } finally {
@@ -141,6 +186,7 @@ export default function Submit({
 
   const at = run ? phaseIndex(run.phase) : -1;
   const mmss = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+  const settled = run?.phase === "settled";
 
   return (
     <>
@@ -176,78 +222,71 @@ export default function Submit({
         )}
 
         <button type="button" className="submit-go" onClick={start} disabled={busy || (gated && !password)}>
-          {busy ? `Running · ${mmss}` : "Submit a claim"}
+          {busy ? `Running · ${mmss}` : run ? "Submit another" : "Submit a claim"}
         </button>
       </div>
 
       {!run && !error && (
         <p className="submit-hint">
           This posts a real claim to Sepolia with a real bond, draws a real checker through Chainlink VRF, and
-          settles for real. It takes about four minutes, most of it waiting. Nothing below is pre-recorded.
-          {gated
-            ? " A password is required because each run spends ETH from a funded wallet."
-            : " This deployment has no password set, so anyone can spend its wallets."}
+          settles for real. It takes about four minutes, most of it waiting. Nothing below is pre-recorded —
+          it is the same view as the replay, except that here you are watching it happen.
         </p>
       )}
 
       {error && <p className="submit-error">{error}</p>}
 
-      <ol className="submit-steps">
-        {BEATS.map((b, i) => {
-          const state = at > i ? "done" : at === i ? "current" : "pending";
-          return (
-            <li key={b.phase} data-state={state}>
-              <h3><span className="submit-step-n">{i + 1}</span>{b.title}</h3>
-              <div className="submit-step-body">
-                {i === 0 && run && (
-                  <>
-                    <p>{run.text}</p>
-                    <p className="submit-mono">claimHash {run.claimHash}</p>
-                    {run.claimedValue !== null && <p><strong>{run.claimedValue}%</strong> — what it is staking on</p>}
-                  </>
-                )}
-                {i === 1 && run?.submitTx && (
-                  <>
-                    <p>Claim #{run.claimId}, bonded 0.010 ETH plus a 0.002 witness fee.</p>
-                    <p className="submit-mono"><a href={`${EXPLORER}/${run.submitTx}`} target="_blank" rel="noreferrer">{run.submitTx}</a></p>
-                  </>
-                )}
-                {i === 2 && run?.witnessAgent?.address && (
-                  <p className="submit-mono">
-                    drawn {run.witnessAgent.address} — not chosen by the claimant, and not predictable by it
-                  </p>
-                )}
-                {i === 3 && run?.gatewayUrl && (
-                  <>
-                    {run.witnessValue !== null && run.witnessValue !== undefined && (
-                      <p><strong>{run.witnessValue}%</strong> — derived independently, from the same block</p>
-                    )}
-                    <p>
-                      Both submissions are now ciphertext. The key that opens them is released by Chainlink&apos;s
-                      Vault DON into an attested enclave and nowhere else.
-                    </p>
-                    <p className="submit-mono">
-                      <a href={run.gatewayUrl} target="_blank" rel="noreferrer">the sealed bundle, fetchable by anyone</a>
-                    </p>
-                  </>
-                )}
-                {i === 4 && (run?.verdict
-                  ? <p><strong>{run.verdict}</strong> — a verdict and a commitment hash. No evidence, no method, neither value.</p>
-                  : at === 4 && <p>Waiting for the confidential workflow. It finds the claim on chain itself.</p>)}
-                {i === 5 && run?.finalizeTx && (
-                  <p className="submit-mono"><a href={`${EXPLORER}/${run.finalizeTx}`} target="_blank" rel="noreferrer">{run.finalizeTx}</a></p>
-                )}
-                {state === "current" && waitingFor && <p className="submit-waiting">waiting on {waitingFor}…</p>}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      {/*
+        The one thing a live page owes a viewer that a replay does not: which
+        stage is in progress, and what it is waiting on. Four minutes of silence
+        during a VRF round is indistinguishable from a page that has crashed.
+      */}
+      {run && (
+        <div className="live-status" role="status" aria-live="polite">
+          <span className="chip">
+            claim {run.claimId ? `#${run.claimId}` : "pending"} · elapsed {mmss}
+          </span>
+          <ol className="live-phases">
+            {PHASES.map((p, i) => (
+              <li key={p.phase} data-state={at > i ? "done" : at === i ? "current" : "pending"}>
+                {p.label}
+              </li>
+            ))}
+          </ol>
+          {waitingFor && <span className="live-waiting">waiting on {waitingFor}…</span>}
+        </div>
+      )}
 
-      {run?.phase === "settled" && (
+      {/*
+        The replay's own component, at the newest beat.
+
+        `at` is the beat count rather than a cursor, because there is nothing to
+        step through — the last beat is always the one that just happened. The
+        lanes scroll to it as it arrives, which is the behaviour the replay
+        already has during playback.
+      */}
+      {script && script.beats.length > 0 && (
+        <Lanes script={script} at={script.beats.length} playing={busy} />
+      )}
+
+      {script?.standing && (
+        <div style={{ marginTop: "2rem" }}>
+          <Standing move={script.standing} moved={settled} />
+        </div>
+      )}
+
+      {run && !script && (
+        <p className="submit-hint">
+          Drafting. Nothing is on chain until the bond is posted, so there is nothing to show yet — the
+          agent commits to a sentence before it commits money, which is what stops the claim being
+          adjusted later to match whatever the checker finds.
+        </p>
+      )}
+
+      {settled && run?.claimId && (
         <p className="submit-done">
-          Settled. <a href="/claims">See it in the claim feed</a>, or{" "}
-          <a href={`/replay?claim=${run.claimId}`}>replay it from its own transactions</a>.
+          Settled in {mmss}. <a href="/claims">See it in the claim feed</a>, or{" "}
+          <a href={`/replay?claim=${run.claimId}`}>step back through it at your own pace</a>.
         </p>
       )}
     </>

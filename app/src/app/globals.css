@@ -2315,47 +2315,58 @@ body::after {
   color: var(--bad, #8a2b2b);
 }
 
-.submit-steps {
-  list-style: none;
-  margin: 2rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 1.5rem;
-}
-
-.submit-steps h3 {
+/*
+ * The live status strip.
+ *
+ * All that survives of the old six-step list, which the replay's lanes now
+ * replace. A replay never needs this — everything in it has already happened —
+ * but a live page does: four minutes of a VRF round with nothing moving is
+ * indistinguishable from a page that has crashed.
+ *
+ * Sticky, because the lanes are several screens tall and the answer to "is this
+ * still working" has to be on screen wherever the reader has scrolled to.
+ */
+.live-status {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
-  align-items: baseline;
-  gap: 0.7rem;
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin: 2rem 0 1.6rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper, #fff);
 }
 
-.submit-step-n {
-  display: inline-grid;
-  place-items: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  border: 1px solid var(--rule);
-  border-radius: 50%;
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  flex: none;
+.live-phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 
-.submit-step-body {
-  padding-left: 2.3rem;
-  border-left: 1px solid var(--rule);
-  margin-left: 0.79rem;
+/* A stage not yet reached is visible but quiet, so the reader can see where
+   this is going before it gets there. */
+.live-phases li[data-state="pending"] { opacity: 0.35; }
+.live-phases li[data-state="done"] { opacity: 0.7; }
+.live-phases li[data-state="done"]::before { content: "✓ "; }
+.live-phases li[data-state="current"] {
+  color: var(--ink);
+  font-weight: 700;
 }
 
-.submit-step-body p {
-  margin: 0.2rem 0;
-  font-size: 0.86rem;
-  line-height: 1.55;
-  color: var(--ink-2, #3a3a3a);
-  white-space: pre-wrap;
+.live-waiting {
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--muted);
 }
 
 .submit-mono {
@@ -2399,21 +2410,6 @@ body::after {
 .submit-unavailable p:last-child {
   margin-bottom: 0;
 }
-
-/* A step the claim has not reached yet is visible but quiet: the reader should
-   see where this is going before it gets there, without the unreached steps
-   competing with the one that is happening. */
-.submit-steps li[data-state="pending"] { opacity: 0.4; }
-.submit-steps li[data-state="current"] h3 { font-weight: 700; }
-.submit-steps li[data-state="current"] .submit-step-n { border-color: currentColor; border-width: 2px; }
-.submit-steps li[data-state="done"] .submit-step-n { background: var(--ink, #1a1a1a); color: var(--paper, #fff); }
-
-.submit-waiting {
-  font-style: italic;
-  opacity: 0.7;
-}
-
-.submit-step-body a { overflow-wrap: anywhere; }
 
 .submit-field input {
   font: inherit;
