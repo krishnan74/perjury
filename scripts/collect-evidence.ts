@@ -27,7 +27,11 @@ const BEGIN = "<!-- BEGIN GENERATED LEDGER — npx tsx scripts/collect-evidence.
 const END = "<!-- END GENERATED LEDGER -->";
 
 const head = await pub.getBlockNumber();
-const lookback = BigInt(process.argv.find((a) => /^\d+$/.test(a)) ?? 9000);
+// Wide enough to cover a full cascade's life by default, so `--write` alone
+// finds a claim's ClaimSubmitted even when it happened a day ago — a narrower
+// default here is what let claim 3's appeal look truncated in this file
+// earlier tonight, missing the very rows that made it worth recording.
+const lookback = BigInt(process.argv.find((a) => /^\d+$/.test(a)) ?? 15000);
 const from = head > lookback ? head - lookback : 0n;
 
 /** Providers cap eth_getLogs spans, and a wide window fails whole rather than
@@ -59,11 +63,38 @@ const sigs: [string, `0x${string}`][] = [
 type Row = { block: bigint; claimId: string; event: string; tx: string; detail: string };
 const rows: Row[] = [];
 
+/**
+ * A failed span used to become an empty one. The public RPC answers a slice of
+ * this query with a timeout often enough that `.catch(() => [])` was quietly
+ * turning "the node dropped this request" into "nothing happened in this
+ * range" — which is how a claim's own Settled event went missing from this
+ * ledger while every other event in the same transaction came through fine.
+ * Three attempts with backoff, and a fetch that still fails throws rather than
+ * lying about the range being empty.
+ */
+async function getLogsRetry(
+  address: `0x${string}`,
+  event: ReturnType<typeof parseAbiItem>,
+  from: bigint,
+  to: bigint,
+): Promise<Awaited<ReturnType<typeof pub.getLogs>>> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await pub.getLogs({ address, event: event as never, fromBlock: from, toBlock: to });
+    } catch (err) {
+      lastError = err;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
+  throw new Error(
+    `getLogs failed after 3 attempts for ${address} blocks ${from}-${to}: ${(lastError as Error).message}`,
+  );
+}
+
 for (const [sig, address] of sigs) {
   const ev = parseAbiItem(`event ${sig}`) as any;
-  const batches = await Promise.all(
-    spans.map(([f, t]) => pub.getLogs({ address, event: ev, fromBlock: f, toBlock: t }).catch(() => [])),
-  );
+  const batches = await Promise.all(spans.map(([f, t]) => getLogsRetry(address, ev, f, t)));
   for (const l of batches.flat()) {
     // viem types getLogs by the event arg, but we iterate a heterogeneous list
     // of event ABIs here, so the arg shape differs per iteration.
