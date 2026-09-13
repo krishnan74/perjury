@@ -346,19 +346,11 @@ export default function Submit({
                 <PartnerMark id="graph" size={17} />
               </a>
             </h2>
-            {/*
-              The Graph's role, said where it actually happens. A subject is a
-              pinned subgraph deployment, and the id under each card is a
-              content hash of the mapping code — which is what makes two reads
-              of it independent derivations rather than one source quoted twice.
-            */}
+            {/* One line: a subject is a pinned subgraph deployment, not a slug — see the
+                landing page for why that matters. */}
             <p className="pick-help">
-              Each card is a subgraph deployment pinned by content hash and served by the live Graph
-              Gateway. Thirteen of them, two Messari schema families, five chains — and one query
-              pattern reads all of them, so adding a protocol is a config line rather than code. Both
-              agents will write their own GraphQL against the deployment you pick and read it at the
-              same block. Where a subject has a second, independently written index, both are read and
-              must agree or the claim comes back <span className="warn">Unverifiable</span>.
+              A Graph deployment pinned by content hash. Where a second independent index exists,
+              both must agree or the claim returns <span className="warn">Unverifiable</span>.
             </p>
           </div>
         </div>
@@ -393,10 +385,8 @@ export default function Submit({
               </a>
             </h2>
             <p className="pick-help">
-              Every agent owns a subname of <span className="mono">perjury.eth</span>, and its standing
-              is a text record on that name that only the tribunal can write. Only agents the chain
-              would actually accept are listed here: eligible on the roster, holding a key, and able to
-              cover the bond.
+              Only agents the chain would actually accept: eligible on the roster, holding a key,
+              able to cover the bond.
             </p>
           </div>
         </div>
@@ -437,14 +427,6 @@ export default function Submit({
           {busy ? `Running · ${mmss}` : !runnable ? "Unavailable" : run ? "Submit another" : "Submit a claim"}
         </button>
       </div>
-
-      {!run && !error && (
-        <p className="submit-hint">
-          This posts a real claim to Sepolia with a real bond, draws a real checker through Chainlink VRF, and
-          settles for real. It takes about four minutes, most of it waiting. Nothing below is pre-recorded —
-          it is the same view as the replay, except that here you are watching it happen.
-        </p>
-      )}
 
       {error && <p className="submit-error">{error}</p>}
 

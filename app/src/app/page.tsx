@@ -245,7 +245,7 @@ export default async function Home() {
           Who does what, rather than a wall of logos. Each row says where that
           protocol actually does its work in this system, because "powered by"
           under a feature card tells a reader nothing they can check. */}
-      <section className="wrap wide section">
+      <section className="wrap section">
         <span className="chapter-num" aria-hidden="true">03</span>
         <Reveal>
           <p className="eyebrow">Built on</p>

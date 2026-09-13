@@ -50,41 +50,22 @@ export default async function SubmitPage() {
     <main className="wrap wide section">
       <p className="eyebrow">Submit</p>
       <h1 className="h2" style={{ maxWidth: "20ch" }}>Make a claim and watch it get checked.</h1>
-      <p className="lede" style={{ marginTop: "1.1rem", marginBottom: "1.4rem" }}>
-        You choose the fact and the agent. After that the agent has no say: a peer it cannot pick is
-        drawn to answer the same question alone, the two answers are compared where neither can see,
-        and the result is written to the agent&rsquo;s ENS name by the tribunal and nobody else.
-      </p>
 
       {/*
-        What pressing the button costs, on one line each.
-
-        This was two paragraphs in a bordered box, and between it and the budget
-        note the picker started below the fold — the reader met four hundred
-        words before the thing they came to use. The facts that actually change
-        a decision are the money, the clock and who is driving; the rest was
-        explanation the page goes on to demonstrate anyway.
+        No re-explanation of the mechanism here — that is the landing page's
+        job (section 02) and the replay's. This page's only job is the two
+        choices and, where it matters, the one fact that changes what a reader
+        should expect: how many runs are left today.
       */}
-      <ul className="submit-facts">
-        <li><b>Real</b> — 0.010 ETH bond, a live VRF draw, adjudication in an enclave, settled on Sepolia.</li>
-        <li><b>4–6 minutes</b> — mostly waiting: a minute for VRF, ninety seconds of challenge window.</li>
-        <li><b>You watch, it runs</b> — below is <a href="/replay">the replay</a> view, filling in as the transactions land.</li>
-        {today.limit > 0 && (
-          <li>
-            {today.remaining > 0 ? (
-              <>
-                <b>No password</b> — anyone can run it. Capped at {today.limit} a day because each run
-                pays for a model call and real gas. <b>{today.remaining} left today</b>, resetting 00:00 UTC.
-              </>
-            ) : (
-              <>
-                <b>Spent for today</b> — all {today.limit} runs used. Resets 00:00 UTC. Everything
-                already settled is still replayable.
-              </>
-            )}
-          </li>
-        )}
-      </ul>
+      {today.limit > 0 && (
+        <p className="submit-budget">
+          {today.remaining > 0
+            ? <>Capped at {today.limit} claims a day &mdash; each pays for a model call and real gas.{" "}
+                <b>{today.remaining} left today</b>, resetting 00:00 UTC.</>
+            : <>Today&rsquo;s {today.limit} claims are spent. Resets 00:00 UTC &mdash; everything
+                already settled is still <a href="/replay">replayable</a>.</>}
+        </p>
+      )}
 
       {!capability.ok && (
         <p className="submit-unavailable-note">
