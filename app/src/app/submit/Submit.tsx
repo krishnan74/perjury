@@ -343,7 +343,7 @@ export default function Submit({
                 aria-label="The Graph"
                 title="The Graph"
               >
-                <PartnerMark id="graph" size={15} />
+                <PartnerMark id="graph" size={17} />
               </a>
             </h2>
             {/*
@@ -389,7 +389,7 @@ export default function Submit({
                 aria-label="ENS"
                 title="ENS"
               >
-                <PartnerMark id="ens" size={15} />
+                <PartnerMark id="ens" size={17} />
               </a>
             </h2>
             <p className="pick-help">

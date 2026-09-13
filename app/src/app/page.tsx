@@ -192,18 +192,15 @@ export default async function Home() {
               <h3>Only the enclave can read the evidence.</h3>
               <p>
                 Both submissions are encrypted to a key Chainlink&rsquo;s Vault DON releases into an
-                attested TEE and nowhere else. Inside, the tribunal recomputes each side from raw
+                attested TEE and nowhere else. Inside, the tribunal recomputes each side from the raw
                 evidence rather than trusting what either agent claimed, and checks the sentence it is
                 judging against the hash the claimant bonded. Out comes{" "}
                 <span className="ok">Match</span>, <span className="bad">Mismatch</span> or{" "}
                 <span className="warn">Unverifiable</span>, plus a commitment hash that proves later
-                which bytes were judged. <b>Nothing else ever leaves.</b>
-              </p>
-              <p style={{ marginTop: "0.9rem" }}>
-                This is deployed, not described. The workflow runs on the Chainlink DON inside an AWS
-                Nitro enclave and writes the verdict on chain from there &mdash;{" "}
+                which bytes were judged. <b>Nothing else ever leaves.</b> Deployed, not described: it
+                runs on the Chainlink DON in an AWS Nitro enclave and{" "}
                 <a href="https://sepolia.etherscan.io/tx/0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5">
-                  a verdict it settled
+                  settles from there
                 </a>.
               </p>
               <div className="foot">powered by &mdash; <b>Chainlink CRE · TEE handler + Vault DON</b></div>
@@ -212,16 +209,33 @@ export default async function Home() {
               <div className="cell-head"><span className="num">05</span><span className="tag">Consequence</span></div>
               <h3>The loss follows the agent&rsquo;s name, not its wallet.</h3>
               <p>
-                Each agent owns a real subname of <span className="mono">perjury.eth</span>, issued
-                from a subname registry, and its standing is a text record on that name. Enhanced
-                Access Control scopes the write per record key, so the tribunal holds it on two keys
-                and on nothing else &mdash; and the operator that deployed every contract and owns the
-                parent name is <b>refused</b> when it tries. Resolve any agent through the Universal
-                Resolver and the standing comes back, because the reputation lives outside this
-                protocol rather than inside it. A caught agent is dropped from the roster in the block
-                after settlement, with nobody deciding it.
+                Each agent owns a real subname of <span className="mono">perjury.eth</span> and its
+                standing is a text record on that name. Enhanced Access Control scopes the write per
+                record key: the tribunal holds it on two keys and nothing else, and the operator that
+                deployed every contract and owns the parent name is <b>refused</b>. Resolve any agent
+                through the Universal Resolver and the standing comes back &mdash; the reputation
+                lives outside this protocol, not inside it. A caught agent leaves the roster in the
+                block after settlement, with nobody deciding it.
               </p>
               <div className="foot">powered by &mdash; <b>ENSv2 &middot; subname registry + per-key Enhanced Access Control</b></div>
+            </div>
+            {/*
+              Sixth cell, and the grid already had room for it: three columns
+              with a 2+1, 1+2, 2+? layout leaves exactly one slot open. The
+              appeal belongs on the page because a protocol that punishes on one
+              agent's word should say what happens when the loser disputes it —
+              but it is the exception, so it gets one cell rather than the
+              billing the mandatory steps get.
+            */}
+            <div className="cell cell-optional">
+              <div className="cell-head"><span className="num">06</span><span className="tag">If it disputes</span></div>
+              <h3>A panel of three, drawn the same way.</h3>
+              <p>
+                Optional, and rare. A losing claimant can post a larger appeal bond inside a
+                ninety-second window; VRF then seats three agents, none of them a party, and each
+                re-derives the answer alone. Uphold and the appellant loses that bond too.
+              </p>
+              <div className="foot">powered by &mdash; <b>Chainlink VRF v2.5</b></div>
             </div>
           </div>
         </Reveal>
@@ -231,7 +245,7 @@ export default async function Home() {
           Who does what, rather than a wall of logos. Each row says where that
           protocol actually does its work in this system, because "powered by"
           under a feature card tells a reader nothing they can check. */}
-      <section className="wrap section">
+      <section className="wrap wide section">
         <span className="chapter-num" aria-hidden="true">03</span>
         <Reveal>
           <p className="eyebrow">Built on</p>

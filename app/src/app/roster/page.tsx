@@ -180,7 +180,7 @@ export default async function Roster() {
   const departed = fleet.agents.filter((a) => !a.active).length;
 
   return (
-    <main className="wrap section">
+    <main className="wrap wide section">
       <p className="eyebrow">Roster</p>
       <h1 className="h2" style={{ maxWidth: "18ch" }}>Who is allowed to judge.</h1>
       <p className="lede" style={{ marginTop: "1.2rem", marginBottom: "2rem" }}>
@@ -235,59 +235,72 @@ export default async function Roster() {
         </div>
       )}
 
-      <p className="note" style={{ marginTop: "1.8rem" }}>
-        Only the tribunal contract can write these scores. The operator wallet that deployed every
-        contract and owns <span className="mono">perjury.eth</span> is refused by ENS access control
-        when it tries. There is no owner, pause or upgrade path anywhere in the protocol to route
-        around that.
-      </p>
-
-      <p className="note">
-        Standing does not itself decide eligibility. <span className="mono">isEligible</span> tests
-        the cooldown flag, the stake floor, and whether the ENS record can be read at all — an
-        unreadable record is ineligible, which is why a read failure cannot quietly become a pass.
-        Standing is the permanent public history beside it.
-      </p>
-
       {/*
-        Said plainly rather than left for a reader to work out from a standing of
-        -6 sitting beside an empty row of strike marks.
+        Footnotes, laid out as footnotes.
+        Six stacked mono paragraphs at a 62ch measure ran taller than the table
+        they were annotating, which inverted the page: the reader scrolled past
+        more explanation than data. Same facts, said once each, in columns.
       */}
-      <p className="note">
-        Standing is the lifetime record, read from ENS — it survived three
-        redeployments of the contracts. <b>Strikes and last action are not</b>: they are counted from
-        events{fleet.fromBlock ? ` since block ${Number(fleet.fromBlock).toLocaleString("en")}` : ""},
-        so an agent can carry a low standing and show no strikes because the writes that earned it
-        are older than the window.
-      </p>
+      <div className="roster-notes">
+        <div>
+          <h3>Who can write a score</h3>
+          <p>
+            Only the tribunal contract. The operator wallet that deployed everything and owns{" "}
+            <span className="mono">perjury.eth</span> is refused by ENS access control when it tries,
+            and there is no owner, pause or upgrade path to route around that.
+          </p>
+        </div>
 
-      {departed > 0 && (
-        <p className="note">
-          {departed === 1 ? "One row is" : `${departed} rows are`} an agent that withdrew its stake and
-          deregistered. <span className="mono">agentList</span> is append-only, so a departed agent
-          keeps its row here forever — it cannot be drawn, and it is shown rather than filtered out
-          because a registry that quietly drops entries is not a registry. The rows named{" "}
-          <span className="mono">prover-*</span> are the control registration from{" "}
-          <span className="mono">scripts/prove-name-binding.ts</span>, which proves on the live roster
-          that a name you were issued registers and a name you were not is refused. It withdraws
-          afterwards, which is why they are here and inert.
-        </p>
-      )}
+        <div>
+          <h3>What decides eligibility</h3>
+          <p>
+            Not the standing value. <span className="mono">isEligible</span> tests the cooldown flag,
+            the stake floor, and whether the ENS record reads at all — an unreadable record is
+            ineligible, so a read failure cannot quietly become a pass.
+          </p>
+        </div>
 
-      <p className="note">
-        Every name on this page is read twice. Once through the protocol's own reader contract, which
-        is what actually decides eligibility, and once through the ENS Universal Resolver by ENSIP-10,
-        which is what a wallet or a block explorer would do. The second read is the one that matters
-        for trusting the first: our reader has the resolver address compiled into it, so it would keep
-        answering for a name that had quietly stopped existing in ENS — which is exactly what happened
-        here before <span className="mono">perjury.eth</span> had a subname registry. Both numbers are
-        shown, and a disagreement is printed rather than resolved in our favour.
-      </p>
+        <div>
+          <h3>Why standing and strikes disagree</h3>
+          <p>
+            Standing is the lifetime record and survived three redeployments. Strikes and last action
+            are counted from events
+            {fleet.fromBlock ? ` since block ${Number(fleet.fromBlock).toLocaleString("en")}` : ""}, so
+            an agent can carry a low standing with no strikes shown.
+          </p>
+        </div>
 
-      <p className="note">
-        Total stake at risk across the fleet:{" "}
-        <b>{eth(fleet.agents.reduce((sum, a) => sum + a.stake, 0n))} ETH</b>.
-      </p>
+        <div>
+          <h3>Read twice, on purpose</h3>
+          <p>
+            Once through the protocol&rsquo;s reader, which decides eligibility, and once through the
+            ENS Universal Resolver, which is what anyone else would use. Our reader has the resolver
+            compiled into it, so it would keep answering for a name that had stopped existing in ENS —
+            which is what happened here before <span className="mono">perjury.eth</span> had a subname
+            registry. A disagreement is printed, not resolved in our favour.
+          </p>
+        </div>
+
+        {departed > 0 && (
+          <div>
+            <h3>{departed === 1 ? "One inert row" : `${departed} inert rows`}</h3>
+            <p>
+              An agent that withdrew and deregistered. <span className="mono">agentList</span> is
+              append-only, so its row stays and cannot be drawn. The{" "}
+              <span className="mono">prover-*</span> rows are the control registration from the
+              name-binding proof, which withdraws after it runs.
+            </p>
+          </div>
+        )}
+
+        <div>
+          <h3>Stake at risk</h3>
+          <p className="roster-notes-figure">
+            <b>{eth(fleet.agents.reduce((sum, a) => sum + a.stake, 0n))} ETH</b> across the fleet.
+          </p>
+        </div>
+      </div>
+
     </main>
   );
 }

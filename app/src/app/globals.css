@@ -2523,7 +2523,7 @@ body::after {
 
 .pick-help {
   margin: 0;
-  max-width: 74ch;
+  max-width: 96ch;
   font-size: 0.82rem;
   line-height: 1.65;
   color: var(--ink-2);
@@ -2590,3 +2590,70 @@ body::after {
 .pick-agent-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.62rem; color: var(--muted); }
 .pick-agent-meta b[data-down="true"] { color: var(--mismatch); }
 .pick-resolves { opacity: 0.8; }
+
+/* ── Roster footnotes ──────────────────────────────────────────────────────
+   Six stacked mono paragraphs at a 62ch measure ran taller than the table they
+   annotate, which inverts the page — the reader scrolls past more explanation
+   than data. In columns, each is a footnote you can skip rather than a wall you
+   have to. */
+.roster-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 1.6rem 2.4rem;
+  margin-top: 2.4rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--rule);
+}
+.roster-notes h3 {
+  margin: 0 0 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.roster-notes p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.roster-notes-figure { font-size: 0.9rem !important; color: var(--ink-2) !important; }
+
+/* ── Wider prose where the page is wide ────────────────────────────────────
+   `.lede` and `.note` are capped at a 62ch reading measure, which is right for
+   the landing page and wrong on the three-column pages: it pushed the replay's
+   timeline most of a screen down and made the submit brief a narrow ribbon
+   above the thing people came to use. */
+.wrap.wide .lede { max-width: min(92ch, 100%); }
+.wrap.wide .note { max-width: 92ch; }
+.wrap.wide .demo-note { max-width: 92ch; }
+
+/* Three facts about pressing the button, on one line each. The bordered
+   two-paragraph version pushed the picker below the fold, so a reader met four
+   hundred words before the thing they came to use. */
+.submit-facts {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 0.35rem;
+  max-width: 96ch;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.submit-facts b { color: var(--ink); }
+
+/* The appeal is a branch, not a step. Set back so the eye reads five stages and
+   one exception rather than six equal stages. */
+.cell-optional { background: var(--paper-2); }
+.cell-optional h3 { opacity: 0.92; }
+
+/* The partners' prose was capped at 60ch inside a 1460px section, so the widest
+   block on the page read as a narrow ribbon with a field of empty paper beside
+   it. */
+.wrap.wide .partner-blurb { max-width: 88ch; }
+.wrap.wide .partner { grid-template-columns: 3.4rem minmax(0, 17rem) minmax(0, 1fr); }
