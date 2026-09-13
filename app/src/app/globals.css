@@ -2169,7 +2169,10 @@ body::after {
 /* Slightly wider than a body-text measure — this is the densest technical
    paragraph on the page and a 60ch wrap was cutting it short of the column
    width the section actually has to give it. */
-.partner-blurb { font-size: 0.9rem; line-height: 1.65; color: var(--ink-2); max-width: 68ch; }
+/* No ch cap: this column is already bounded by the 1180px section, and a
+   68ch cap left a third of the column empty for no readability gain. Let
+   it fill the grid cell. */
+.partner-blurb { font-size: 0.9rem; line-height: 1.65; color: var(--ink-2); }
 
 @media (max-width: 780px) {
   .partner {
@@ -2655,3 +2658,34 @@ body::after {
    one exception rather than six equal stages. */
 .cell-optional { background: var(--paper-2); }
 .cell-optional h3 { opacity: 0.92; }
+
+/* ── Back to top ───────────────────────────────────────────────────────────
+   The step pad only goes forward through the beats. On a long claim there is
+   no way back past beat zero to the disclaimer or the sealed-evidence note
+   above the timeline, which is exactly what a viewer wants to re-read after
+   the verdict lands. Bottom-left, opposite the step pad, so the two never
+   compete for the same corner of the eye. */
+.back-to-top {
+  position: fixed;
+  left: clamp(0.8rem, 2vw, 1.6rem);
+  bottom: clamp(0.8rem, 2vw, 1.6rem);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 14px rgb(16 15 11 / 0.07);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s var(--quart), color 0.2s var(--quart);
+}
+.back-to-top:hover { background: var(--accent); color: #fff; }
+.back-to-top:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) { .back-to-top { transition: none; } }

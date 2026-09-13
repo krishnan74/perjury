@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ReplayScript } from "@/lib/replay";
+import BackToTop from "../BackToTop";
 import Lanes from "./Lanes";
 import Standing from "./Standing";
 
@@ -226,6 +227,8 @@ export default function Replay({ script }: { script: ReplayScript }) {
         a minute for VRF to fulfil, and ninety seconds of challenge window during which the verdict
         could still be appealed. Playback speed compresses the waiting; the elapsed counter does not.
       </p>
+
+      <BackToTop />
     </>
   );
 }

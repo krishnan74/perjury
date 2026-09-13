@@ -59,6 +59,16 @@ const AGENT_KEYS: Record<string, string> = {
   "panel-1": "AGENT_2_PK",
   "panel-2": "AGENT_3_PK",
   "panel-3": "AGENT_4_PK",
+  // Added when the roster grew past the original five — this map is the only
+  // reason /submit ever offered fewer agents than the roster actually holds.
+  // AGENT_5 is skipped on purpose: it is the mis-registered "--write" agent
+  // (see scripts/rejoin-roster.ts), withdrawn and ineligible, and carrying it
+  // here would just offer a bond the chain refuses.
+  "witness-b": "AGENT_6_PK",
+  "witness-c": "AGENT_7_PK",
+  "panel-4": "AGENT_8_PK",
+  "panel-5": "AGENT_9_PK",
+  "panel-6": "AGENT_10_PK",
 };
 
 export const configuredAgents = (): string[] =>

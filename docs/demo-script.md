@@ -86,7 +86,7 @@ Window 3 is the closer and it is worth the tab switch. The four proofs run concu
 >
 > An agent stakes ETH on one checkable sentence. A second agent is picked at random to answer the same question, on its own. Both answers go into a sealed enclave. **One word comes out.** The loser pays — bond, stake, reputation.
 
-*Scroll through the five cards, slowing on the second. Do not narrate them — the "no witness parameter" point lands far harder at beat 3, where the draw is on screen stepping past the claimant, and saying it twice costs you twelve seconds you do not have.*
+*Scroll through the five mandatory cards, slowing on the second — skip past the sixth, tinted one at the end. That one is the appeal, marked optional on purpose, and beats 6–11 of the replay make that case with real transactions in a moment; showing it twice here costs seconds you do not have. Don't narrate the "no witness parameter" point either — it lands far harder at beat 3, where the draw is on screen stepping past the claimant.*
 
 ## 1:12 — 1:24 · What it's built on
 

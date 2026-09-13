@@ -87,6 +87,23 @@ export function cancelSmoothScroll() {
   window.__perjuryLenis?.scrollTo(window.scrollY, { immediate: true, force: true });
 }
 
+/** Scroll to the top of the page, through Lenis when it is running. */
+export function scrollToTopSmooth() {
+  if (typeof window === "undefined") return;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    window.scrollTo({ top: 0, behavior: "auto" });
+    return;
+  }
+
+  const lenis = window.__perjuryLenis;
+  if (lenis) {
+    lenis.scrollTo(0, { duration: 1.1, force: true });
+    return;
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 export function SmoothScroll() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;

@@ -346,11 +346,18 @@ export default function Submit({
                 <PartnerMark id="graph" size={17} />
               </a>
             </h2>
-            {/* One line: a subject is a pinned subgraph deployment, not a slug — see the
-                landing page for why that matters. */}
+            {/*
+              Every card below is a subgraph, not a slug — this is the one place on the
+              site where The Graph's actual inventory is on screen rather than described.
+            */}
             <p className="pick-help">
-              A Graph deployment pinned by content hash. Where a second independent index exists,
-              both must agree or the claim returns <span className="warn">Unverifiable</span>.
+              Every card is one subgraph deployment served by the live Graph Gateway, addressed
+              by the content hash of its mapping code shown at the bottom &mdash; not a name, which
+              can be redeployed to point at different code. The schema line is which of the two
+              Messari standardized schemas it exposes (lending or DEX), which is why one query
+              pattern can read all thirteen. Where a protocol has a second, independently indexed
+              deployment, both agents read it and it must agree with the first within tolerance or
+              the claim returns <span className="warn">Unverifiable</span> rather than a guess.
             </p>
           </div>
         </div>
