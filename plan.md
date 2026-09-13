@@ -12,7 +12,7 @@
 
 ## Status at a glance
 
-*Updated Sep 12.* **The tribunal now adjudicates inside an enclave on the Chainlink DON and writes the verdict on chain from there.** The site is deployed and can post a claim live. What remains is the video and the submission form.
+*Updated Sep 13, at submission.* **Submitted.** The tribunal adjudicates inside an enclave on the Chainlink DON and writes the verdict on chain from there. The site is deployed and posts real claims live. The demo video is recorded and the ETHGlobal submission form is filed.
 
 | Task | State |
 |---|---|
@@ -24,7 +24,7 @@
 | T5 Graph | ● live Gateway + guard + MCP + LLM agents. 13 deployments, 2 schema families, 5 chains on one standardized query pattern; corroborated reads across independent deployments; claim and verification pinned to one block. 89 TS tests |
 | T6 Dashboard | ● deployed at https://perjury.vercel.app. Reads three cascades, and `/submit` posts a real claim step by step from the browser |
 | T7 Scenes | ● all three run on Sepolia: 3m46s, 6m46s, 4m53s |
-| T8 Submit | ◐ evidence, docs and submission-form copy ready; **video not recorded** |
+| T8 Submit | ● **submitted.** Video recorded, submission form filed, docs current as of submission |
 
 ### Live on-chain
 

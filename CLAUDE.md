@@ -2,7 +2,7 @@
 
 Verification protocol for AI agent claims. Bonded claim → randomly assigned peer witness → private TEE adjudication → ENS reputation that only the tribunal can write.
 
-**Deadline: Sun Sep 13 2026, 12:00 EDT.** Read [`plan.md`](plan.md) first — it opens with a status table, what is live on-chain, and what is blocked.
+**Submitted Sun Sep 13 2026, ahead of the 12:00 EDT deadline.** Read [`plan.md`](plan.md) first — it opens with a status table, what is live on-chain, and what is blocked. **No further commits or pushes past the submitted state** — the repo is frozen at the commit named in the submission form; local doc edits after this point are for the team's own reference only.
 
 ## Working agreements
 
@@ -162,16 +162,17 @@ Submitting a claim needs five credentials beyond the read-only set: an agent key
 
 UI notes worth not relearning: reveal animations are gated on `@media (scripting: enabled)`, never a JS-injected class on `<html>` — that caused a hydration mismatch. `.wrap` uses `padding-block` so `.section` cannot reset the horizontal gutter. Chrome headless enforces a ~500px minimum layout viewport, so "390px" screenshots are lying to you.
 
-## Remaining
+## Status — submitted
 
-1. **Demo video** — **2:00–4:00** (there is a minimum), human voice, ≥720p, no TTS, no speed-up, no phone, intro under 20s. Editing out the VRF waits is expected; speeding footage up is prohibited. Nothing on-chain is blocking it. Before the take: run `scripts/verify-pinned.ts` and top up the wallets. **Use `/replay?d=sim&claim=25`** — claim 25 is on the Sep 8 cascade and the plain URL reads the live one.
-2. **Submission form** — copy drafted in `docs/ethglobal-submission.md` (gitignored). Three partner slots: Chainlink, ENS, The Graph.
-3. **Human-written limitations section** — the last unmet reserved component in `docs/ai-usage.md` §0.6.
+**Submitted to ETHGlobal ETHOnline 2026, Sep 13 2026, ahead of the 12:00 EDT deadline.** The repo is frozen at the commit named in the submission form; nothing further is committed or pushed past that point, including doc edits made after submission for the team's own reference.
+
+1. ~~Demo video~~ — recorded. Human voice, real footage, no TTS, no speed-up.
+2. ~~Submission form~~ — filed. Copy drafted in `docs/ethglobal-submission.md` and `docs/submission-form.md` (both gitignored). Chainlink, ENS, The Graph (both of its two tracks).
+3. **Human-written limitations section** — the one item in `docs/ai-usage.md` §0.6 left unmet at submission. Reserved for the human's own words on purpose; not something to backfill after the fact.
 4. ~~Deploy the site~~ — done, https://perjury.vercel.app.
-5. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Not yet posted.
+5. **ENS follow-up** — `revokeSetterRoles` has no working inverse once the admin role is given up. Drafted, not posted as of submission.
 6. ~~Open gap: gateway storage not encrypted at rest.~~ **Closed Sep 10** — bundles are sealed to the tribunal's key before publishing, the Vault DON releases the private half into the enclave alone, and the envelope is bound to its claim id. `npx tsx scripts/prove-sealed.ts`. [ADR 0010](docs/decisions.md).
-
-7. **Chainlink follow-up** — drafted in `docs/chainlink-reply.md` (gitignored), not yet posted. Reports the ERC-165 root cause as ours and suggests the mock Forwarder make the same check.
+7. **Chainlink follow-up** — the ERC-165 root cause, now also written up in `docs/feedback/chainlink.md` item 1. Drafted as a Discord reply in `docs/chainlink-reply.md` (gitignored), not posted as of submission.
 
 **Enclave execution works.** Deploy access arrived Sep 11, and since Sep 12 the deployed workflow adjudicates inside an AWS Nitro enclave on the DON and writes the verdict on chain through the production Forwarder. Claim 1 on the live registry settled that way: `0xf8dd4d0219ccfd9a723409fbd8d19c88a87c91547c123805e6ff16f3d1c657c5`.
 
